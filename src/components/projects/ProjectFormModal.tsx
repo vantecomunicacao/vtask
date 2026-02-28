@@ -49,8 +49,7 @@ export function ProjectFormModal({ isOpen, onClose }: ProjectFormModalProps) {
                 workspace_id: activeWorkspace.id,
                 name: data.name,
                 description: data.description,
-                color: data.color || '#808080',
-                status: 'active'
+                color: data.color || '#808080'
             });
 
             if (error) throw error;
