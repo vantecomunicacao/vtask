@@ -92,6 +92,18 @@ CREATE TABLE comments (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 
+-- attachments
+CREATE TABLE task_attachments (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  file_name TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  file_size BIGINT NOT NULL,
+  file_type TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
 -- RLS Policies
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workspaces ENABLE ROW LEVEL SECURITY;
@@ -101,6 +113,7 @@ ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE custom_statuses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE task_attachments ENABLE ROW LEVEL SECURITY;
 
 -- Note: We will need specific policies based on Workspace ID for tenant isolation.
 -- To simplify for this initial script, we allow everything for authenticated users.
@@ -114,6 +127,7 @@ CREATE POLICY "Allow all for authenticated users" ON projects FOR ALL USING (aut
 CREATE POLICY "Allow all for authenticated users" ON custom_statuses FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Allow all for authenticated users" ON tasks FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Allow all for authenticated users" ON comments FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow all for authenticated users" ON task_attachments FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -152,3 +166,22 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Storage Buckets Configuration
+-- Note: You may need to run this as a superuser or via the Supabase Dashboard if you lack permissions.
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('task_attachments', 'task_attachments', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage Policies
+CREATE POLICY "Allow authenticated uploads" ON storage.objects
+FOR INSERT TO authenticated WITH CHECK (bucket_id = 'task_attachments');
+
+CREATE POLICY "Allow authenticated updates" ON storage.objects
+FOR UPDATE TO authenticated USING (bucket_id = 'task_attachments');
+
+CREATE POLICY "Allow authenticated deletes" ON storage.objects
+FOR DELETE TO authenticated USING (bucket_id = 'task_attachments');
+
+CREATE POLICY "Allow public reads" ON storage.objects
+FOR SELECT TO public USING (bucket_id = 'task_attachments');
