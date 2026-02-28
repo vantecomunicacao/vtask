@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(supabase --version)",
+      "Bash(curl -s -X POST \"https://koaxkjsmkjwzsodnzowf.supabase.co/auth/v1/signup\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYXhranNta2p3enNvZG56b3dmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2NzIwNTgsImV4cCI6MjA4MDI0ODA1OH0.ugj0HWPTIf3VL9KszDuIDbxzQfltnRcchjR8RS3Uja0\" -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"mktvantecomunicacao@gmail.com\"\",\"\"password\"\":\"\"123456\"\"}')",
+      "Bash(curl -s -X PUT \"https://koaxkjsmkjwzsodnzowf.supabase.co/auth/v1/admin/users/50aff9c6-e4ac-4c65-b714-759762f97b96\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYXhranNta2p3enNvZG56b3dmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDY3MjA1OCwiZXhwIjoyMDgwMjQ4MDU4fQ.IcJHl7RKRv0nIyJyuB-vMzhxhP4945IecNia90GjOEg\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYXhranNta2p3enNvZG56b3dmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDY3MjA1OCwiZXhwIjoyMDgwMjQ4MDU4fQ.IcJHl7RKRv0nIyJyuB-vMzhxhP4945IecNia90GjOEg\" -H \"Content-Type: application/json\" -d '{\"\"email_confirm\"\": true}')",
+      "Bash(npx tsc --noEmit)",
+      "Bash(curl -s -X POST \"https://koaxkjsmkjwzsodnzowf.supabase.co/rest/v1/rpc/exec\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYXhranNta2p3enNvZG56b3dmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDY3MjA1OCwiZXhwIjoyMDgwMjQ4MDU4fQ.IcJHl7RKRv0nIyJyuB-vMzhxhP4945IecNia90GjOEg\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYXhranNta2p3enNvZG56b3dmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDY3MjA1OCwiZXhwIjoyMDgwMjQ4MDU4fQ.IcJHl7RKRv0nIyJyuB-vMzhxhP4945IecNia90GjOEg\" -H \"Content-Type: application/json\" -d '{\"\"query\"\": \"\"SELECT 1\"\"}')"
+    ]
+  }
+}
