@@ -59,6 +59,7 @@ export function ProjectFormModal({ isOpen, onClose }: ProjectFormModalProps) {
             reset();
             onClose();
         } catch (error: any) {
+            console.error('Erro detalhado ao criar projeto:', error);
             toast.error(error.message || 'Erro ao criar projeto');
         } finally {
             setLoading(false);

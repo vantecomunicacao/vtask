@@ -106,14 +106,14 @@ ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 -- To simplify for this initial script, we allow everything for authenticated users.
 -- In production, policies should check if user is in workspace_members.
 
-CREATE POLICY "Allow all for authenticated users" ON profiles FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow all for authenticated users" ON workspaces FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow all for authenticated users" ON workspace_members FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow all for authenticated users" ON clients FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow all for authenticated users" ON projects FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow all for authenticated users" ON custom_statuses FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow all for authenticated users" ON tasks FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow all for authenticated users" ON comments FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow all for authenticated users" ON profiles FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow all for authenticated users" ON workspaces FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow all for authenticated users" ON workspace_members FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow all for authenticated users" ON clients FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow all for authenticated users" ON projects FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow all for authenticated users" ON custom_statuses FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow all for authenticated users" ON tasks FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow all for authenticated users" ON comments FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
