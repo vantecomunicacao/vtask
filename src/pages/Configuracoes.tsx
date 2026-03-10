@@ -1,35 +1,60 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { Building2, Users2, Palette } from 'lucide-react';
+import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useTaskStore } from '../store/taskStore';
 import { toast } from 'sonner';
+import type { Database } from '../lib/database.types';
+
+type Profile = Database['public']['Tables']['profiles']['Row'];
+type WorkspaceMemberRole = Database['public']['Tables']['workspace_members']['Row']['role'];
+
+interface WorkspaceMember {
+    role: WorkspaceMemberRole;
+    profiles: Pick<Profile, 'id' | 'full_name' | 'email'>[] | null;
+}
 
 export default function Configuracoes() {
     const { activeWorkspace, fetchWorkspaces } = useWorkspaceStore();
+    const { statuses, fetchStatuses, addStatus, updateStatus, deleteStatus, updateStatusPositions } = useTaskStore();
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
-    const [members, setMembers] = useState<any[]>([]);
+    const [members, setMembers] = useState<WorkspaceMember[]>([]);
     const [inviteEmail, setInviteEmail] = useState('');
+    const [activeTab, setActiveTab] = useState<'geral' | 'equipe' | 'fluxo' | 'categorias'>('geral');
 
-    useEffect(() => {
-        if (activeWorkspace) {
-            setName(activeWorkspace.name);
-            loadMembers();
-        }
-    }, [activeWorkspace]);
+    // Status management state
+    const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+    const [statusName, setStatusName] = useState('');
+    const [statusColor, setStatusColor] = useState('#808080');
 
-    const loadMembers = async () => {
+    // Category management state
+    const { taskCategories, fetchCategories, addCategory, updateCategory, deleteCategory } = useTaskStore();
+    const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+    const [categoryName, setCategoryName] = useState('');
+    const [categoryColor, setCategoryColor] = useState('#3b82f6');
+
+    const loadMembers = useCallback(async () => {
         if (!activeWorkspace) return;
         const { data } = await supabase
             .from('workspace_members')
             .select('role, profiles(id, full_name, email)')
             .eq('workspace_id', activeWorkspace.id);
 
-        if (data) setMembers(data);
-    };
+        if (data) setMembers(data as WorkspaceMember[]);
+    }, [activeWorkspace]);
+
+    useEffect(() => {
+        if (activeWorkspace) {
+            setName(activeWorkspace.name);
+            loadMembers();
+            fetchStatuses(activeWorkspace.id);
+            fetchCategories(activeWorkspace.id);
+        }
+    }, [activeWorkspace, loadMembers, fetchStatuses, fetchCategories]);
 
     const handleSaveWorkspace = async () => {
         if (!activeWorkspace || !name.trim()) return;
@@ -43,8 +68,9 @@ export default function Configuracoes() {
             if (error) throw error;
             toast.success('Workspace atualizado com sucesso!');
             await fetchWorkspaces();
-        } catch (error: any) {
-            toast.error(error.message || 'Erro ao atualizar workspace');
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : 'Erro ao atualizar workspace';
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -54,6 +80,129 @@ export default function Configuracoes() {
         e.preventDefault();
         toast.info('Fluxo de convite será implementado no backend via Edge Function ou Server Action.');
         setInviteEmail('');
+    };
+
+    const handleAddStatus = async () => {
+        if (!activeWorkspace || !statusName.trim()) return;
+        setLoading(true);
+        try {
+            await addStatus(activeWorkspace.id, statusName.trim(), statusColor);
+            setStatusName('');
+            setStatusColor('#808080');
+            toast.success('Status adicionado com sucesso!');
+        } catch (error) {
+            toast.error('Erro ao adicionar status');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpdateStatus = async (id: string) => {
+        try {
+            await updateStatus(id, { name: statusName, color: statusColor });
+            setEditingStatusId(null);
+            setStatusName('');
+            toast.success('Status atualizado!');
+        } catch (error) {
+            toast.error('Erro ao atualizar status');
+        }
+    };
+
+    const startEditing = (status: any) => {
+        setEditingStatusId(status.id);
+        setStatusName(status.name);
+        setStatusColor(status.color || '#808080');
+    };
+
+    const handleDeleteStatus = async (id: string) => {
+        if (!window.confirm('Excluir este status? Tarefas neste status podem ficar sem categoria.')) return;
+        try {
+            await deleteStatus(id);
+            toast.success('Status removido');
+        } catch (error) {
+            toast.error('Erro ao remover status');
+        }
+    };
+
+    const moveStatus = async (id: string, direction: 'up' | 'down') => {
+        const currentIndex = statuses.findIndex(s => s.id === id);
+        if (currentIndex === -1) return;
+
+        const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (newIndex < 0 || newIndex >= statuses.length) return;
+
+        const newOrder = [...statuses.map(s => s.id)];
+        const [removed] = newOrder.splice(currentIndex, 1);
+        newOrder.splice(newIndex, 0, removed);
+
+        try {
+            await updateStatusPositions(newOrder);
+        } catch (error) {
+            toast.error('Erro ao reordenar status');
+        }
+    };
+
+    const handleAddCategory = async () => {
+        if (!activeWorkspace || !categoryName.trim()) return;
+        setLoading(true);
+        try {
+            await addCategory(activeWorkspace.id, categoryName.trim(), categoryColor);
+            setCategoryName('');
+            setCategoryColor('#3b82f6');
+            toast.success('Tipo de tarefa adicionado!');
+        } catch (error) {
+            toast.error('Erro ao adicionar tipo');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpdateCategory = async (id: string) => {
+        try {
+            await updateCategory(id, { name: categoryName, color: categoryColor });
+            setEditingCategoryId(null);
+            setCategoryName('');
+            toast.success('Tipo de tarefa atualizado!');
+        } catch (error) {
+            toast.error('Erro ao atualizar tipo');
+        }
+    };
+
+    const handleDeleteCategory = async (id: string) => {
+        if (!window.confirm('Excluir este tipo de tarefa?')) return;
+        try {
+            await deleteCategory(id);
+            toast.success('Tipo de tarefa removido');
+        } catch (error) {
+            toast.error('Erro ao remover tipo');
+        }
+    };
+
+    const startEditingCategory = (category: any) => {
+        setEditingCategoryId(category.id);
+        setCategoryName(category.name);
+        setCategoryColor(category.color || '#3b82f6');
+    };
+
+    const loadDefaultCategories = async () => {
+        if (!activeWorkspace) return;
+        const defaults = [
+            { name: 'Tarefa pontual', color: '#64748b' },
+            { name: 'Tráfego pago', color: '#10b981' },
+            { name: 'Design', color: '#8b5cf6' }
+        ];
+
+        setLoading(true);
+        try {
+            for (const item of defaults) {
+                await addCategory(activeWorkspace.id, item.name, item.color);
+            }
+            toast.success('Padrões carregados com sucesso!');
+        } catch (error) {
+            toast.error('Erro ao carregar padrões');
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (!activeWorkspace) return null;
@@ -69,14 +218,32 @@ export default function Configuracoes() {
 
                 {/* Lateral Menu do Settings */}
                 <div className="col-span-1 space-y-2">
-                    <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg bg-gray-100 text-brand">
+                    <button
+                        onClick={() => setActiveTab('geral')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'geral' ? 'bg-brand/10 text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                    >
                         <Building2 size={18} /> Geral
                     </button>
-                    <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 text-gray-700 transition-colors">
+                    <button
+                        onClick={() => setActiveTab('equipe')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'equipe' ? 'bg-brand/10 text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                    >
                         <Users2 size={18} /> Equipe
                     </button>
+                    <button
+                        onClick={() => setActiveTab('fluxo')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'fluxo' ? 'bg-brand/10 text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                    >
+                        <Layout size={18} /> Fluxo de Trabalho
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('categorias')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'categorias' ? 'bg-brand/10 text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                    >
+                        <Palette size={18} /> Tipos de Tarefa
+                    </button>
                     <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 text-gray-700 transition-colors">
-                        <Palette size={18} /> Aparência (Em breve)
+                        <Settings2 size={18} /> Aparência (Em breve)
                     </button>
                 </div>
 
@@ -84,71 +251,304 @@ export default function Configuracoes() {
                 <div className="col-span-1 md:col-span-2 space-y-6">
 
                     {/* Geral */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Detalhes da Empresa</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-1">
-                                <label className="block text-sm font-medium text-gray-700">Nome do Workspace</label>
-                                <Input
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    placeholder="Nome da sua agência"
-                                />
-                            </div>
-                            <Button onClick={handleSaveWorkspace} isLoading={loading}>
-                                Salvar Alterações
-                            </Button>
-                        </CardContent>
-                    </Card>
+                    {activeTab === 'geral' && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Detalhes da Empresa</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-1">
+                                    <label className="block text-sm font-medium text-gray-700">Nome do Workspace</label>
+                                    <Input
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        placeholder="Nome da sua agência"
+                                    />
+                                </div>
+                                <Button onClick={handleSaveWorkspace} isLoading={loading}>
+                                    Salvar Alterações
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Membros */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Membros da Equipe</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
+                    {activeTab === 'equipe' && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Membros da Equipe</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
 
-                            <form onSubmit={handleInvite} className="flex gap-3">
-                                <Input
-                                    placeholder="Endereço de e-mail"
-                                    className="flex-1"
-                                    type="email"
-                                    required
-                                    value={inviteEmail}
-                                    onChange={(e) => setInviteEmail(e.target.value)}
-                                />
-                                <Button type="submit" variant="ghost">Convidar</Button>
-                            </form>
+                                <form onSubmit={handleInvite} className="flex gap-3">
+                                    <Input
+                                        placeholder="Endereço de e-mail"
+                                        className="flex-1"
+                                        type="email"
+                                        required
+                                        value={inviteEmail}
+                                        onChange={(e) => setInviteEmail(e.target.value)}
+                                    />
+                                    <Button type="submit" variant="ghost">Convidar</Button>
+                                </form>
 
-                            <div className="space-y-3">
-                                {members.map((member, idx) => {
-                                    const profile = member.profiles;
-                                    if (!profile) return null;
-                                    return (
-                                        <div key={idx} className="flex items-center justify-between p-3 border border-border-subtle rounded-lg">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center text-brand font-bold uppercase">
-                                                    {profile.full_name?.substring(0, 2) || profile.email?.substring(0, 2)}
+                                <div className="space-y-3">
+                                    {members.map((member, idx) => {
+                                        const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
+                                        if (!profile) return null;
+                                        return (
+                                            <div key={idx} className="flex items-center justify-between p-3 border border-border-subtle rounded-lg">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center text-brand font-bold uppercase">
+                                                        {profile.full_name?.substring(0, 2) || profile.email?.substring(0, 2)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-gray-900">{profile.full_name || 'Usuário Pendente'}</p>
+                                                        <p className="text-xs text-gray-500">{profile.email}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-bold text-gray-900">{profile.full_name || 'Usuário Pendente'}</p>
-                                                    <p className="text-xs text-gray-500">{profile.email}</p>
+                                                <div className="flex gap-2 items-center">
+                                                    <span className="text-xs font-bold text-gray-500 uppercase bg-gray-100 px-2 py-1 rounded-md">
+                                                        {member.role}
+                                                    </span>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2 items-center">
-                                                <span className="text-xs font-bold text-gray-500 uppercase bg-gray-100 px-2 py-1 rounded-md">
-                                                    {member.role}
-                                                </span>
+                                        )
+                                    })}
+                                </div>
+
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Fluxo de Trabalho (Workflow / Status) */}
+                    {activeTab === 'fluxo' && (
+                        <div className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Layout size={20} className="text-brand" />
+                                        Configuração do Funil
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                                        <p className="text-xs text-blue-700 leading-relaxed">
+                                            <strong>Dica:</strong> Defina as etapas do seu processo (Ex: Briefing, Em Produção, Revisão).
+                                            As tarefas se movem da esquerda para a direita no Kanban seguindo esta ordem.
+                                        </p>
+                                    </div>
+
+                                    {/* Add New Status */}
+                                    {!editingStatusId && (
+                                        <div className="flex gap-3 items-end p-4 border border-dashed border-gray-200 rounded-xl">
+                                            <div className="flex-1 space-y-1">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Novo Status</label>
+                                                <Input
+                                                    placeholder="Ex: Aguardando Feedback"
+                                                    value={statusName}
+                                                    onChange={(e) => setStatusName(e.target.value)}
+                                                />
                                             </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Cor</label>
+                                                <input
+                                                    type="color"
+                                                    value={statusColor}
+                                                    onChange={(e) => setStatusColor(e.target.value)}
+                                                    className="block w-10 h-10 border-0 p-0.5 rounded cursor-pointer bg-transparent"
+                                                />
+                                            </div>
+                                            <Button onClick={handleAddStatus} isLoading={loading} className="gap-2">
+                                                <Plus size={16} /> Adicionar
+                                            </Button>
                                         </div>
-                                    )
-                                })}
-                            </div>
+                                    )}
 
-                        </CardContent>
-                    </Card>
+                                    {/* Status List */}
+                                    <div className="space-y-3">
+                                        {statuses.length === 0 ? (
+                                            <div className="p-10 text-center border border-dashed border-gray-200 rounded-lg">
+                                                <p className="text-sm text-gray-500 italic">Nenhum status configurado. O sistema usará o padrão (A Fazer para Entregue).</p>
+                                            </div>
+                                        ) : (
+                                            statuses.map((status, index) => (
+                                                <div
+                                                    key={status.id}
+                                                    className={`flex items-center justify-between p-4 border rounded-xl transition-all ${editingStatusId === status.id ? 'border-brand ring-2 ring-brand/10 bg-brand/5' : 'border-border-subtle bg-white hover:border-gray-300'}`}
+                                                >
+                                                    <div className="flex items-center gap-4 flex-1">
+                                                        <div className="flex flex-col gap-1">
+                                                            <button
+                                                                onClick={() => moveStatus(status.id, 'up')}
+                                                                disabled={index === 0}
+                                                                className="text-gray-400 hover:text-gray-900 disabled:opacity-20"
+                                                            >
+                                                                <GripVertical size={14} className="rotate-0" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => moveStatus(status.id, 'down')}
+                                                                disabled={index === statuses.length - 1}
+                                                                className="text-gray-400 hover:text-gray-900 disabled:opacity-20"
+                                                            >
+                                                                <GripVertical size={14} className="rotate-180" />
+                                                            </button>
+                                                        </div>
+
+                                                        {editingStatusId === status.id ? (
+                                                            <div className="flex items-center gap-3 flex-1">
+                                                                <Input
+                                                                    value={statusName}
+                                                                    onChange={(e) => setStatusName(e.target.value)}
+                                                                    autoFocus
+                                                                />
+                                                                <input
+                                                                    type="color"
+                                                                    value={statusColor}
+                                                                    onChange={(e) => setStatusColor(e.target.value)}
+                                                                    className="w-8 h-8 rounded border-0 cursor-pointer"
+                                                                />
+                                                                <Button size="sm" onClick={() => handleUpdateStatus(status.id)}>Salvar</Button>
+                                                                <Button size="sm" variant="ghost" onClick={() => setEditingStatusId(null)}>Cancelar</Button>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color || '#ccc' }} />
+                                                                <span className="font-bold text-gray-900 text-sm">{status.name}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+
+                                                    {!editingStatusId && (
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => startEditing(status)}
+                                                                className="p-2 text-gray-400 hover:text-brand hover:bg-brand-light rounded-lg transition-colors"
+                                                            >
+                                                                <Settings2 size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteStatus(status.id)}
+                                                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* Categorias / Tipos de Tarefa */}
+                    {activeTab === 'categorias' && (
+                        <div className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Palette size={20} className="text-brand" />
+                                            Tipos de Tarefa
+                                        </CardTitle>
+                                        {taskCategories.length === 0 && (
+                                            <Button variant="ghost" size="sm" onClick={loadDefaultCategories} disabled={loading}>
+                                                Carregar Padrões
+                                            </Button>
+                                        )}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="p-4 bg-purple-50 border border-purple-100 rounded-lg">
+                                        <p className="text-xs text-purple-700 leading-relaxed">
+                                            Classifique suas tarefas por especialidade ou tipo de entrega. Isso ajuda na organização e visualização do volume de trabalho por área.
+                                        </p>
+                                    </div>
+
+                                    {/* Add New Category */}
+                                    {!editingCategoryId && (
+                                        <div className="flex gap-3 items-end p-4 border border-dashed border-gray-200 rounded-xl">
+                                            <div className="flex-1 space-y-1">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Novo Tipo</label>
+                                                <Input
+                                                    placeholder="Ex: Tráfego Pago"
+                                                    value={categoryName}
+                                                    onChange={(e) => setCategoryName(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Cor</label>
+                                                <input
+                                                    type="color"
+                                                    value={categoryColor}
+                                                    onChange={(e) => setCategoryColor(e.target.value)}
+                                                    className="block w-10 h-10 border-0 p-0.5 rounded cursor-pointer bg-transparent"
+                                                />
+                                            </div>
+                                            <Button onClick={handleAddCategory} isLoading={loading} className="gap-2">
+                                                <Plus size={16} /> Adicionar
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    {/* Categories List */}
+                                    <div className="space-y-3">
+                                        {taskCategories.map((category) => (
+                                            <div
+                                                key={category.id}
+                                                className={`flex items-center justify-between p-4 border rounded-xl transition-all ${editingCategoryId === category.id ? 'border-brand ring-2 ring-brand/10 bg-brand/5' : 'border-border-subtle bg-white hover:border-gray-300'}`}
+                                            >
+                                                <div className="flex items-center gap-4 flex-1">
+                                                    {editingCategoryId === category.id ? (
+                                                        <div className="flex items-center gap-3 flex-1">
+                                                            <Input
+                                                                value={categoryName}
+                                                                onChange={(e) => setCategoryName(e.target.value)}
+                                                                autoFocus
+                                                            />
+                                                            <input
+                                                                type="color"
+                                                                value={categoryColor}
+                                                                onChange={(e) => setCategoryColor(e.target.value)}
+                                                                className="w-8 h-8 rounded border-0 cursor-pointer"
+                                                            />
+                                                            <Button size="sm" onClick={() => handleUpdateCategory(category.id)}>Salvar</Button>
+                                                            <Button size="sm" variant="ghost" onClick={() => setEditingCategoryId(null)}>Cancelar</Button>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color || '#ccc' }} />
+                                                            <span className="font-bold text-gray-900 text-sm">{category.name}</span>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {!editingCategoryId && (
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => startEditingCategory(category)}
+                                                            className="p-2 text-gray-400 hover:text-brand hover:bg-brand-light rounded-lg transition-colors"
+                                                        >
+                                                            <Settings2 size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteCategory(category.id)}
+                                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
 
                 </div>
             </div>

@@ -4,15 +4,18 @@ import { Button } from '../components/ui/Button';
 import { useProjectStore } from '../store/projectStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { Link } from 'react-router-dom';
-import { Folder, MoreHorizontal, Users, Calendar } from 'lucide-react';
+import { Folder, Users, Calendar, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ProjectFormModal } from '../components/projects/ProjectFormModal';
+import { toast } from 'sonner';
+import type { ProjectWithClient } from '../store/projectStore';
 
 export default function Projetos() {
     const { activeWorkspace } = useWorkspaceStore();
-    const { projects, loading, fetchProjects } = useProjectStore();
+    const { projects, loading, fetchProjects, deleteProject } = useProjectStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [projectToEdit, setProjectToEdit] = useState<ProjectWithClient | null>(null);
 
     useEffect(() => {
         if (activeWorkspace) {
@@ -20,11 +23,33 @@ export default function Projetos() {
         }
     }, [activeWorkspace, fetchProjects]);
 
+    const handleOpenCreate = () => {
+        setProjectToEdit(null);
+        setIsModalOpen(true);
+    };
+
+    const handleOpenEdit = (project: ProjectWithClient) => {
+        setProjectToEdit(project);
+        setIsModalOpen(true);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (window.confirm('Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.')) {
+            try {
+                await deleteProject(id);
+                toast.success('Projeto excluído com sucesso!');
+            } catch (err) {
+                console.error('Erro ao excluir projeto:', err);
+                toast.error('Erro ao excluir projeto.');
+            }
+        }
+    };
+
     return (
         <div className="space-y-6 fade-in h-full flex flex-col">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-900">Projetos</h1>
-                <Button size="sm" className="gap-2" onClick={() => setIsModalOpen(true)}>
+                <Button size="sm" className="gap-2" onClick={handleOpenCreate}>
                     <span className="text-lg leading-none">+</span> Novo Projeto
                 </Button>
             </div>
@@ -38,7 +63,7 @@ export default function Projetos() {
                     <Folder className="w-12 h-12 text-gray-300 mb-4" />
                     <h3 className="text-lg font-bold text-gray-900">Nenhum projeto encontrado</h3>
                     <p className="text-sm text-gray-500 mb-6">Crie seu primeiro projeto para começar a gerenciar tarefas.</p>
-                    <Button onClick={() => setIsModalOpen(true)}>Criar Projeto</Button>
+                    <Button onClick={handleOpenCreate}>Criar Projeto</Button>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -60,9 +85,22 @@ export default function Projetos() {
                                             <p className="text-xs text-gray-500 mt-1">{project.client?.name || 'Agência'}</p>
                                         </div>
                                     </div>
-                                    <button className="text-gray-400 hover:text-gray-900">
-                                        <MoreHorizontal size={20} />
-                                    </button>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={() => handleOpenEdit(project)}
+                                            className="p-1.5 text-gray-400 hover:text-brand hover:bg-brand-light rounded-md transition-colors"
+                                            title="Editar Projeto"
+                                        >
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(project.id)}
+                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                            title="Excluir Projeto"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                             </CardHeader>
                             <CardContent className="flex-1 flex flex-col justify-end">
@@ -86,7 +124,14 @@ export default function Projetos() {
                 </div>
             )}
 
-            <ProjectFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+            <ProjectFormModal
+                isOpen={isModalOpen}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setProjectToEdit(null);
+                }}
+                project={projectToEdit}
+            />
         </div>
     );
 }

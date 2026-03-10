@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder } from 'lucide-react';
+import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useEffect } from 'react';
@@ -58,7 +58,11 @@ export default function AppLayout() {
                         </NavLink>
                         <NavLink to="/tarefas" className={navLinkClass}>
                             <CheckCircle size={18} />
-                            Minhas Tarefas
+                            Tarefas
+                        </NavLink>
+                        <NavLink to="/documentos" className={navLinkClass}>
+                            <FileText size={18} />
+                            Documentos
                         </NavLink>
                         <NavLink to="/configuracoes" className={navLinkClass}>
                             <Settings size={18} />
@@ -71,6 +75,10 @@ export default function AppLayout() {
                         <NavLink to="/agenda" className={navLinkClass}>
                             <CalendarIcon size={18} />
                             Agenda
+                        </NavLink>
+                        <NavLink to="/gerador-email" className={navLinkClass}>
+                            <Mail size={18} />
+                            Gerador de E-mails
                         </NavLink>
                     </nav>
 

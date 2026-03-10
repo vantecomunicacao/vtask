@@ -7,6 +7,7 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { supabase } from '../../lib/supabase';
 import { useTaskStore } from '../../store/taskStore';
+import { useProjectStore } from '../../store/projectStore';
 import { toast } from 'sonner';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { Database } from '../../lib/database.types';
@@ -19,6 +20,10 @@ const taskSchema = z.object({
     priority: z.enum(['low', 'medium', 'high', 'urgent']),
     assignee_id: z.string().optional(),
     status_id: z.string().min(1, 'Status é obrigatório'),
+    project_id: z.string().min(1, 'Projeto é obrigatório'),
+    due_date: z.string().optional(),
+    recurrence: z.enum(['none', 'daily', 'weekly', 'monthly']).optional(),
+    category_id: z.string().optional(),
 });
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -26,12 +31,14 @@ type TaskFormData = z.infer<typeof taskSchema>;
 interface TaskFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    projectId: string;
+    projectId?: string;
+    onTaskCreated?: () => void;
 }
 
-export function TaskFormModal({ isOpen, onClose, projectId }: TaskFormModalProps) {
-    const { fetchTasks, statuses } = useTaskStore();
+export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: TaskFormModalProps) {
+    const { fetchTasks, statuses, taskCategories } = useTaskStore();
     const { activeWorkspace } = useWorkspaceStore();
+    const { projects } = useProjectStore();
     const [loading, setLoading] = useState(false);
     const [users, setUsers] = useState<Profile[]>([]);
 
@@ -39,13 +46,14 @@ export function TaskFormModal({ isOpen, onClose, projectId }: TaskFormModalProps
         resolver: zodResolver(taskSchema),
         defaultValues: {
             priority: 'medium',
-            status_id: statuses[0]?.id || ''
+            status_id: statuses[0]?.id || '',
+            project_id: projectId || '',
+            recurrence: 'none',
         }
     });
 
     useEffect(() => {
         if (isOpen && activeWorkspace) {
-            // Find users in this workspace
             supabase
                 .from('workspace_members')
                 .select('*, profiles(*)')
@@ -58,34 +66,45 @@ export function TaskFormModal({ isOpen, onClose, projectId }: TaskFormModalProps
         }
     }, [isOpen, activeWorkspace]);
 
-    // Set default status when modal opens
+    // Atualiza status e projeto padrão quando modal abre
     useEffect(() => {
-        if (isOpen && statuses.length > 0) {
-            setValue('status_id', statuses[0].id);
+        if (isOpen) {
+            if (statuses.length > 0) setValue('status_id', statuses[0].id);
+            if (projectId) setValue('project_id', projectId);
         }
-    }, [isOpen, statuses, setValue]);
+    }, [isOpen, statuses, projectId, setValue]);
 
     const onSubmit = async (data: TaskFormData) => {
         setLoading(true);
         try {
             const { error } = await supabase.from('tasks').insert({
-                project_id: projectId,
+                project_id: data.project_id,
                 title: data.title,
                 description: data.description,
                 priority: data.priority,
                 status_id: data.status_id,
                 assignee_id: data.assignee_id || null,
-                position: 0 // Simplification for new tasks
+                due_date: data.due_date || null,
+                recurrence: data.recurrence || 'none',
+                category_id: data.category_id || null,
+                position: 0
             });
 
             if (error) throw error;
 
             toast.success('Tarefa criada com sucesso!');
-            await fetchTasks(projectId);
+
+            // Só recarrega o kanban se veio de uma página de projeto
+            if (projectId) await fetchTasks(projectId);
+
+            // Callback para páginas que precisam recarregar (ex: Tarefas)
+            onTaskCreated?.();
+
             reset();
             onClose();
-        } catch (error: any) {
-            toast.error(error.message || 'Erro ao criar tarefa');
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : 'Erro ao criar tarefa';
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -112,6 +131,23 @@ export function TaskFormModal({ isOpen, onClose, projectId }: TaskFormModalProps
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
+                    {/* Seletor de projeto — só aparece quando não foi passado via prop */}
+                    {!projectId && (
+                        <div className="space-y-1 col-span-2">
+                            <label className="block text-xs font-bold text-gray-500 uppercase">Projeto</label>
+                            <select
+                                {...register('project_id')}
+                                className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-white"
+                            >
+                                <option value="" disabled>Selecione um projeto</option>
+                                {projects.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                            {errors.project_id && <span className="text-red-500 text-xs">{errors.project_id.message}</span>}
+                        </div>
+                    )}
+
                     <div className="space-y-1">
                         <label className="block text-xs font-bold text-gray-500 uppercase">Status</label>
                         <select
@@ -148,6 +184,41 @@ export function TaskFormModal({ isOpen, onClose, projectId }: TaskFormModalProps
                             <option value="">Não atribuído</option>
                             {users.map(u => (
                                 <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="block text-xs font-bold text-gray-500 uppercase">Data de Vencimento</label>
+                        <Input
+                            type="date"
+                            {...register('due_date')}
+                            error={errors.due_date?.message}
+                        />
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="block text-xs font-bold text-gray-500 uppercase">Recorrência</label>
+                        <select
+                            {...register('recurrence')}
+                            className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-white"
+                        >
+                            <option value="none">Nenhuma</option>
+                            <option value="daily">Diária</option>
+                            <option value="weekly">Semanal</option>
+                            <option value="monthly">Mensal</option>
+                        </select>
+                    </div>
+
+                    <div className="space-y-1 col-span-2">
+                        <label className="block text-xs font-bold text-gray-500 uppercase">Tipo de Tarefa</label>
+                        <select
+                            {...register('category_id')}
+                            className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-white"
+                        >
+                            <option value="">Nenhum tipo selecionado</option>
+                            {taskCategories.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
                         </select>
                     </div>

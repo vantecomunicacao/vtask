@@ -1,16 +1,28 @@
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
-import { useTaskStore } from '../../store/taskStore';
+import { useTaskStore, type TaskWithAssignee } from '../../store/taskStore';
 import type { Database } from '../../lib/database.types';
 import { Card, CardContent } from '../ui/Card';
-import { CalendarIcon, Flag, MessageSquare } from 'lucide-react';
+import { CalendarIcon, Flag, MessageSquare, RefreshCw } from 'lucide-react';
+import { format, isPast, isToday } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
-type Task = Database['public']['Tables']['tasks']['Row'] & { assignee?: any };
 type Status = Database['public']['Tables']['custom_statuses']['Row'];
 
 interface KanbanBoardProps {
-    tasks: Task[];
+    tasks: TaskWithAssignee[];
     statuses: Status[];
-    onTaskClick: (task: Task) => void;
+    onTaskClick: (task: TaskWithAssignee) => void;
+}
+
+function formatCardDate(due: string) {
+    const date = new Date(due);
+    const isOverdue = isPast(date) && !isToday(date);
+    const colorClass = isOverdue ? 'text-red-600' : 'text-gray-500';
+
+    return {
+        label: format(date, "dd MMM", { locale: ptBR }),
+        className: colorClass
+    };
 }
 
 export function KanbanBoard({ tasks, statuses, onTaskClick }: KanbanBoardProps) {
@@ -92,13 +104,33 @@ export function KanbanBoard({ tasks, statuses, onTaskClick }: KanbanBoardProps) 
                                                                             ))}
                                                                         </div>
                                                                     )}
-                                                                    <p className="text-sm font-medium text-gray-900 leading-snug">{task.title}</p>
+                                                                    <div className="flex flex-col gap-1.5">
+                                                                        {task.category && (
+                                                                            <span
+                                                                                className="inline-block self-start px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+                                                                                style={{
+                                                                                    backgroundColor: `${task.category.color}20`,
+                                                                                    color: task.category.color || '#64748b',
+                                                                                    border: `1px solid ${task.category.color}40`
+                                                                                }}
+                                                                            >
+                                                                                {task.category.name}
+                                                                            </span>
+                                                                        )}
+                                                                        <p className="text-sm font-medium text-gray-900 leading-snug">{task.title}</p>
+                                                                    </div>
 
                                                                     <div className="flex items-center justify-between mt-1 text-gray-500">
                                                                         <div className="flex items-center gap-3">
                                                                             {task.due_date && (
-                                                                                <div className="flex items-center gap-1 text-[11px] font-medium text-red-600">
-                                                                                    <CalendarIcon size={12} /> Limit
+                                                                                <div className={`flex items-center gap-1 text-[11px] font-medium ${formatCardDate(task.due_date).className}`}>
+                                                                                    <CalendarIcon size={12} /> {formatCardDate(task.due_date).label}
+                                                                                </div>
+                                                                            )}
+
+                                                                            {task.recurrence && task.recurrence !== 'none' && (
+                                                                                <div className="flex items-center gap-1 text-[11px] font-medium text-brand" title={`Recorrência: ${task.recurrence}`}>
+                                                                                    <RefreshCw size={12} />
                                                                                 </div>
                                                                             )}
 

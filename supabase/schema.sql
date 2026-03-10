@@ -41,6 +41,17 @@ CREATE TABLE clients (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 
+-- email_clients
+CREATE TABLE email_clients (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  mailchimp_api_key TEXT,
+  mailchimp_prefix TEXT,
+  custom_prompt TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
 -- projects
 CREATE TABLE projects (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -114,6 +125,7 @@ ALTER TABLE custom_statuses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE task_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE email_clients ENABLE ROW LEVEL SECURITY;
 
 -- Note: We will need specific policies based on Workspace ID for tenant isolation.
 -- To simplify for this initial script, we allow everything for authenticated users.
@@ -123,6 +135,7 @@ CREATE POLICY "Allow all for authenticated users" ON profiles FOR ALL USING (aut
 CREATE POLICY "Allow all for authenticated users" ON workspaces FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Allow all for authenticated users" ON workspace_members FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Allow all for authenticated users" ON clients FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow all for authenticated users" ON email_clients FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Allow all for authenticated users" ON projects FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Allow all for authenticated users" ON custom_statuses FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Allow all for authenticated users" ON tasks FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');

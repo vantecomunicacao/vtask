@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from './authStore';
 import type { Database } from '../lib/database.types';
 
 type Workspace = Database['public']['Tables']['workspaces']['Row'];
@@ -22,8 +23,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     fetchWorkspaces: async () => {
         set({ loading: true, error: null });
 
-        // Auth must be loaded before calling this
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = useAuthStore.getState().session;
         if (!session) {
             set({ loading: false, error: 'User not authenticated' });
             return;
@@ -40,12 +40,70 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
             return;
         }
 
-        if (!members || members.length === 0) {
-            set({ loading: false, workspaces: [] });
-            return;
+        let currentWorkspaceIds = members ? members.map(m => m.workspace_id) : [];
+
+        if (currentWorkspaceIds.length === 0) {
+            console.log('No workspaces found, starting auto-creation flow...');
+
+            // 1. Ensure profile exists first (Foreign Key requirement)
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', session.user.id)
+                .single();
+
+            if (profileError || !profile) {
+                console.log('Profile missing, creating profile...');
+                const { error: insertProfileError } = await supabase
+                    .from('profiles')
+                    .insert({
+                        id: session.user.id,
+                        email: session.user.email!,
+                        full_name: session.user.user_metadata?.full_name || 'Usuário',
+                        avatar_url: session.user.user_metadata?.avatar_url
+                    });
+
+                if (insertProfileError) {
+                    console.error('Error creating profile:', insertProfileError);
+                    set({ loading: false, error: 'Erro ao criar perfil de usuário.' });
+                    return;
+                }
+            }
+
+            // 2. Create workspace
+            const userName = session.user.user_metadata?.full_name || 'Meu';
+            const { data: newWorkspace, error: createError } = await supabase
+                .from('workspaces')
+                .insert({ name: `${userName} Workspace` })
+                .select()
+                .single();
+
+            if (createError || !newWorkspace) {
+                console.error('Error creating workspace:', createError);
+                set({ loading: false, error: 'Erro ao criar workspace padrão.' });
+                return;
+            }
+
+            // 3. Create membership
+            const { error: memberInsertError } = await supabase
+                .from('workspace_members')
+                .insert({
+                    workspace_id: newWorkspace.id,
+                    user_id: session.user.id,
+                    role: 'admin'
+                });
+
+            if (memberInsertError) {
+                console.error('Error creating workspace member:', memberInsertError);
+                set({ loading: false, error: 'Erro ao vincular você ao workspace.' });
+                return;
+            }
+
+            currentWorkspaceIds = [newWorkspace.id];
+            console.log('Workspace auto-created successfully:', newWorkspace.id);
         }
 
-        const workspaceIds = members.map(m => m.workspace_id);
+        const workspaceIds = currentWorkspaceIds;
 
         const { data: workspaces, error: wsError } = await supabase
             .from('workspaces')

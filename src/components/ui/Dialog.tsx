@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 interface DialogProps {
     isOpen: boolean;
     onClose: () => void;
-    title: string;
+    title: React.ReactNode;
     children: React.ReactNode;
     maxWidth?: string;
 }
@@ -44,6 +44,7 @@ export function Dialog({ isOpen, onClose, title, children, maxWidth = 'max-w-md'
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="dialog-title"
+                onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-gray-50/50 rounded-t-xl shrink-0">
                     <h2 id="dialog-title" className="text-lg font-bold text-gray-900">{title}</h2>

@@ -6,6 +6,17 @@ import { supabase } from '../lib/supabase';
 import { CheckCircle, Folder, Clock, CalendarIcon } from 'lucide-react';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { TaskDetailModal } from '../components/tasks/TaskDetailModal';
+import { type TaskWithAssignee } from '../store/taskStore';
+
+
+type TaskWithProjectInfo = TaskWithAssignee & {
+    project?: {
+        id: string;
+        name: string;
+        workspace_id: string
+    } | null
+};
 
 export default function Dashboard() {
     const { activeWorkspace } = useWorkspaceStore();
@@ -15,53 +26,61 @@ export default function Dashboard() {
         myTasks: 0,
         activeProjects: 0
     });
-    const [recentTasks, setRecentTasks] = useState<any[]>([]);
+    const [recentTasks, setRecentTasks] = useState<TaskWithProjectInfo[]>([]);
+    const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
 
     useEffect(() => {
-        if (activeWorkspace && session?.user.id) {
-            fetchDashboardData(activeWorkspace.id, session.user.id);
-        }
+        if (!activeWorkspace || !session?.user.id) return;
+        const workspaceId = activeWorkspace.id;
+        const userId = session.user.id;
+
+        (async () => {
+            const { count: projectsCount } = await supabase
+                .from('projects')
+                .select('*', { count: 'exact', head: true })
+                .eq('workspace_id', workspaceId)
+                .eq('status', 'active');
+
+            const { data: projectRows } = await supabase
+                .from('projects')
+                .select('id')
+                .eq('workspace_id', workspaceId);
+
+            const projectIds = projectRows?.map(p => p.id) || [];
+
+            const { data: myTasksData } = await supabase
+                .from('tasks')
+                .select('*, project:projects(id, name, workspace_id), assignee:profiles(*)')
+                .in('project_id', projectIds)
+                .eq('assignee_id', userId);
+
+            let myTasksCount = 0;
+            let todayTasksCount = 0;
+
+            if (myTasksData) {
+                myTasksCount = myTasksData.length;
+                todayTasksCount = myTasksData.filter(t => t.due_date && isToday(new Date(t.due_date))).length;
+            }
+
+            setStats({
+                activeProjects: projectsCount || 0,
+                myTasks: myTasksCount,
+                tasksToday: todayTasksCount
+            });
+
+            if (myTasksData && myTasksData.length > 0) {
+                const pending = (myTasksData as TaskWithAssignee[])
+                    .sort((a, b) => {
+                        if (a.due_date && b.due_date) {
+                            return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+                        }
+                        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                    })
+                    .slice(0, 5);
+                setRecentTasks(pending);
+            }
+        })();
     }, [activeWorkspace, session]);
-
-    const fetchDashboardData = async (workspaceId: string, userId: string) => {
-        // Fetch Projects Count
-        const { count: projectsCount } = await supabase
-            .from('projects')
-            .select('*', { count: 'exact', head: true })
-            .eq('workspace_id', workspaceId)
-            .eq('status', 'active');
-
-        // Fetch user tasks
-        // Simulating a join through workspace_id since task belongs to project which belongs to workspace
-        const { data: myTasksData } = await supabase
-            .from('tasks')
-            .select('*, project:projects!inner(workspace_id)')
-            .eq('assignee_id', userId)
-            .eq('projects.workspace_id', workspaceId);
-
-        let myTasksCount = 0;
-        let todayTasksCount = 0;
-
-        if (myTasksData) {
-            myTasksCount = myTasksData.length;
-            todayTasksCount = myTasksData.filter(t => t.due_date && isToday(new Date(t.due_date))).length;
-        }
-
-        setStats({
-            activeProjects: projectsCount || 0,
-            myTasks: myTasksCount,
-            tasksToday: todayTasksCount
-        });
-
-        // Fetch recent pending tasks
-        if (myTasksData) {
-            const pending = myTasksData
-                .filter(t => t.status_id !== 'done') // Assuming done is a known state, strictly we should use custom_statuses logic
-                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-                .slice(0, 5);
-            setRecentTasks(pending);
-        }
-    };
 
     return (
         <div className="space-y-6 fade-in h-full pb-10">
@@ -117,13 +136,17 @@ export default function Dashboard() {
                                 <div className="p-8 text-center text-gray-500 text-sm">Nenhuma tarefa pendente associada a você.</div>
                             ) : (
                                 recentTasks.map(task => (
-                                    <div key={task.id} className="p-4 hover:bg-gray-50 transition-colors flex items-start gap-4 cursor-pointer">
+                                    <div
+                                        key={task.id}
+                                        onClick={() => setSelectedTask(task)}
+                                        className="p-4 hover:bg-gray-50 transition-colors flex items-start gap-4 cursor-pointer group"
+                                    >
                                         <div className="w-5 h-5 rounded-full border-2 border-gray-300 mt-0.5 shrink-0" />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold text-gray-900 truncate">{task.title}</p>
                                             <div className="flex items-center gap-3 mt-1">
                                                 <span className="text-xs text-gray-500 flex items-center gap-1">
-                                                    <Folder size={12} /> Projeto {task.project_id.substring(0, 4)} {/* Temporary */}
+                                                    <Folder size={12} /> {task.project?.name || 'Projeto'}
                                                 </span>
                                                 {task.due_date && (
                                                     <span className={`text-xs font-medium flex items-center gap-1 ${new Date(task.due_date) < new Date() ? 'text-red-600' : 'text-gray-500'}`}>
@@ -154,6 +177,13 @@ export default function Dashboard() {
                 </div>
             </div>
 
+            {selectedTask && (
+                <TaskDetailModal
+                    isOpen={!!selectedTask}
+                    onClose={() => setSelectedTask(null)}
+                    task={selectedTask}
+                />
+            )}
         </div>
     );
 }
