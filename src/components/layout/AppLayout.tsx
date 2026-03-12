@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail } from 'lucide-react';
+import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Layers } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useEffect } from 'react';
@@ -79,6 +79,10 @@ export default function AppLayout() {
                         <NavLink to="/gerador-email" className={navLinkClass}>
                             <Mail size={18} />
                             Gerador de E-mails
+                        </NavLink>
+                        <NavLink to="/design-system" className={navLinkClass}>
+                            <Layers size={18} />
+                            Design System
                         </NavLink>
                     </nav>
 

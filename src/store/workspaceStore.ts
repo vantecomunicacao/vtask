@@ -115,10 +115,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
             return;
         }
 
-        // Set first workspace as active by default if none selected
+        // Always refresh activeWorkspace with latest data from DB
         set(state => ({
             workspaces: workspaces || [],
-            activeWorkspace: state.activeWorkspace || (workspaces?.[0] ?? null),
+            activeWorkspace: workspaces?.find(w => w.id === state.activeWorkspace?.id) ?? workspaces?.[0] ?? null,
             loading: false
         }));
     },

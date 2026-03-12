@@ -4,6 +4,7 @@ import { useDocumentStore } from '../store/documentStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useProjectStore } from '../store/projectStore';
 import { Button } from '../components/ui/Button';
+import { Select } from '../components/ui/Select';
 import { DocumentEditor } from '../components/documents/DocumentEditor';
 import { Search, FileText, Plus, Calendar, Folder, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -80,16 +81,16 @@ export default function Documentos() {
                             />
                         </div>
 
-                        <select
+                        <Select
                             value={selectedProject}
                             onChange={(e) => setSelectedProject(e.target.value)}
-                            className="px-3 py-2 bg-white border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-brand/20 outline-none transition-all cursor-pointer"
+                            containerClassName="w-64"
                         >
                             <option value="all">Todos os Projetos</option>
                             {projects.map(p => (
                                 <option key={p.id} value={p.id}>{p.name}</option>
                             ))}
-                        </select>
+                        </Select>
                     </div>
                 </div>
 

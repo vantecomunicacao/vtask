@@ -10,7 +10,8 @@ type TaskCategory = Database['public']['Tables']['task_categories']['Row'];
 
 export type TaskWithAssignee = Task & {
     assignee?: Profile | null,
-    category?: TaskCategory | null
+    category?: TaskCategory | null,
+    project?: { id: string; name: string; color: string | null } | null;
 };
 
 interface TaskState {
@@ -22,6 +23,7 @@ interface TaskState {
     fetchTasks: (projectId: string) => Promise<void>;
     fetchStatuses: (workspaceId: string) => Promise<void>;
     fetchCategories: (workspaceId: string) => Promise<void>;
+    fetchWorkspaceTasks: (workspaceId: string) => Promise<void>;
     addStatus: (workspaceId: string, name: string, color: string) => Promise<void>;
     updateStatus: (id: string, updates: Partial<CustomStatus>) => Promise<void>;
     deleteStatus: (id: string) => Promise<void>;
@@ -188,6 +190,41 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       `)
             .eq('project_id', projectId)
             .order('position', { ascending: true });
+
+        if (error) {
+            set({ loading: false, error: error.message });
+            return;
+        }
+
+        set({ tasks: (data as TaskWithAssignee[]) || [], loading: false });
+    },
+
+    fetchWorkspaceTasks: async (workspaceId: string) => {
+        set({ loading: true, error: null });
+
+        // Primeiro pegamos os projetos do workspace
+        const { data: projects } = await supabase
+            .from('projects')
+            .select('id')
+            .eq('workspace_id', workspaceId);
+
+        const projectIds = projects?.map(p => p.id) || [];
+        
+        if (projectIds.length === 0) {
+            set({ tasks: [], loading: false });
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .select(`
+                *,
+                project:projects(id, name, color),
+                assignee:profiles(*),
+                category:task_categories(id, name, color)
+            `)
+            .in('project_id', projectIds)
+            .order('due_date', { ascending: true, nullsFirst: false });
 
         if (error) {
             set({ loading: false, error: error.message });

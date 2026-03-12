@@ -10,6 +10,7 @@ const Agenda = lazy(() => import('./pages/Agenda'));
 const Configuracoes = lazy(() => import('./pages/Configuracoes'));
 const Documentos = lazy(() => import('./pages/Documentos'));
 const GeradorEmail = lazy(() => import('./pages/GeradorEmail'));
+const DesignSystem = lazy(() => import('./pages/DesignSystem'));
 
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -43,6 +44,7 @@ function AppRoutes() {
                         <Route path="/agenda" element={<Agenda />} />
                         <Route path="/configuracoes" element={<Configuracoes />} />
                         <Route path="/gerador-email" element={<GeradorEmail />} />
+                        <Route path="/design-system" element={<DesignSystem />} />
                     </Route>
                 </Route>
             </Routes>

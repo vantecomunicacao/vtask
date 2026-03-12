@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog } from '../ui/Dialog';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { Select } from '../ui/Select';
 import { supabase } from '../../lib/supabase';
 import { useTaskStore } from '../../store/taskStore';
 import { useProjectStore } from '../../store/projectStore';
@@ -36,7 +37,7 @@ interface TaskFormModalProps {
 }
 
 export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: TaskFormModalProps) {
-    const { fetchTasks, statuses, taskCategories } = useTaskStore();
+    const { fetchTasks, fetchWorkspaceTasks, statuses, taskCategories } = useTaskStore();
     const { activeWorkspace } = useWorkspaceStore();
     const { projects } = useProjectStore();
     const [loading, setLoading] = useState(false);
@@ -94,10 +95,14 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
 
             toast.success('Tarefa criada com sucesso!');
 
-            // Só recarrega o kanban se veio de uma página de projeto
-            if (projectId) await fetchTasks(projectId);
+            // Atualiza o estado da store
+            if (projectId) {
+                await fetchTasks(projectId);
+            } else if (activeWorkspace) {
+                await fetchWorkspaceTasks(activeWorkspace.id);
+            }
 
-            // Callback para páginas que precisam recarregar (ex: Tarefas)
+            // Callback para páginas que precisam recarregar
             onTaskCreated?.();
 
             reset();
@@ -133,63 +138,55 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
                 <div className="grid grid-cols-2 gap-4">
                     {/* Seletor de projeto — só aparece quando não foi passado via prop */}
                     {!projectId && (
-                        <div className="space-y-1 col-span-2">
-                            <label className="block text-xs font-bold text-gray-500 uppercase">Projeto</label>
-                            <select
+                        <div className="col-span-2">
+                            <Select
+                                label="Projeto"
                                 {...register('project_id')}
-                                className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-white"
+                                error={errors.project_id?.message}
                             >
                                 <option value="" disabled>Selecione um projeto</option>
                                 {projects.map(p => (
                                     <option key={p.id} value={p.id}>{p.name}</option>
                                 ))}
-                            </select>
-                            {errors.project_id && <span className="text-red-500 text-xs">{errors.project_id.message}</span>}
+                            </Select>
                         </div>
                     )}
 
-                    <div className="space-y-1">
-                        <label className="block text-xs font-bold text-gray-500 uppercase">Status</label>
-                        <select
-                            {...register('status_id')}
-                            className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-white"
-                        >
-                            <option value="" disabled>Selecione um status</option>
-                            {statuses.map(s => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                        </select>
-                        {errors.status_id && <span className="text-red-500 text-xs">{errors.status_id.message}</span>}
-                    </div>
+                    <Select
+                        label="Status"
+                        {...register('status_id')}
+                        error={errors.status_id?.message}
+                    >
+                        <option value="" disabled>Selecione um status</option>
+                        {statuses.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                    </Select>
 
-                    <div className="space-y-1">
-                        <label className="block text-xs font-bold text-gray-500 uppercase">Prioridade</label>
-                        <select
-                            {...register('priority')}
-                            className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-white"
-                        >
-                            <option value="low">Baixa</option>
-                            <option value="medium">Média</option>
-                            <option value="high">Alta</option>
-                            <option value="urgent">Urgente</option>
-                        </select>
-                    </div>
+                    <Select
+                        label="Prioridade"
+                        {...register('priority')}
+                    >
+                        <option value="low">Baixa</option>
+                        <option value="medium">Média</option>
+                        <option value="high">Alta</option>
+                        <option value="urgent">Urgente</option>
+                    </Select>
 
-                    <div className="space-y-1 col-span-2">
-                        <label className="block text-xs font-bold text-gray-500 uppercase">Responsável</label>
-                        <select
+                    <div className="col-span-2">
+                        <Select
+                            label="Responsável"
                             {...register('assignee_id')}
-                            className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-white"
                         >
                             <option value="">Não atribuído</option>
                             {users.map(u => (
                                 <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
                             ))}
-                        </select>
+                        </Select>
                     </div>
 
                     <div className="space-y-1">
-                        <label className="block text-xs font-bold text-gray-500 uppercase">Data de Vencimento</label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Data de Vencimento</label>
                         <Input
                             type="date"
                             {...register('due_date')}
@@ -197,30 +194,26 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
                         />
                     </div>
 
-                    <div className="space-y-1">
-                        <label className="block text-xs font-bold text-gray-500 uppercase">Recorrência</label>
-                        <select
-                            {...register('recurrence')}
-                            className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-white"
-                        >
-                            <option value="none">Nenhuma</option>
-                            <option value="daily">Diária</option>
-                            <option value="weekly">Semanal</option>
-                            <option value="monthly">Mensal</option>
-                        </select>
-                    </div>
+                    <Select
+                        label="Recorrência"
+                        {...register('recurrence')}
+                    >
+                        <option value="none">Nenhuma</option>
+                        <option value="daily">Diária</option>
+                        <option value="weekly">Semanal</option>
+                        <option value="monthly">Mensal</option>
+                    </Select>
 
-                    <div className="space-y-1 col-span-2">
-                        <label className="block text-xs font-bold text-gray-500 uppercase">Tipo de Tarefa</label>
-                        <select
+                    <div className="col-span-2">
+                        <Select
+                            label="Tipo de Tarefa"
                             {...register('category_id')}
-                            className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm bg-white"
                         >
                             <option value="">Nenhum tipo selecionado</option>
                             {taskCategories.map(c => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
-                        </select>
+                        </Select>
                     </div>
                 </div>
 

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Dialog } from '../ui/Dialog';
 import { supabase } from '../../lib/supabase';
 import type { Database } from '../../lib/database.types';
-import { MessageSquare, Paperclip, CheckSquare, Clock, Palette, List, Bold, Italic, Link as LinkIcon, Heading1, Heading2, ListOrdered, Table as TableIcon, Image as ImageIcon, Code, AlignLeft, AlignCenter, AlignRight, Minus, RefreshCw, CheckCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { MessageSquare, Paperclip, CheckSquare, Clock, List, Bold, Italic, Link as LinkIcon, Heading1, Heading2, ListOrdered, Table as TableIcon, Image as ImageIcon, Code, AlignLeft, AlignCenter, AlignRight, Minus, CheckCircle, Trash2, Tag, Timer, X } from 'lucide-react';
+import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '../ui/Button';
 import { useAuthStore } from '../../store/authStore';
@@ -23,7 +23,9 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
 import { SlashCommands, suggestionItems, renderItems } from '../documents/SlashCommands';
+import { Select } from '../ui/Select';
 
+type Task = Database['public']['Tables']['tasks']['Update'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type TaskAttachment = Database['public']['Tables']['task_attachments']['Row'];
 type Comment = Database['public']['Tables']['comments']['Row'] & { user?: Profile | null };
@@ -54,11 +56,14 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
     const [isExpanded, setIsExpanded] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [tagInput, setTagInput] = useState('');
 
     useEffect(() => {
         if (!isOpen || !task) return;
         const taskId = task.id;
-        setTitleValue(task.title);
+        // Sincroniza o título local sempre que a tarefa mudar ou o modal abrir
+        const liveTask = tasks.find(t => t.id === taskId);
+        setTitleValue(liveTask?.title || task.title);
 
         (async () => {
             setLoadingComments(true);
@@ -119,6 +124,19 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
         }
     };
 
+    const handleAddTag = async () => {
+        if (!tagInput.trim() || !task || !currentTask) return;
+        const newTags = [...(currentTask.labels || []), tagInput.trim()];
+        setTagInput('');
+        await handleUpdateTask({ labels: newTags });
+    };
+
+    const handleRemoveTag = async (tagToRemove: string) => {
+        if (!task || !currentTask) return;
+        const newTags = (currentTask.labels || []).filter(t => t !== tagToRemove);
+        await handleUpdateTask({ labels: newTags });
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || !task || !session) return;
         const files = Array.from(e.target.files);
@@ -146,15 +164,58 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
     };
 
     const handleUpdateTask = async (updates: Partial<TaskWithAssignee>) => {
-        if (!task) return;
+        if (!task || !currentTask) return;
+
+        // Audit log logic
+        const changeLogs: string[] = [];
+        if (updates.status_id && updates.status_id !== currentTask.status_id) {
+            const newStatus = statuses.find(s => s.id === updates.status_id)?.name;
+            changeLogs.push(`Alterou o status para **${newStatus}**`);
+        }
+        if (updates.assignee_id !== undefined && updates.assignee_id !== currentTask.assignee_id) {
+            const newAssignee = members.find(m => m.id === updates.assignee_id)?.full_name || 'Ninguém';
+            changeLogs.push(`Alterou o responsável para **${newAssignee}**`);
+        }
+        if (updates.priority && updates.priority !== currentTask.priority) {
+            changeLogs.push(`Alterou a prioridade para **${updates.priority}**`);
+        }
+
         setSaving(true);
         try {
             await updateTask(task.id, updates);
+
+            // Insert system comments
+            for (const log of changeLogs) {
+                await supabase.from('comments').insert({
+                    task_id: task.id,
+                    user_id: session?.user.id,
+                    content: `_SISTEMA_: ${log}`
+                });
+            }
+            if (changeLogs.length > 0 && task) reloadComments(task.id);
         } catch (error) {
             console.error('Error updating task:', error);
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleUpdateSubtask = async (subtaskId: string, updates: Task) => {
+        if (!task) return;
+        try {
+            await supabase.from('tasks').update(updates).eq('id', subtaskId);
+            // Refresh subtasks list
+            const { data } = await supabase.from('tasks').select('*, assignee:profiles(*)').eq('parent_id', task.id).order('position', { ascending: true });
+            if (data) setSubtasks(data as TaskWithAssignee[]);
+        } catch (error) {
+            console.error('Error updating subtask:', error);
+        }
+    };
+
+    const handleToggleSubtask = async (st: TaskWithAssignee) => {
+        const isDone = st.status_id === statuses[statuses.length - 1]?.id;
+        const targetStatusId = isDone ? statuses[0]?.id : statuses[statuses.length - 1]?.id;
+        await handleUpdateSubtask(st.id, { status_id: targetStatusId });
     };
 
     if (!task) return null;
@@ -176,12 +237,12 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                         value={titleValue}
                         onChange={(e) => setTitleValue(e.target.value)}
                         onBlur={() => {
-                            if (titleValue !== task.title) handleUpdateTask({ title: titleValue });
+                            if (titleValue !== currentTask.title) handleUpdateTask({ title: titleValue });
                             setIsEditingTitle(false);
                         }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                                if (titleValue !== task.title) handleUpdateTask({ title: titleValue });
+                                if (titleValue !== currentTask.title) handleUpdateTask({ title: titleValue });
                                 setIsEditingTitle(false);
                             }
                         }}
@@ -193,7 +254,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                         className="cursor-text hover:text-brand transition-colors truncate pr-8"
                         title="Clique para editar"
                     >
-                        {task.title}
+                        {currentTask.title}
                     </div>
                 )
             }
@@ -216,7 +277,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                                     isEditingDesc={isEditingDesc}
                                     setIsEditingDesc={setIsEditingDesc}
                                     saving={saving}
-                                    reloadAttachments={() => reloadAttachments(task.id)}
+                                    reloadAttachments={() => reloadAttachments(currentTask.id)}
                                 />
                             )}
                         </div>
@@ -224,23 +285,68 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
 
                     {/* Subtasks */}
                     <div>
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-2">
                             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                                 <CheckSquare size={16} className="text-brand" /> Subtarefas
                             </h3>
                             <button className="text-xs font-medium text-gray-500 hover:text-brand">Adicionar</button>
                         </div>
 
+                        {subtasks.length > 0 && (
+                            <div className="mb-4">
+                                <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1.5 font-bold uppercase tracking-wider">
+                                    <span>Progresso das subtarefas</span>
+                                    <span>{subtasks.filter(s => s.status_id === statuses[statuses.length - 1]?.id).length}/{subtasks.length}</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200/50">
+                                    <div 
+                                        className="h-full bg-brand transition-all duration-500" 
+                                        style={{ width: `${(subtasks.filter(s => s.status_id === statuses[statuses.length - 1]?.id).length / subtasks.length) * 100}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         {subtasks.length === 0 ? (
-                            <div className="text-sm text-gray-500 italic">Nenhuma subtarefa.</div>
+                            <div className="text-sm text-gray-500 italic bg-gray-50/50 border border-dashed border-border-subtle rounded-lg p-4 text-center">Nenhuma subtarefa ainda.</div>
                         ) : (
                             <div className="space-y-2">
-                                {subtasks.map(st => (
-                                    <div key={st.id} className="flex items-center gap-3 p-2 bg-white border border-border-subtle rounded-md">
-                                        <input type="checkbox" className="rounded text-brand focus:ring-brand border-gray-300" />
-                                        <span className="text-sm text-gray-700">{st.title}</span>
-                                    </div>
-                                ))}
+                                {subtasks.map(st => {
+                                    const isDone = st.status_id === statuses[statuses.length - 1]?.id;
+                                    return (
+                                        <div key={st.id} className="flex items-center gap-3 p-2.5 bg-white border border-border-subtle rounded-xl hover:border-brand/30 transition-all hover:shadow-sm group">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={isDone}
+                                                onChange={() => handleToggleSubtask(st)}
+                                                className="rounded-full w-5 h-5 text-brand focus:ring-brand border-gray-300 cursor-pointer" 
+                                            />
+                                            <div className="flex-1 flex items-center justify-between gap-4">
+                                                <span className={`text-sm transition-all ${isDone ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                                                    {st.title}
+                                                </span>
+                                                <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <select 
+                                                        value={st.assignee_id || ''} 
+                                                        onChange={(e) => handleUpdateSubtask(st.id, { assignee_id: e.target.value || null })}
+                                                        className="text-[10px] bg-transparent border-none p-0 text-gray-500 focus:ring-0 cursor-pointer hover:text-brand font-medium"
+                                                    >
+                                                        <option value="">Sem resp.</option>
+                                                        {members.map(m => (
+                                                            <option key={m.id} value={m.id}>{m.full_name?.split(' ')[0] || m.email.split('@')[0]}</option>
+                                                        ))}
+                                                    </select>
+                                                    <input 
+                                                        type="date"
+                                                        value={st.due_date || ''}
+                                                        onChange={(e) => handleUpdateSubtask(st.id, { due_date: e.target.value || null })}
+                                                        className="text-[10px] bg-transparent border-none p-0 text-gray-400 focus:ring-0 w-20 cursor-pointer hover:text-brand font-bold"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -269,8 +375,8 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                                                     {format(new Date(c.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                                                 </span>
                                             </div>
-                                            <div className="text-sm text-gray-700 bg-gray-50 p-2.5 rounded-lg border border-border-subtle inline-block">
-                                                {c.content}
+                                            <div className={`text-sm p-2.5 rounded-lg border inline-block ${c.content.startsWith('_SISTEMA_') ? 'bg-gray-100/50 border-gray-200 text-gray-400 italic text-[11px]' : 'bg-gray-50 border-border-subtle text-gray-700'}`}>
+                                                {c.content.replace('_SISTEMA_: ', '')}
                                             </div>
                                         </div>
                                     </div>
@@ -297,22 +403,57 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                         {attachments.length === 0 ? (
                             <div className="text-sm text-gray-500 italic">Nenhum anexo.</div>
                         ) : (
-                            <ul className="space-y-2">
-                                {attachments.map((att) => (
-                                    <li key={att.id} className="flex items-center space-x-2">
-                                        <Paperclip size={14} className="text-gray-400" />
-                                        <a
-                                            href={supabase.storage.from('task_attachments').getPublicUrl(att.file_path).data.publicUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-sm text-brand underline"
-                                        >
-                                            {att.file_name}
-                                        </a>
-                                        <span className="text-xs text-gray-500">({(att.file_size / 1024).toFixed(1)} KB)</span>
-                                    </li>
-                                ))}
-                            </ul>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {attachments.map((att) => {
+                                const isImage = att.file_type?.startsWith('image/');
+                                const publicUrl = supabase.storage.from('task_attachments').getPublicUrl(att.file_path).data.publicUrl;
+                                
+                                return (
+                                    <div key={att.id} className="group relative flex flex-col bg-white border border-border-subtle rounded-xl overflow-hidden hover:shadow-md transition-all hover:border-brand/30">
+                                        <div className="aspect-video bg-gray-50 flex items-center justify-center overflow-hidden border-b border-border-subtle">
+                                            {isImage ? (
+                                                <img 
+                                                    src={publicUrl} 
+                                                    alt={att.file_name} 
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <Paperclip size={24} className="text-gray-300" />
+                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Arquivo</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="p-3">
+                                            <a
+                                                href={publicUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block text-sm font-medium text-gray-900 truncate hover:text-brand transition-colors mb-0.5"
+                                                title={att.file_name}
+                                            >
+                                                {att.file_name}
+                                            </a>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] text-gray-500">{(att.file_size / 1024).toFixed(1)} KB</span>
+                                                <button 
+                                                    onClick={async () => {
+                                                        if (confirm('Excluir anexo?')) {
+                                                            await supabase.storage.from('task_attachments').remove([att.file_path]);
+                                                            await supabase.from('task_attachments').delete().eq('id', att.id);
+                                                            reloadAttachments(task.id);
+                                                        }
+                                                    }}
+                                                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                         )}
                     </div>
                 </div>
@@ -321,88 +462,163 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                 <div className="w-full md:w-64 shrink-0 space-y-6">
                     <div>
                         <span className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Detalhes</span>
-                        <div className="space-y-3 bg-gray-50 rounded-lg p-3 border border-border-subtle">
+                        <div className="space-y-4 bg-gray-50 rounded-lg p-3 border border-border-subtle">
+                            <Select
+                                label="Status"
+                                value={currentTask.status_id || ''}
+                                onChange={(e) => handleUpdateTask({ status_id: e.target.value })}
+                                className="bg-white"
+                                options={statuses.map(s => ({
+                                    value: s.id,
+                                    label: s.name,
+                                    icon: <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: s.color }} />
+                                }))}
+                            />
+
+                            <Select
+                                label="Responsável"
+                                value={currentTask.assignee_id || ''}
+                                onChange={(e) => handleUpdateTask({ assignee_id: e.target.value || null })}
+                                className="bg-white"
+                                options={[
+                                    { value: '', label: 'Não atribuído', icon: <div className="w-4 h-4 rounded bg-gray-100 flex items-center justify-center text-[8px] text-gray-500 font-bold">--</div> },
+                                    ...members.map(m => ({
+                                        value: m.id,
+                                        label: m.full_name || m.email,
+                                        icon: m.avatar_url ? (
+                                            <img src={m.avatar_url} alt="avatar" className="w-4 h-4 rounded object-cover" />
+                                        ) : (
+                                            <div className="w-4 h-4 rounded bg-brand-light text-brand flex items-center justify-center text-[8px] font-bold">
+                                                {(m.full_name || m.email)[0].toUpperCase()}
+                                            </div>
+                                        )
+                                    }))
+                                ]}
+                            />
+
+                            <Select
+                                label="Prioridade"
+                                value={currentTask.priority || 'medium'}
+                                onChange={(e) => handleUpdateTask({ priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' })}
+                                className="bg-white"
+                            >
+                                <option value="low">Baixa</option>
+                                <option value="medium">Média</option>
+                                <option value="high">Alta</option>
+                                <option value="urgent">Urgente</option>
+                            </Select>
+
                             <div>
-                                <label className="text-[11px] text-gray-500 font-medium">Status</label>
-                                <select
-                                    value={currentTask.status_id || ''}
-                                    onChange={(e) => handleUpdateTask({ status_id: e.target.value })}
-                                    className="w-full mt-0.5 bg-transparent border-none p-0 text-sm font-bold text-gray-900 focus:ring-0 cursor-pointer"
-                                >
-                                    {statuses.map(s => (
-                                        <option key={s.id} value={s.id}>{s.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[11px] text-gray-500 font-medium">Responsável</label>
-                                <select
-                                    value={currentTask.assignee_id || ''}
-                                    onChange={(e) => handleUpdateTask({ assignee_id: e.target.value || null })}
-                                    className="w-full mt-0.5 bg-transparent border-none p-0 text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                                >
-                                    <option value="">Não atribuído</option>
-                                    {members.map(m => (
-                                        <option key={m.id} value={m.id}>{m.full_name || m.email}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[11px] text-gray-500 font-medium">Prioridade</label>
-                                <select
-                                    value={currentTask.priority || 'medium'}
-                                    onChange={(e) => handleUpdateTask({ priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' })}
-                                    className="w-full mt-0.5 bg-transparent border-none p-0 text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                                >
-                                    <option value="low">Baixa</option>
-                                    <option value="medium">Média</option>
-                                    <option value="high">Alta</option>
-                                    <option value="urgent">Urgente</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[11px] text-gray-500 font-medium flex items-center gap-1.5">
+                                <label className="text-[11px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
                                     <Clock size={12} /> Prazo
                                 </label>
-                                <input
-                                    type="date"
-                                    value={currentTask.due_date || ''}
-                                    onChange={(e) => handleUpdateTask({ due_date: e.target.value || null })}
-                                    className="w-full mt-0.5 bg-transparent border-none p-0 text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+                                <div className="flex flex-col gap-2">
+                                    <input
+                                        type="date"
+                                        value={currentTask.due_date || ''}
+                                        onChange={(e) => handleUpdateTask({ due_date: e.target.value || null })}
+                                        className="w-full bg-white border border-border-subtle px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand outline-none cursor-pointer"
+                                    />
+                                    <div className="flex gap-1.5">
+                                        <button
+                                            onClick={() => handleUpdateTask({ due_date: format(new Date(), 'yyyy-MM-dd') })}
+                                            className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+                                        >
+                                            Hoje
+                                        </button>
+                                        <button
+                                            onClick={() => handleUpdateTask({ due_date: format(addDays(new Date(), 1), 'yyyy-MM-dd') })}
+                                            className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+                                        >
+                                            Amanhã
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Select
+                                label="Recorrência"
+                                value={currentTask.recurrence || 'none'}
+                                onChange={(e) => handleUpdateTask({ recurrence: e.target.value as 'none' | 'daily' | 'weekly' | 'monthly' })}
+                                className="bg-white"
+                            >
+                                <option value="none">Nenhuma</option>
+                                <option value="daily">Diária</option>
+                                <option value="weekly">Semanal</option>
+                                <option value="monthly">Mensal</option>
+                            </Select>
+
+                            <Select
+                                label="Tipo de Tarefa"
+                                value={currentTask.category_id || ''}
+                                onChange={(e) => {
+                                    const categoryId = e.target.value || null;
+                                    handleUpdateTask({ category_id: categoryId });
+                                }}
+                                className="bg-white"
+                                options={[
+                                    { value: '', label: 'Nenhum tipo selecionado' },
+                                    ...taskCategories.map(c => ({
+                                        value: c.id,
+                                        label: c.name,
+                                        icon: c.color ? <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: c.color }} /> : undefined
+                                    }))
+                                ]}
+                            />
+
+                            <div>
+                                <label className="text-[11px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                                    <Tag size={12} /> Tags
+                                </label>
+                                <div className="space-y-2">
+                                    <div className="flex flex-wrap gap-1">
+                                        {(currentTask.labels || []).map(tag => (
+                                            <span 
+                                                key={tag} 
+                                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-light text-brand text-[10px] font-bold rounded-md border border-brand/10 group/tag"
+                                            >
+                                                {tag}
+                                                <button 
+                                                    onClick={() => handleRemoveTag(tag)}
+                                                    className="hover:text-red-500 transition-colors"
+                                                >
+                                                    <X size={10} />
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <input 
+                                            type="text" 
+                                            value={tagInput}
+                                            onChange={e => setTagInput(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && handleAddTag()}
+                                            placeholder="Nova tag..."
+                                            className="flex-1 bg-white border border-border-subtle px-2 py-1 rounded text-[10px] focus:ring-1 focus:ring-brand focus:border-brand outline-none"
+                                        />
+                                        <button 
+                                            onClick={handleAddTag}
+                                            className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px] font-bold hover:bg-gray-200"
+                                        >
+                                            Add
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[11px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                                    <Timer size={12} /> Estimativa (Horas)
+                                </label>
+                                <input 
+                                    type="number"
+                                    min="0"
+                                    step="0.5"
+                                    value={currentTask.time_estimate || ''}
+                                    onChange={e => handleUpdateTask({ time_estimate: e.target.value ? parseFloat(e.target.value) : null })}
+                                    className="w-full bg-white border border-border-subtle px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand outline-none"
+                                    placeholder="Ex: 4.5"
                                 />
-                            </div>
-                            <div>
-                                <label className="text-[11px] text-gray-500 font-medium flex items-center gap-1.5">
-                                    <RefreshCw size={12} /> Recorrência
-                                </label>
-                                <select
-                                    value={currentTask.recurrence || 'none'}
-                                    onChange={(e) => handleUpdateTask({ recurrence: e.target.value as 'none' | 'daily' | 'weekly' | 'monthly' })}
-                                    className="w-full mt-0.5 bg-transparent border-none p-0 text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                                >
-                                    <option value="none">Nenhuma</option>
-                                    <option value="daily">Diária</option>
-                                    <option value="weekly">Semanal</option>
-                                    <option value="monthly">Mensal</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[11px] text-gray-500 font-medium flex items-center gap-1.5">
-                                    <Palette size={12} /> Tipo de Tarefa
-                                </label>
-                                <select
-                                    value={currentTask.category_id || ''}
-                                    onChange={(e) => {
-                                        const categoryId = e.target.value || null;
-                                        handleUpdateTask({ category_id: categoryId });
-                                    }}
-                                    className="w-full mt-0.5 bg-transparent border-none p-0 text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                                >
-                                    <option value="">Sem tipo</option>
-                                    {taskCategories.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
                             </div>
                         </div>
                     </div>
@@ -414,7 +630,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                                 onClick={async () => {
                                     setSaving(true);
                                     try {
-                                        await toggleTaskCompletion(task.id, !isCompleted);
+                                        await toggleTaskCompletion(currentTask.id, !isCompleted);
                                     } finally {
                                         setSaving(false);
                                     }
@@ -569,6 +785,20 @@ function TaskDescriptionSection({ task, onUpdateTask, isExpanded, setIsExpanded,
         return () => window.removeEventListener('editor-upload-image', handler);
     }, [!!editor, task.id]);
 
+    // Auto-save logic
+    useEffect(() => {
+        if (!editor || !isEditingDesc) return;
+
+        const timeoutId = setTimeout(() => {
+            const jsonStr = JSON.stringify(editor.getJSON());
+            if (jsonStr !== task.description) {
+                onUpdateTask({ description: jsonStr });
+            }
+        }, 1000); // Save after 1 second of inactivity
+
+        return () => clearTimeout(timeoutId);
+    }, [editor?.getJSON(), isEditingDesc]);
+
     if (!editor) return null;
 
     const editorText = editor.getText() || '';
@@ -576,17 +806,18 @@ function TaskDescriptionSection({ task, onUpdateTask, isExpanded, setIsExpanded,
 
     return (
         <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-end gap-2 mb-1">
+            <div className="flex items-center justify-between mb-1">
+                {isEditingDesc && (
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest animate-pulse">
+                        Salvamento automático ativo
+                    </span>
+                )}
                 {isEditingDesc && (
                     <button
-                        onClick={() => {
-                            const jsonStr = JSON.stringify(editor.getJSON());
-                            if (jsonStr !== task.description) onUpdateTask({ description: jsonStr });
-                            setIsEditingDesc(false);
-                        }}
-                        className="text-[10px] font-bold text-brand uppercase tracking-wider px-2 py-1 hover:bg-brand-light rounded transition-colors"
+                        onClick={() => setIsEditingDesc(false)}
+                        className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1 hover:bg-gray-100 rounded transition-colors"
                     >
-                        Concluir
+                        Fechar Editor
                     </button>
                 )}
             </div>
@@ -608,7 +839,7 @@ function TaskDescriptionSection({ task, onUpdateTask, isExpanded, setIsExpanded,
 
             <div
                 onClick={() => !isEditingDesc && setIsEditingDesc(true)}
-                className={`bg-gray-50/50 rounded-lg border transition-all relative overflow-hidden flex flex-col ${saving ? 'border-brand/30 opacity-70' : 'border-border-subtle'} ${!isEditingDesc ? 'p-4 cursor-pointer hover:bg-gray-100/50' : 'bg-white ring-2 ring-brand/20 border-brand'} ${!isExpanded && isLongDescription && !isEditingDesc ? 'max-h-[150px]' : 'max-h-none'}`}
+                className={`bg-gray-50/50 rounded-lg border transition-all relative overflow-hidden flex flex-col ${saving ? 'border-brand/30 opacity-70' : 'border-border-subtle'} ${!isEditingDesc ? 'p-4 cursor-pointer hover:bg-gray-100/50' : 'bg-white border-brand shadow-sm'} ${!isExpanded && isLongDescription && !isEditingDesc ? 'max-h-[150px]' : 'max-h-none'}`}
             >
                 {isEditingDesc && (
                     <div className="border-b border-gray-100 bg-gray-50 px-2 py-1.5 flex items-center gap-1 shrink-0 overflow-x-auto custom-scrollbar">

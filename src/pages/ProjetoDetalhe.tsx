@@ -19,7 +19,7 @@ import { type TaskWithAssignee } from '../store/taskStore';
 const PRIORITY_LABELS: Record<string, { label: string; className: string }> = {
     urgent: { label: 'Urgente', className: 'text-red-600' },
     high: { label: 'Alta', className: 'text-orange-500' },
-    medium: { label: 'Média', className: 'text-blue-500' },
+    medium: { label: 'Média', className: 'text-yellow-600' },
     low: { label: 'Baixa', className: 'text-gray-400' },
 };
 

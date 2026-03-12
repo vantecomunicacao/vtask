@@ -3,7 +3,8 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2 } from 'lucide-react';
+import { Badge } from '../components/ui/Badge';
+import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTaskStore } from '../store/taskStore';
 import { toast } from 'sonner';
@@ -21,6 +22,8 @@ export default function Configuracoes() {
     const { activeWorkspace, fetchWorkspaces } = useWorkspaceStore();
     const { statuses, fetchStatuses, addStatus, updateStatus, deleteStatus, updateStatusPositions } = useTaskStore();
     const [name, setName] = useState('');
+    const [openaiKey, setOpenaiKey] = useState('');
+    const [showOpenaiKey, setShowOpenaiKey] = useState(false);
     const [loading, setLoading] = useState(false);
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
     const [inviteEmail, setInviteEmail] = useState('');
@@ -50,6 +53,7 @@ export default function Configuracoes() {
     useEffect(() => {
         if (activeWorkspace) {
             setName(activeWorkspace.name);
+            setOpenaiKey((activeWorkspace as unknown as Record<string, string>).openai_api_key ?? '');
             loadMembers();
             fetchStatuses(activeWorkspace.id);
             fetchCategories(activeWorkspace.id);
@@ -62,7 +66,7 @@ export default function Configuracoes() {
         try {
             const { error } = await supabase
                 .from('workspaces')
-                .update({ name: name.trim() })
+                .update({ name: name.trim(), openai_api_key: openaiKey.trim() || null })
                 .eq('id', activeWorkspace.id);
 
             if (error) throw error;
@@ -220,25 +224,25 @@ export default function Configuracoes() {
                 <div className="col-span-1 space-y-2">
                     <button
                         onClick={() => setActiveTab('geral')}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'geral' ? 'bg-brand/10 text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'geral' ? 'bg-brand-light text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
                     >
                         <Building2 size={18} /> Geral
                     </button>
                     <button
                         onClick={() => setActiveTab('equipe')}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'equipe' ? 'bg-brand/10 text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'equipe' ? 'bg-brand-light text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
                     >
                         <Users2 size={18} /> Equipe
                     </button>
                     <button
                         onClick={() => setActiveTab('fluxo')}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'fluxo' ? 'bg-brand/10 text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'fluxo' ? 'bg-brand-light text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
                     >
                         <Layout size={18} /> Fluxo de Trabalho
                     </button>
                     <button
                         onClick={() => setActiveTab('categorias')}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'categorias' ? 'bg-brand/10 text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'categorias' ? 'bg-brand-light text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
                     >
                         <Palette size={18} /> Tipos de Tarefa
                     </button>
@@ -264,6 +268,26 @@ export default function Configuracoes() {
                                         onChange={(e) => setName(e.target.value)}
                                         placeholder="Nome da sua agência"
                                     />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="block text-sm font-medium text-gray-700">OpenAI API Key</label>
+                                    <p className="text-xs text-gray-500">Chave compartilhada por todos os perfis de e-mail do workspace.</p>
+                                    <div className="relative">
+                                        <Input
+                                            type={showOpenaiKey ? 'text' : 'password'}
+                                            value={openaiKey}
+                                            onChange={(e) => setOpenaiKey(e.target.value)}
+                                            placeholder="sk-..."
+                                            className="pr-10"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowOpenaiKey(v => !v)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        >
+                                            {showOpenaiKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                                        </button>
+                                    </div>
                                 </div>
                                 <Button onClick={handleSaveWorkspace} isLoading={loading}>
                                     Salvar Alterações
@@ -308,9 +332,9 @@ export default function Configuracoes() {
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-2 items-center">
-                                                    <span className="text-xs font-bold text-gray-500 uppercase bg-gray-100 px-2 py-1 rounded-md">
+                                                    <Badge variant={member.role as any}>
                                                         {member.role}
-                                                    </span>
+                                                    </Badge>
                                                 </div>
                                             </div>
                                         )
@@ -332,8 +356,8 @@ export default function Configuracoes() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
-                                    <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                                        <p className="text-xs text-blue-700 leading-relaxed">
+                                    <div className="p-4 bg-brand-light border border-border-subtle rounded-lg">
+                                        <p className="text-xs text-brand leading-relaxed">
                                             <strong>Dica:</strong> Defina as etapas do seu processo (Ex: Briefing, Em Produção, Revisão).
                                             As tarefas se movem da esquerda para a direita no Kanban seguindo esta ordem.
                                         </p>
@@ -462,8 +486,8 @@ export default function Configuracoes() {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
-                                    <div className="p-4 bg-purple-50 border border-purple-100 rounded-lg">
-                                        <p className="text-xs text-purple-700 leading-relaxed">
+                                    <div className="p-4 bg-brand-light border border-border-subtle rounded-lg">
+                                        <p className="text-xs text-brand leading-relaxed">
                                             Classifique suas tarefas por especialidade ou tipo de entrega. Isso ajuda na organização e visualização do volume de trabalho por área.
                                         </p>
                                     </div>

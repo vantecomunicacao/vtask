@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
+import { Select } from '../components/ui/Select';
 import { MoreHorizontal, Calendar as CalendarIcon, Flag, Search, ChevronDown, ChevronRight, CheckCircle2, ArrowUpDown, List, Clock, Trash2, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -9,10 +10,9 @@ import { TaskFormModal } from '../components/tasks/TaskFormModal';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-type TaskWithProject = TaskWithAssignee & {
-    project?: { id: string; name: string; color: string | null } | null;
-    category?: { id: string; name: string; color: string | null } | null;
-};
+// Remoção de tipos locais redundantes pois agora usamos TaskWithAssignee da store
+// type TaskWithProject = TaskWithAssignee & { ... };
+
 
 type GroupBy = 'status' | 'project' | 'due_date';
 type SortField = 'title' | 'due_date' | 'priority' | 'project';
@@ -29,12 +29,16 @@ function formatDueDate(due: string) {
 
 export default function Tarefas() {
     const { activeWorkspace } = useWorkspaceStore();
-    const { toggleTaskCompletion, statuses, fetchStatuses } = useTaskStore();
+    const { 
+        tasks, 
+        loading, 
+        fetchWorkspaceTasks, 
+        toggleTaskCompletion, 
+        statuses, 
+        fetchStatuses 
+    } = useTaskStore();
 
-    const [tasks, setTasks] = useState<TaskWithProject[]>([]);
-    const [loading, setLoading] = useState(false);
     const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
-    const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
     // Filter states
@@ -52,44 +56,18 @@ export default function Tarefas() {
     useEffect(() => {
         if (activeWorkspace) {
             fetchStatuses(activeWorkspace.id);
-            loadMyTasks(activeWorkspace.id);
+            fetchWorkspaceTasks(activeWorkspace.id).then(() => {
+                if (expandedSections.size === 0 && statuses.length > 0) {
+                     setExpandedSections(new Set([...statuses.map(s => s.id), 'todo', 'overdue', 'today', 'tomorrow', 'future', 'none']));
+                }
+            });
         }
-    }, [activeWorkspace]);
+    }, [activeWorkspace, fetchStatuses, fetchWorkspaceTasks]);
 
-    const loadMyTasks = async (workspaceId: string) => {
-        setLoading(true);
-        const { data: projectRows } = await supabase
-            .from('projects')
-            .select('id')
-            .eq('workspace_id', workspaceId);
-
-        const projectIds = projectRows?.map(p => p.id) || [];
-        if (projectIds.length === 0) {
-            setTasks([]);
-            setLoading(false);
-            return;
-        }
-
-        const { data } = await supabase
-            .from('tasks')
-            .select('*, project:projects(id, name, color), assignee:profiles(*), category:task_categories(id, name, color)')
-            .in('project_id', projectIds)
-            .order('due_date', { ascending: true, nullsFirst: false });
-
-        const taskData = (data as TaskWithProject[]) || [];
-        setTasks(taskData);
-
-        if (statuses.length > 0 && data) {
-            const lastStatusId = statuses[statuses.length - 1].id;
-            const done = new Set(taskData.filter(t => t.status_id === lastStatusId).map(t => t.id));
-            setCompletedIds(done);
-        }
-
-        if (statuses.length > 0 && expandedSections.size === 0) {
-            setExpandedSections(new Set([...statuses.map(s => s.id), 'todo', 'overdue', 'today', 'tomorrow', 'future', 'none']));
-        }
-
-        setLoading(false);
+    // Helpers para verificar status
+    const isTaskDone = (task: TaskWithAssignee) => {
+        if (statuses.length === 0) return false;
+        return task.status_id === statuses[statuses.length - 1].id;
     };
 
     const handleSort = (field: SortField) => {
@@ -129,7 +107,7 @@ export default function Tarefas() {
 
             if (error) throw error;
             setSelectedTaskIds(new Set());
-            if (activeWorkspace) loadMyTasks(activeWorkspace.id);
+            if (activeWorkspace) fetchWorkspaceTasks(activeWorkspace.id);
         } catch (error) {
             console.error('Error bulk deleting tasks:', error);
         }
@@ -209,14 +187,9 @@ export default function Tarefas() {
     const uniqueProjects = Array.from(new Set(tasks.map(t => t.project).filter(Boolean).map(p => JSON.stringify(p)))).map(s => JSON.parse(s));
     const uniqueAssignees = Array.from(new Set(tasks.map(t => t.assignee).filter(Boolean).map(a => JSON.stringify(a)))).map(s => JSON.parse(s));
 
-    const handleToggle = async (task: TaskWithProject) => {
-        const isCurrentlyCompleted = completedIds.has(task.id);
-        const newCompleted = new Set(completedIds);
-        if (isCurrentlyCompleted) newCompleted.delete(task.id);
-        else newCompleted.add(task.id);
-        setCompletedIds(newCompleted);
+    const handleToggle = async (task: TaskWithAssignee) => {
+        const isCurrentlyCompleted = isTaskDone(task);
         await toggleTaskCompletion(task.id, !isCurrentlyCompleted);
-        if (activeWorkspace) loadMyTasks(activeWorkspace.id);
     };
 
     return (
@@ -242,12 +215,12 @@ export default function Tarefas() {
                     </div>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-border-subtle shadow-sm flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                    <div className="w-10 h-10 rounded-lg bg-brand-light flex items-center justify-center text-brand">
                         <CalendarIcon size={20} />
                     </div>
                     <div>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Para Hoje</p>
-                        <p className="text-xl font-bold text-blue-600 tracking-tight">{counters.today}</p>
+                        <p className="text-xl font-bold text-brand tracking-tight">{counters.today}</p>
                     </div>
                 </div>
             </div>
@@ -267,27 +240,27 @@ export default function Tarefas() {
                             />
                         </div>
 
-                        <select
+                        <Select
                             value={selectedProject}
                             onChange={(e) => setSelectedProject(e.target.value)}
-                            className="px-3 py-2 bg-white border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-brand/20 outline-none transition-all cursor-pointer"
+                            containerClassName="w-48"
                         >
                             <option value="all">Todos os Projetos</option>
                             {uniqueProjects.map(p => (
                                 <option key={p.id} value={p.id}>{p.name}</option>
                             ))}
-                        </select>
+                        </Select>
 
-                        <select
+                        <Select
                             value={selectedAssignee}
                             onChange={(e) => setSelectedAssignee(e.target.value)}
-                            className="px-3 py-2 bg-white border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-brand/20 outline-none transition-all cursor-pointer"
+                            containerClassName="w-48"
                         >
                             <option value="all">Todos os Responsáveis</option>
                             {uniqueAssignees.map(a => (
                                 <option key={a.id} value={a.id}>{a.email.split('@')[0]}</option>
                             ))}
-                        </select>
+                        </Select>
 
                         <div className="h-6 w-px bg-gray-200 mx-1" />
 
@@ -369,13 +342,13 @@ export default function Tarefas() {
                                     {expandedSections.has(group.id as string) && (
                                         <div className="flex flex-col divide-y divide-border-subtle bg-white">
                                             {group.tasks.map(task => {
-                                                const isCompleted = completedIds.has(task.id);
+                                                const isCompleted = isTaskDone(task);
                                                 const due = task.due_date ? formatDueDate(task.due_date) : null;
                                                 const isTodayTask = task.due_date ? isToday(new Date(task.due_date)) : false;
                                                 const isSelected = selectedTaskIds.has(task.id);
 
                                                 return (
-                                                    <div key={task.id} className={`px-4 py-2.5 grid grid-cols-12 gap-4 items-center group transition-colors ${isSelected ? 'bg-brand/5' : isTodayTask ? 'bg-blue-50/30' : 'hover:bg-gray-50/50'}`}>
+                                                    <div key={task.id} className={`px-4 py-2.5 grid grid-cols-12 gap-4 items-center group transition-colors ${isSelected ? 'bg-brand/5' : isTodayTask ? 'bg-brand-light/50' : 'hover:bg-gray-50/50'}`}>
                                                         <div className="col-span-6 flex items-center gap-3">
                                                             <input
                                                                 type="checkbox"
@@ -463,7 +436,7 @@ export default function Tarefas() {
                                 onClick={async () => {
                                     if (!statuses.length) return;
                                     const { error } = await supabase.from('tasks').update({ status_id: statuses[statuses.length - 1].id }).in('id', Array.from(selectedTaskIds));
-                                    if (!error) { setSelectedTaskIds(new Set()); if (activeWorkspace) loadMyTasks(activeWorkspace.id); }
+                                    if (!error) { setSelectedTaskIds(new Set()); if (activeWorkspace) fetchWorkspaceTasks(activeWorkspace.id); }
                                 }}
                                 className="flex items-center gap-1.5 text-xs font-bold hover:text-brand transition-colors tracking-widest uppercase"
                             >
@@ -492,7 +465,6 @@ export default function Tarefas() {
                 isOpen={isTaskModalOpen}
                 onClose={() => {
                     setIsTaskModalOpen(false);
-                    if (activeWorkspace) loadMyTasks(activeWorkspace.id);
                 }}
             />
         </div>

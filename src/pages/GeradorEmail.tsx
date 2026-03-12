@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { toast } from 'sonner';
+import { Eye, EyeOff, Pencil } from 'lucide-react';
+import { Select } from '../components/ui/Select';
 import { ProfilesModal } from '../components/email/ProfilesModal';
 
 type EmailDraft = {
@@ -39,6 +41,12 @@ type EmailProfile = {
     default_button_link: string | null;
     test_email: string | null;
     themes_list: string | null;
+    openai_api_key: string | null;
+    cta_enabled: boolean;
+    email_length: 'short' | 'medium' | 'long';
+    button_color: string;
+    sender_name: string | null;
+    sender_email: string | null;
 };
 
 const TEMPLATES = [
@@ -101,6 +109,7 @@ export default function GeradorEmail() {
     const [buttonLink, setButtonLink] = useState('');
     const [bgColor, setBgColor] = useState('#f4f4f4');
     const [buttonColor, setButtonColor] = useState('#db4035');
+    const [headerColor, setHeaderColor] = useState('#db4035');
 
     // IA
     const [prompt, setPrompt] = useState('');
@@ -120,18 +129,26 @@ export default function GeradorEmail() {
     const [drafts, setDrafts] = useState<EmailDraft[]>([]);
 
     // Profiles
+    const [profiles, setProfiles] = useState<EmailProfile[]>([]);
     const [selectedProfile, setSelectedProfile] = useState<EmailProfile | null>(null);
     const [showProfilesModal, setShowProfilesModal] = useState(false);
+
+    // OpenAI key (per profile)
+    const [openaiKey, setOpenaiKey] = useState('');
+    const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+    const [savingOpenaiKey, setSavingOpenaiKey] = useState(false);
 
     // Apply profile settings when selected
     useEffect(() => {
         if (!selectedProfile) return;
-        if (selectedProfile.brand_color) setButtonColor(selectedProfile.brand_color);
+        setButtonColor(selectedProfile.button_color || '#db4035');
+        setHeaderColor(selectedProfile.brand_color || '#db4035');
         if (selectedProfile.logo_url) setLogoUrl(selectedProfile.logo_url);
         if (selectedProfile.banner_url) setBannerUrl(selectedProfile.banner_url);
         if (selectedProfile.ai_prompt && !prompt) setPrompt(selectedProfile.ai_prompt);
         if (selectedProfile.default_button_text) setButtonText(selectedProfile.default_button_text);
         if (selectedProfile.default_button_link) setButtonLink(selectedProfile.default_button_link);
+        setOpenaiKey(selectedProfile.openai_api_key ?? '');
         // Load this client's Mailchimp lists
         if (selectedProfile.mailchimp_api_key && selectedProfile.mailchimp_server) {
             fetch('http://localhost:3001/api/client-mailchimp-lists', {
@@ -165,6 +182,12 @@ export default function GeradorEmail() {
         cleanupOldImages();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workspaceId]);
+
+    // Load profiles once on mount
+    useEffect(() => {
+        supabase.from('email_profiles').select('*').order('name')
+            .then(({ data }) => { if (data) setProfiles(data as EmailProfile[]); });
+    }, []);
 
     // Fetch Mailchimp lists
     useEffect(() => {
@@ -238,6 +261,24 @@ export default function GeradorEmail() {
         }
     };
 
+    const handleSaveOpenaiKey = async () => {
+        if (!selectedProfile) return;
+        setSavingOpenaiKey(true);
+        try {
+            const { error } = await supabase
+                .from('email_profiles')
+                .update({ openai_api_key: openaiKey.trim() || null })
+                .eq('id', selectedProfile.id);
+            if (error) throw error;
+            setSelectedProfile(p => p ? { ...p, openai_api_key: openaiKey.trim() || null } : p);
+            toast.success('Chave salva no perfil!');
+        } catch (err: unknown) {
+            toast.error((err as Error).message);
+        } finally {
+            setSavingOpenaiKey(false);
+        }
+    };
+
     const handleGenerate = async () => {
         setLoading(true);
         setIsEditing(false);
@@ -248,15 +289,20 @@ export default function GeradorEmail() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     prompt, logoUrl, bannerUrl, bottomImageUrl,
-                    buttonText, buttonLink, title, bgColor, buttonColor,
+                    buttonText, buttonLink, title, bgColor, buttonColor, headerColor,
                     internalTemplateId, previewText,
-                    clientContext: selectedProfile?.ai_prompt
+                    clientContext: selectedProfile?.ai_prompt,
+                    profileName: selectedProfile?.name,
+                    openaiApiKey: openaiKey || undefined,
+                    ctaEnabled: selectedProfile?.cta_enabled ?? true,
+                    emailLength: selectedProfile?.email_length ?? 'medium',
                 }),
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
             setResult({ subject: data.subject, body: data.body });
             if (!subject) setSubject(data.subject);
+            if (!previewText && data.preview) setPreviewText(data.preview);
             setStatus('Conteúdo gerado com sucesso!');
         } catch (error: unknown) {
             setStatus('Erro ao gerar.');
@@ -273,7 +319,7 @@ export default function GeradorEmail() {
             const res = await fetch('http://localhost:3001/api/suggest-subject', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, title, clientContext: selectedProfile?.ai_prompt }),
+                body: JSON.stringify({ prompt, title, clientContext: selectedProfile?.ai_prompt, openaiApiKey: openaiKey || undefined }),
             });
             const data = await res.json();
             if (data.subject) setSubject(data.subject);
@@ -487,6 +533,8 @@ export default function GeradorEmail() {
                         : undefined,
                     apiKey: selectedProfile?.mailchimp_api_key || undefined,
                     serverPrefix: selectedProfile?.mailchimp_server || undefined,
+                    fromName: selectedProfile?.sender_name || undefined,
+                    replyTo: selectedProfile?.sender_email || undefined,
                 }),
             });
             const data = await res.json();
@@ -524,7 +572,7 @@ export default function GeradorEmail() {
     };
 
     return (
-        <div className="h-full flex flex-col bg-gray-50">
+        <div className="h-full flex flex-col bg-bg-main">
 
             {/* ── Top Bar ── */}
             <div className="flex-shrink-0 h-14 bg-white border-b flex items-center px-5 gap-3">
@@ -599,29 +647,28 @@ export default function GeradorEmail() {
                         <SectionHeader title="Perfil do Cliente" sectionKey="perfil" openSections={openSections} toggle={toggleSection} />
                         {openSections.perfil && (
                             <div className="px-5 pb-4 space-y-2">
-                                {selectedProfile ? (
-                                    <div className="flex items-center gap-2 p-2.5 rounded-lg border border-gray-200 bg-gray-50">
-                                        <span
-                                            className="w-3 h-3 rounded-full flex-shrink-0"
-                                            style={{ backgroundColor: selectedProfile.brand_color }}
-                                        />
-                                        <span className="flex-1 text-sm font-medium text-gray-800 truncate">{selectedProfile.name}</span>
-                                        <button
-                                            onClick={() => setSelectedProfile(null)}
-                                            className="text-xs text-gray-400 hover:text-red-500"
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <p className="text-xs text-gray-400">Nenhum perfil selecionado</p>
-                                )}
-                                <button
-                                    onClick={() => setShowProfilesModal(true)}
-                                    className="w-full h-8 rounded-md border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-                                >
-                                    Gerenciar Perfis
-                                </button>
+                                <div className="flex gap-2">
+                                    <Select
+                                        value={selectedProfile?.id ?? ''}
+                                        onChange={e => {
+                                            const p = profiles.find(p => p.id === e.target.value) ?? null;
+                                            setSelectedProfile(p);
+                                        }}
+                                        containerClassName="flex-1"
+                                    >
+                                        <option value="">Selecione um perfil...</option>
+                                        {profiles.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </Select>
+                                    <button
+                                        onClick={() => setShowProfilesModal(true)}
+                                        title="Gerenciar perfis"
+                                        className="h-10 w-10 flex items-center justify-center rounded-lg border border-border-subtle text-gray-400 hover:text-brand hover:border-brand hover:bg-brand/5 transition-all flex-shrink-0 mt-auto"
+                                    >
+                                        <Pencil size={14} />
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -634,17 +681,16 @@ export default function GeradorEmail() {
 
                                 {/* Público */}
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Público (Mailchimp)</label>
-                                    <select
+                                    <Select
+                                        label="Público (Mailchimp)"
                                         value={selectedListId}
                                         onChange={e => setSelectedListId(e.target.value)}
-                                        className="w-full h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand/30"
                                     >
                                         <option value="">Selecione um público...</option>
                                         {mailchimpLists.map(l => (
                                             <option key={l.id} value={l.id}>{l.name} ({l.count} contatos)</option>
                                         ))}
-                                    </select>
+                                    </Select>
                                     {mailchimpLists.length === 0 && (
                                         <p className="text-[11px] text-gray-400 mt-1">Servidor local não conectado ou sem listas.</p>
                                     )}
@@ -862,6 +908,37 @@ export default function GeradorEmail() {
                         <SectionHeader title="Conteúdo IA" sectionKey="ia" openSections={openSections} toggle={toggleSection} />
                         {openSections.ia && (
                             <div className="px-5 pb-5 space-y-3">
+                                {/* OpenAI API Key */}
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1.5">OpenAI API Key</label>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <input
+                                                type={showOpenaiKey ? 'text' : 'password'}
+                                                value={openaiKey}
+                                                onChange={e => setOpenaiKey(e.target.value)}
+                                                placeholder="sk-..."
+                                                className="w-full h-9 rounded-md border border-gray-200 px-3 pr-8 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/30"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowOpenaiKey(v => !v)}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            >
+                                                {showOpenaiKey ? <EyeOff size={13} /> : <Eye size={13} />}
+                                            </button>
+                                        </div>
+                                        {selectedProfile && (
+                                            <button
+                                                onClick={handleSaveOpenaiKey}
+                                                disabled={savingOpenaiKey}
+                                                className="h-9 px-3 rounded-md border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50 flex-shrink-0"
+                                            >
+                                                {savingOpenaiKey ? '...' : 'Salvar'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                                 <textarea
                                     className="w-full min-h-[100px] rounded-md border border-gray-200 px-3 py-2 text-sm placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-brand/30"
                                     placeholder="Descreva o que a IA deve escrever..."
@@ -927,7 +1004,11 @@ export default function GeradorEmail() {
             {/* ── Profiles Modal ── */}
             {showProfilesModal && (
                 <ProfilesModal
-                    onClose={() => setShowProfilesModal(false)}
+                    onClose={() => {
+                        setShowProfilesModal(false);
+                        supabase.from('email_profiles').select('*').order('name')
+                            .then(({ data }) => { if (data) setProfiles(data as EmailProfile[]); });
+                    }}
                     onSelectProfile={profile => {
                         setSelectedProfile(profile as EmailProfile);
                         setShowProfilesModal(false);

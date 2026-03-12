@@ -51,7 +51,7 @@ export default function Agenda() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-7 border-b border-border-subtle bg-gray-50">
+                <div className="grid grid-cols-7 border-b border-border-subtle bg-bg-sidebar">
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
                         <div key={day} className="py-2 text-center text-[11px] font-bold text-gray-500 uppercase tracking-widest border-r border-border-subtle last:border-0">
                             {day}
@@ -62,13 +62,13 @@ export default function Agenda() {
                 <div className="flex-1 grid grid-cols-7 grid-rows-5 bg-border-subtle gap-[1px]">
                     {/* Mock paddings for first day of month - simplificado para o visual */}
                     {Array.from({ length: startOfMonth(currentDate).getDay() }).map((_, i) => (
-                        <div key={`empty-${i}`} className="bg-gray-50/50 p-2 min-h-[100px]" />
+                        <div key={`empty-${i}`} className="bg-bg-sidebar/50 p-2 min-h-[100px]" />
                     ))}
 
                     {daysInMonth.map((date) => (
                         <div
                             key={date.toString()}
-                            className={`bg-white p-2 min-h-[100px] hover:bg-gray-50 transition-colors cursor-pointer group flex flex-col ${!isSameMonth(date, currentDate) ? 'text-gray-400 bg-gray-50/50' : 'text-gray-900'
+                            className={`bg-white p-2 min-h-[100px] hover:bg-bg-sidebar transition-colors cursor-pointer group flex flex-col ${!isSameMonth(date, currentDate) ? 'text-gray-400 bg-bg-sidebar/50' : 'text-gray-900'
                                 }`}
                         >
                             <div className="flex items-start justify-between">
@@ -88,7 +88,7 @@ export default function Agenda() {
                                 </div>
                             )}
                             {isToday(addMonths(date, -1)) && (
-                                <div className="mt-2 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-200 px-2 py-1 rounded truncate">
+                                <div className="mt-2 text-xs font-medium text-gray-700 bg-bg-main border border-border-subtle px-2 py-1 rounded truncate">
                                     Entrega Ads (15:00)
                                 </div>
                             )}
@@ -97,7 +97,7 @@ export default function Agenda() {
 
                     {/* Fill remaining spaces */}
                     {Array.from({ length: 42 - daysInMonth.length - startOfMonth(currentDate).getDay() }).map((_, i) => (
-                        <div key={`empty-end-${i}`} className="bg-gray-50/50 p-2 min-h-[100px]" />
+                        <div key={`empty-end-${i}`} className="bg-bg-sidebar/50 p-2 min-h-[100px]" />
                     ))}
                 </div>
             </Card>

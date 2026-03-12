@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Eye, EyeOff, RefreshCw, ChevronDown, ChevronRight, Play, Pause, Upload, Edit } from 'lucide-react';
+import { Select } from '../ui/Select';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
@@ -18,6 +19,12 @@ interface EmailProfile {
   default_button_link: string | null;
   test_email: string | null;
   themes_list: string | null;
+  openai_api_key: string | null;
+  cta_enabled: boolean;
+  email_length: 'short' | 'medium' | 'long';
+  button_color: string;
+  sender_name: string | null;
+  sender_email: string | null;
 }
 
 interface EmailSchedule {
@@ -110,6 +117,12 @@ const emptyProfile = (): Omit<EmailProfile, 'id'> => ({
   default_button_link: '',
   test_email: '',
   themes_list: '',
+  openai_api_key: '',
+  cta_enabled: true,
+  email_length: 'medium',
+  button_color: '#db4035',
+  sender_name: '',
+  sender_email: '',
 });
 
 const emptySchedule = (): Omit<EmailSchedule, 'id' | 'profile_id' | 'last_run_at' | 'next_run_at'> => ({
@@ -186,6 +199,12 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
       default_button_link: p.default_button_link ?? '',
       test_email: p.test_email ?? '',
       themes_list: p.themes_list ?? '',
+      openai_api_key: p.openai_api_key ?? '',
+      cta_enabled: p.cta_enabled ?? true,
+      email_length: p.email_length ?? 'medium',
+      button_color: p.button_color ?? '#db4035',
+      sender_name: p.sender_name ?? '',
+      sender_email: p.sender_email ?? '',
     });
     setLists([]);
     setShowScheduleForm(false);
@@ -427,7 +446,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
             <div className="p-3 border-b border-gray-100">
               <button
                 onClick={startNew}
-                className="w-full flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 px-2 py-1.5 rounded hover:bg-blue-50"
+                className="w-full flex items-center gap-2 text-sm font-medium text-brand hover:text-brand px-2 py-1.5 rounded hover:bg-brand-light"
               >
                 <Plus size={15} />
                 Novo perfil
@@ -438,7 +457,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                 <button
                   key={p.id}
                   onClick={() => selectProfile(p)}
-                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${selectedId === p.id && !isNew ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${selectedId === p.id && !isNew ? 'bg-brand-light text-brand font-medium' : 'text-gray-700'}`}
                 >
                   <div className="flex items-center gap-2">
                     <span
@@ -471,7 +490,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                       type="text"
                       value={form.name}
                       onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                       placeholder="Ex: Acme Corp, Cliente X..."
                     />
                   </div>
@@ -483,7 +502,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                         type={showKey ? 'text' : 'password'}
                         value={form.mailchimp_api_key ?? ''}
                         onChange={e => setForm(f => ({ ...f, mailchimp_api_key: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm pr-9 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm pr-9 focus:outline-none focus:ring-2 focus:ring-brand/30"
                         placeholder="xxxx-us5"
                       />
                       <button
@@ -502,25 +521,47 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                       type="text"
                       value={form.mailchimp_server ?? 'us5'}
                       onChange={e => setForm(f => ({ ...f, mailchimp_server: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                       placeholder="us5"
+                    />
+                  </div>
+
+                  {/* Sender Info */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Nome do Remetente</label>
+                    <input
+                      type="text"
+                      value={form.sender_name ?? ''}
+                      onChange={e => setForm(f => ({ ...f, sender_name: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
+                      placeholder="Ex: Nome da Empresa"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">E-mail do Remetente</label>
+                    <input
+                      type="email"
+                      value={form.sender_email ?? ''}
+                      onChange={e => setForm(f => ({ ...f, sender_email: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
+                      placeholder="Ex: contato@empresa.com"
                     />
                   </div>
 
                   {/* List picker */}
                   <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Lista Mailchimp</label>
                     <div className="flex gap-2">
-                      <select
+                      <Select
                         value={form.mailchimp_list_id ?? ''}
                         onChange={e => setForm(f => ({ ...f, mailchimp_list_id: e.target.value }))}
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        containerClassName="flex-1"
                       >
                         <option value="">Selecionar lista...</option>
                         {lists.map(l => (
                           <option key={l.id} value={l.id}>{l.name} ({l.count.toLocaleString()})</option>
                         ))}
-                      </select>
+                      </Select>
                       <button
                         onClick={handleLoadLists}
                         disabled={loadingLists}
@@ -539,7 +580,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                       value={form.ai_prompt ?? ''}
                       onChange={e => setForm(f => ({ ...f, ai_prompt: e.target.value }))}
                       rows={4}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 resize-none"
                       placeholder="Ex: Nome: Vflow, E-mail: contato@vflow.com. Somos uma empresa de tecnologia focada em automação..."
                     />
                   </div>
@@ -551,7 +592,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                       type="text"
                       value={form.default_button_text ?? ''}
                       onChange={e => setForm(f => ({ ...f, default_button_text: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                       placeholder="Ex: Saiba Mais"
                     />
                   </div>
@@ -561,7 +602,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                       type="url"
                       value={form.default_button_link ?? ''}
                       onChange={e => setForm(f => ({ ...f, default_button_link: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                       placeholder="https://..."
                     />
                   </div>
@@ -572,7 +613,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                       type="email"
                       value={form.test_email ?? ''}
                       onChange={e => setForm(f => ({ ...f, test_email: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                       placeholder="seu@email.com"
                     />
                   </div>
@@ -593,7 +634,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                       value={form.themes_list ?? ''}
                       onChange={e => setForm(f => ({ ...f, themes_list: e.target.value }))}
                       rows={4}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y custom-scrollbar"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 resize-y custom-scrollbar"
                       placeholder="Anote aqui ideias de temas para os próximos e-mails..."
                     />
                   </div>
@@ -613,11 +654,74 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                         type="text"
                         value={form.brand_color}
                         onChange={e => setForm(f => ({ ...f, brand_color: e.target.value }))}
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/30"
                       />
                     </div>
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Cor do botão</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={form.button_color}
+                        onChange={e => setForm(f => ({ ...f, button_color: e.target.value }))}
+                        className="w-9 h-9 rounded cursor-pointer border border-gray-200"
+                      />
+                      <input
+                        type="text"
+                        value={form.button_color}
+                        onChange={e => setForm(f => ({ ...f, button_color: e.target.value }))}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/30"
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Cor padrão dos botões de CTA nos emails</p>
+                  </div>
+
+                </div>
+
+                {/* Content settings */}
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                    <p className="text-xs font-semibold text-gray-600">Configurações de Conteúdo</p>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    {/* CTA toggle */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Botão de CTA</p>
+                        <p className="text-xs text-gray-500">Incluir botão de chamada para ação no email</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, cta_enabled: !f.cta_enabled }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.cta_enabled ? 'bg-brand' : 'bg-gray-300'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.cta_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                    {/* Email length */}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Tamanho do email</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          { value: 'short', label: 'Curto', desc: '~150 palavras' },
+                          { value: 'medium', label: 'Médio', desc: '~300 palavras' },
+                          { value: 'long', label: 'Longo', desc: '~500 palavras' },
+                        ] as const).map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, email_length: opt.value }))}
+                            className={`flex flex-col items-center px-2 py-2.5 rounded-lg border text-xs transition-colors ${form.email_length === opt.value ? 'border-brand bg-brand-light text-brand' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                          >
+                            <span className="font-semibold">{opt.label}</span>
+                            <span className="text-[10px] mt-0.5 opacity-70">{opt.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Image management — only when editing existing profile */}
@@ -700,7 +804,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:hover:bg-brand/90 disabled:opacity-50"
                   >
                     {saving ? 'Salvando...' : isNew ? 'Criar perfil' : 'Salvar alterações'}
                   </button>
@@ -738,7 +842,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                             setEditingScheduleId(null);
                           }
                         }}
-                        className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        className="flex items-center gap-1.5 text-xs text-brand hover:text-brand font-medium"
                       >
                         <Plus size={13} />
                         Novo agendamento
@@ -773,7 +877,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                                 setEditingScheduleId(s.id);
                                 setShowScheduleForm(true);
                               }}
-                              className="p-1 rounded text-blue-500 hover:bg-blue-50"
+                              className="p-1 rounded text-brand hover:bg-brand-light"
                               title="Editar"
                             >
                               <Edit size={13} />
@@ -803,8 +907,8 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
 
                     {/* New/Edit schedule form */}
                     {showScheduleForm && (
-                      <div className="mt-3 p-4 border border-blue-200 rounded-lg bg-blue-50 space-y-3">
-                        <h4 className="text-xs font-semibold text-blue-800">
+                      <div className="mt-3 p-4 border border-brand/30 rounded-lg bg-brand-light space-y-3">
+                        <h4 className="text-xs font-semibold text-brand">
                           {editingScheduleId ? 'Editar agendamento' : 'Novo agendamento'}
                         </h4>
 
@@ -814,44 +918,40 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                             type="text"
                             value={scheduleForm.name}
                             onChange={e => setScheduleForm(f => ({ ...f, name: e.target.value }))}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                             placeholder="Ex: Newsletter semanal"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Frequência</label>
-                          <select
+                          <Select
+                            label="Frequência"
                             value={cronPreset}
                             onChange={e => setCronPreset(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             {CRON_PRESETS.map(p => (
                               <option key={p.value} value={p.value}>{p.label}</option>
                             ))}
-                          </select>
+                          </Select>
                           {cronPreset === '__custom__' && (
                             <input
                               type="text"
                               value={customCron}
                               onChange={e => setCustomCron(e.target.value)}
-                              className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/30"
                               placeholder="0 9 * * 1"
                             />
                           )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Template</label>
-                            <select
-                              value={scheduleForm.template_id}
-                              onChange={e => setScheduleForm(f => ({ ...f, template_id: e.target.value }))}
-                              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
-                            >
-                              {TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                            </select>
-                          </div>
+                          <Select
+                            label="Template"
+                            value={scheduleForm.template_id}
+                            onChange={e => setScheduleForm(f => ({ ...f, template_id: e.target.value }))}
+                          >
+                            {TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                          </Select>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Cor do botão</label>
                             <input
@@ -863,12 +963,12 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                           </div>
                         </div>
 
-                        <label className="flex items-center gap-2 mb-4 p-3 bg-blue-50/50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                        <label className="flex items-center gap-2 mb-4 p-3 bg-brand-light/50 border border-brand/20 rounded-lg cursor-pointer hover:bg-brand-light transition-colors">
                           <input
                             type="checkbox"
                             checked={scheduleForm.is_dynamic_theme}
                             onChange={e => setScheduleForm(f => ({ ...f, is_dynamic_theme: e.target.checked }))}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            className="w-4 h-4 text-brand rounded border-gray-300 focus:ring-brand/30"
                           />
                           <div className="flex flex-col">
                             <span className="text-sm font-medium text-gray-800 flex items-center gap-1.5">
@@ -919,7 +1019,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                         <div className="flex gap-2 pt-1">
                           <button
                             onClick={handleAddSchedule}
-                            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                            className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:hover:bg-brand/90"
                           >
                             {editingScheduleId ? 'Salvar Edição' : 'Criar agendamento'}
                           </button>
