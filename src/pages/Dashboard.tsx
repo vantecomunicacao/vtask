@@ -9,15 +9,6 @@ import { ptBR } from 'date-fns/locale';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal';
 import { type TaskWithAssignee } from '../store/taskStore';
 
-
-type TaskWithProjectInfo = TaskWithAssignee & {
-    project?: {
-        id: string;
-        name: string;
-        workspace_id: string
-    } | null
-};
-
 export default function Dashboard() {
     const { activeWorkspace } = useWorkspaceStore();
     const { session } = useAuthStore();
@@ -26,7 +17,7 @@ export default function Dashboard() {
         myTasks: 0,
         activeProjects: 0
     });
-    const [recentTasks, setRecentTasks] = useState<TaskWithProjectInfo[]>([]);
+    const [recentTasks, setRecentTasks] = useState<TaskWithAssignee[]>([]);
     const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
 
     useEffect(() => {
@@ -50,7 +41,7 @@ export default function Dashboard() {
 
             const { data: myTasksData } = await supabase
                 .from('tasks')
-                .select('*, project:projects(id, name, workspace_id), assignee:profiles(*)')
+                .select('*, project:projects(id, name, color), assignee:profiles(*)')
                 .in('project_id', projectIds)
                 .eq('assignee_id', userId);
 
