@@ -260,25 +260,25 @@ export const renderItems = () => {
                 { props, editor: props.editor }
             );
             popup = tippy('body', {
-                getReferenceClientRect: props.clientRect,
+                getReferenceClientRect: props.clientRect as any,
                 appendTo: () => document.body,
                 content: renderer.element,
                 showOnCreate: true,
                 interactive: true,
                 trigger: 'manual',
                 placement: 'bottom-start',
-            });
+            }) as any;
         },
         onUpdate(props: SuggestionProps<SlashCommandItem>) {
             renderer?.updateProps(props);
-            popup?.[0]?.setProps({ getReferenceClientRect: props.clientRect });
+            (popup as any)?.setProps({ getReferenceClientRect: props.clientRect as any });
         },
         onKeyDown(props: SuggestionKeyDownProps) {
-            if (props.event.key === 'Escape') { popup?.[0]?.hide(); return true; }
+            if (props.event.key === 'Escape') { (popup as any)?.hide(); return true; }
             return renderer?.ref?.onKeyDown(props) ?? false;
         },
         onExit() {
-            popup?.[0]?.destroy();
+            (popup as any)?.destroy();
             renderer?.destroy();
             popup = null;
             renderer = null;

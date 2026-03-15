@@ -5,9 +5,9 @@ import type { TaskWithAssignee, CustomStatus } from '../../store/taskStore';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 const STATUSES: CustomStatus[] = [
-    { id: 's-todo', name: 'A fazer', color: '#94a3b8', position: 1, workspace_id: 'w1' },
-    { id: 's-doing', name: 'Em andamento', color: '#3b82f6', position: 2, workspace_id: 'w1' },
-    { id: 's-done', name: 'Concluído', color: '#10b981', position: 3, workspace_id: 'w1' },
+    { id: 's-todo', name: 'A fazer', color: '#94a3b8', position: 1, workspace_id: 'w1', created_at: '2025-01-01T00:00:00Z' },
+    { id: 's-doing', name: 'Em andamento', color: '#3b82f6', position: 2, workspace_id: 'w1', created_at: '2025-01-01T00:00:00Z' },
+    { id: 's-done', name: 'Concluído', color: '#10b981', position: 3, workspace_id: 'w1', created_at: '2025-01-01T00:00:00Z' },
 ];
 
 function makeTask(overrides: Partial<TaskWithAssignee> = {}): TaskWithAssignee {

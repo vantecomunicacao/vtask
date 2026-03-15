@@ -370,7 +370,7 @@ export default function Tarefas() {
                                 {groupedTasks.map(group => (
                                     <TaskGroupSection
                                         key={group.id}
-                                        group={group}
+                                        group={{ ...group, id: group.id || 'todo' }}
                                         isExpanded={expandedSections.has(group.id as string)}
                                         animating={animatingGroups.get(group.id as string)}
                                         groupBy={groupBy}
