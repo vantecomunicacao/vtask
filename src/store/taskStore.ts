@@ -5,7 +5,7 @@ import { addDays, addWeeks, addMonths, format } from 'date-fns';
 
 type Task = Database['public']['Tables']['tasks']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
-type CustomStatus = Database['public']['Tables']['custom_statuses']['Row'];
+export type CustomStatus = Database['public']['Tables']['custom_statuses']['Row'];
 type TaskCategory = Database['public']['Tables']['task_categories']['Row'];
 
 export type TaskWithAssignee = Task & {
@@ -14,16 +14,20 @@ export type TaskWithAssignee = Task & {
     project?: { id: string; name: string; color: string | null } | null;
 };
 
+const CACHE_TTL_MS = 30_000;
+
 interface TaskState {
     tasks: TaskWithAssignee[];
     statuses: CustomStatus[];
     taskCategories: TaskCategory[];
     loading: boolean;
     error: string | null;
+    tasksCache: { workspaceId: string; at: number } | null;
     fetchTasks: (projectId: string) => Promise<void>;
     fetchStatuses: (workspaceId: string) => Promise<void>;
     fetchCategories: (workspaceId: string) => Promise<void>;
-    fetchWorkspaceTasks: (workspaceId: string) => Promise<void>;
+    fetchWorkspaceTasks: (workspaceId: string, force?: boolean) => Promise<void>;
+    invalidateTasksCache: () => void;
     addStatus: (workspaceId: string, name: string, color: string) => Promise<void>;
     updateStatus: (id: string, updates: Partial<CustomStatus>) => Promise<void>;
     deleteStatus: (id: string) => Promise<void>;
@@ -33,6 +37,10 @@ interface TaskState {
     deleteCategory: (id: string) => Promise<void>;
     moveTask: (taskId: string, newStatusId: string | null, newPosition: number) => Promise<void>;
     updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+    deleteTask: (taskId: string) => Promise<void>;
+    restoreTask: (taskId: string) => Promise<void>;
+    permanentDeleteTask: (taskId: string) => Promise<void>;
+    fetchTrashedTasks: (workspaceId: string) => Promise<TaskWithAssignee[]>;
     toggleTaskCompletion: (taskId: string, isCompleted: boolean) => Promise<void>;
 }
 
@@ -42,17 +50,23 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     taskCategories: [],
     loading: false,
     error: null,
+    tasksCache: null,
+
+    invalidateTasksCache: () => set({ tasksCache: null }),
 
     fetchStatuses: async (workspaceId: string) => {
-        const { data, error } = await supabase
+        const run = () => supabase
             .from('custom_statuses')
             .select('*')
             .eq('workspace_id', workspaceId)
             .order('position', { ascending: true });
 
-        if (!error && data) {
-            set({ statuses: data });
+        let { data, error } = await run();
+        if (error) {
+            await new Promise(r => setTimeout(r, 1000));
+            ({ data, error } = await run());
         }
+        if (!error && data) set({ statuses: data });
     },
 
     fetchCategories: async (workspaceId: string) => {
@@ -189,6 +203,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         category:task_categories(*)
       `)
             .eq('project_id', projectId)
+            .is('deleted_at', null)
             .order('position', { ascending: true });
 
         if (error) {
@@ -199,23 +214,27 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         set({ tasks: (data as TaskWithAssignee[]) || [], loading: false });
     },
 
-    fetchWorkspaceTasks: async (workspaceId: string) => {
+    fetchWorkspaceTasks: async (workspaceId: string, force = false) => {
+        const { tasksCache } = get();
+        if (!force && tasksCache?.workspaceId === workspaceId && Date.now() - tasksCache.at < CACHE_TTL_MS) {
+            return; // serve from cache
+        }
+
         set({ loading: true, error: null });
 
-        // Primeiro pegamos os projetos do workspace
         const { data: projects } = await supabase
             .from('projects')
             .select('id')
             .eq('workspace_id', workspaceId);
 
         const projectIds = projects?.map(p => p.id) || [];
-        
+
         if (projectIds.length === 0) {
-            set({ tasks: [], loading: false });
+            set({ tasks: [], loading: false, tasksCache: { workspaceId, at: Date.now() } });
             return;
         }
 
-        const { data, error } = await supabase
+        const run = () => supabase
             .from('tasks')
             .select(`
                 *,
@@ -224,14 +243,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
                 category:task_categories(id, name, color)
             `)
             .in('project_id', projectIds)
+            .is('deleted_at', null)
             .order('due_date', { ascending: true, nullsFirst: false });
+
+        let { data, error } = await run();
+        if (error) {
+            await new Promise(r => setTimeout(r, 1000));
+            ({ data, error } = await run());
+        }
 
         if (error) {
             set({ loading: false, error: error.message });
             return;
         }
 
-        set({ tasks: (data as TaskWithAssignee[]) || [], loading: false });
+        set({ tasks: (data as TaskWithAssignee[]) || [], loading: false, tasksCache: { workspaceId, at: Date.now() } });
     },
 
     moveTask: async (taskId: string, newStatusId: string | null, newPosition: number) => {
@@ -272,6 +298,58 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             set({ tasks: previousTasks, error: error.message });
             throw error;
         }
+    },
+
+    deleteTask: async (taskId: string) => {
+        const now = new Date().toISOString();
+        const { error } = await supabase
+            .from('tasks')
+            .update({ deleted_at: now })
+            .eq('id', taskId);
+
+        if (error) {
+            set({ error: error.message });
+        } else {
+            set({ tasks: get().tasks.filter(t => t.id !== taskId) });
+        }
+    },
+
+    restoreTask: async (taskId: string) => {
+        const { error } = await supabase
+            .from('tasks')
+            .update({ deleted_at: null })
+            .eq('id', taskId);
+
+        if (error) set({ error: error.message });
+    },
+
+    permanentDeleteTask: async (taskId: string) => {
+        const { error } = await supabase
+            .from('tasks')
+            .delete()
+            .eq('id', taskId);
+
+        if (error) set({ error: error.message });
+    },
+
+    fetchTrashedTasks: async (workspaceId: string) => {
+        const { data: projects } = await supabase
+            .from('projects')
+            .select('id')
+            .eq('workspace_id', workspaceId);
+
+        const projectIds = projects?.map(p => p.id) || [];
+        if (projectIds.length === 0) return [];
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*, project:projects(id, name, color), assignee:profiles(*)')
+            .in('project_id', projectIds)
+            .not('deleted_at', 'is', null)
+            .order('deleted_at', { ascending: false });
+
+        if (error) { set({ error: error.message }); return []; }
+        return (data as TaskWithAssignee[]) || [];
     },
 
     toggleTaskCompletion: async (taskId: string, isCompleted: boolean) => {
@@ -315,6 +393,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
                     assignee_id: task.assignee_id,
                     due_date: format(nextDate, 'yyyy-MM-dd'),
                     recurrence: task.recurrence,
+                    category_id: task.category_id,
                     position: 0
                 });
 

@@ -1,161 +1,275 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useDocumentStore } from '../store/documentStore';
+import { useDocumentStore, type Document } from '../store/documentStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { useProjectStore } from '../store/projectStore';
 import { Button } from '../components/ui/Button';
-import { Select } from '../components/ui/Select';
 import { DocumentEditor } from '../components/documents/DocumentEditor';
-import { Search, FileText, Plus, Calendar, Folder, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import {
+    FileText, Plus, ChevronRight, ChevronDown,
+    Trash2, Inbox, Search, FilePlus
+} from 'lucide-react';
+import { cn } from '../lib/utils';
 
+// ─── Nó da árvore de documentos ──────────────────────────────────
+function DocTreeItem({
+    doc,
+    allDocs,
+    depth,
+    activeId,
+    onSelect,
+    onAddChild,
+    onDelete,
+}: {
+    doc: Document;
+    allDocs: Document[];
+    depth: number;
+    activeId: string | undefined;
+    onSelect: (id: string) => void;
+    onAddChild: (parentId: string) => void;
+    onDelete: (doc: Document) => void;
+}) {
+    const children = allDocs.filter(d => d.parent_id === doc.id);
+    const [open, setOpen] = useState(depth === 0);
+    const isActive = activeId === doc.id;
+
+    return (
+        <div>
+            <div
+                className={cn(
+                    'group flex items-center gap-1 rounded-lg py-1 pr-1 cursor-pointer text-sm transition-all select-none',
+                    isActive ? 'bg-brand/10 text-brand font-semibold' : 'text-secondary hover:bg-surface-0 hover:text-primary'
+                )}
+                style={{ paddingLeft: `${6 + depth * 14}px` }}
+                onClick={() => onSelect(doc.id)}
+            >
+                {/* Expand toggle */}
+                <button
+                    className="p-0.5 shrink-0 text-muted hover:text-secondary rounded"
+                    onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+                >
+                    {children.length > 0
+                        ? open ? <ChevronDown size={12} /> : <ChevronRight size={12} />
+                        : <span className="w-3 inline-block" />
+                    }
+                </button>
+
+                <FileText size={13} className="shrink-0" />
+                <span className="flex-1 truncate leading-none py-0.5">{doc.title || 'Sem título'}</span>
+
+                {/* Hover actions */}
+                <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                    <button
+                        title="Nova sub-página"
+                        className="p-1 rounded hover:bg-surface-2 text-muted hover:text-secondary"
+                        onClick={e => { e.stopPropagation(); onAddChild(doc.id); }}
+                    >
+                        <Plus size={11} />
+                    </button>
+                    <button
+                        title="Excluir"
+                        className="p-1 rounded hover:bg-red-50 text-muted hover:text-red-500"
+                        onClick={e => { e.stopPropagation(); onDelete(doc); }}
+                    >
+                        <Trash2 size={11} />
+                    </button>
+                </div>
+            </div>
+
+            {open && children.map(child => (
+                <DocTreeItem
+                    key={child.id}
+                    doc={child}
+                    allDocs={allDocs}
+                    depth={depth + 1}
+                    activeId={activeId}
+                    onSelect={onSelect}
+                    onAddChild={onAddChild}
+                    onDelete={onDelete}
+                />
+            ))}
+        </div>
+    );
+}
+
+// ─── Empty state ──────────────────────────────────────────────────
+function EmptyState({ onCreate }: { onCreate: () => void }) {
+    return (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 fade-in py-20">
+            <div className="w-16 h-16 rounded-card bg-surface-0 flex items-center justify-center">
+                <Inbox size={32} className="text-muted" />
+            </div>
+            <p className="text-secondary font-medium">Nenhum documento ainda</p>
+            <Button size="sm" onClick={onCreate} className="gap-2 mt-1">
+                <Plus size={14} /> Novo Documento
+            </Button>
+        </div>
+    );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────
 export default function Documentos() {
     const navigate = useNavigate();
     const { id } = useParams();
     const { activeWorkspace } = useWorkspaceStore();
-    const { documents, fetchDocuments, createDocument, deleteDocument, loading } = useDocumentStore();
-    const { projects } = useProjectStore();
+    const { documents, fetchDocuments, createDocument, createSubDocument, deleteDocument, loading } = useDocumentStore();
 
     const [search, setSearch] = useState('');
-    const [selectedProject, setSelectedProject] = useState('all');
+    const searchRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (activeWorkspace) {
-            fetchDocuments(activeWorkspace.id);
-        }
+        if (activeWorkspace) fetchDocuments(activeWorkspace.id);
     }, [activeWorkspace, fetchDocuments]);
 
-    const handleCreateDocument = async () => {
+    const handleCreate = useCallback(async () => {
         if (!activeWorkspace) return;
-
         const newDoc = await createDocument({
             workspace_id: activeWorkspace.id,
-            title: 'Novo Documento',
+            title: 'Nova página',
             content: { type: 'doc', content: [] },
-            project_id: selectedProject === 'all' ? null : selectedProject
+            project_id: null,
+            folder_id: null,
+            parent_id: null,
         });
+        if (newDoc) navigate(`/documentos/${newDoc.id}`);
+    }, [activeWorkspace, createDocument, navigate]);
 
-        if (newDoc) {
-            navigate(`/documentos/${newDoc.id}`);
+    const handleAddChild = useCallback(async (parentId: string) => {
+        if (!activeWorkspace) return;
+        const newDoc = await createSubDocument(parentId, activeWorkspace.id);
+        if (newDoc) navigate(`/documentos/${newDoc.id}`);
+    }, [activeWorkspace, createSubDocument, navigate]);
+
+    const handleDelete = useCallback(async (doc: Document) => {
+        const hasChildren = documents.some(d => d.parent_id === doc.id);
+        const msg = hasChildren
+            ? `Excluir "${doc.title}" e todas as sub-páginas?`
+            : `Excluir "${doc.title}"?`;
+        if (window.confirm(msg)) {
+            await deleteDocument(doc.id);
+            if (id === doc.id) navigate('/documentos');
         }
-    };
+    }, [documents, deleteDocument, id, navigate]);
 
-    const handleDeleteDocument = async (e: React.MouseEvent, id: string, title: string) => {
-        e.stopPropagation();
-        if (window.confirm(`Tem certeza que deseja excluir o documento "${title}"?`)) {
-            await deleteDocument(id);
-        }
-    };
+    // Keyboard shortcut
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+            if (e.key === 'n' || e.key === 'N') { e.preventDefault(); handleCreate(); }
+            if (e.key === '/') { e.preventDefault(); searchRef.current?.focus(); }
+        };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [handleCreate]);
 
-    const filteredDocuments = documents.filter(doc => {
-        const matchesSearch = doc.title.toLowerCase().includes(search.toLowerCase());
-        const matchesProject = selectedProject === 'all' || doc.project_id === selectedProject;
-        return matchesSearch && matchesProject;
-    });
+    // Docs raiz (sem pai)
+    const rootDocs = documents.filter(d => !d.parent_id);
+
+    // Busca flat (todos os docs que batem com o search)
+    const searchResults = search.trim()
+        ? documents.filter(d => d.title.toLowerCase().includes(search.toLowerCase()))
+        : null;
 
     return (
-        <div className="space-y-6 fade-in h-full flex flex-col relative">
-            <div className="flex items-center justify-between shrink-0">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
-                    <p className="text-sm text-gray-500">Crie e organize manuais, briefings e anotações.</p>
+        <div className="h-full flex fade-in rounded-card overflow-hidden border border-border-subtle shadow-card bg-surface-card">
+            {/* ── Sidebar de Páginas ── */}
+            <div className="w-60 shrink-0 flex flex-col border-r border-border-subtle bg-surface-2/40 overflow-hidden">
+                {/* Header */}
+                <div className="px-3 pt-4 pb-2 flex items-center justify-between shrink-0">
+                    <span className="text-[11px] font-bold text-muted uppercase tracking-widest">Páginas</span>
+                    <button
+                        onClick={handleCreate}
+                        title="Nova página (N)"
+                        className="p-1 rounded-lg hover:bg-surface-0 text-muted hover:text-primary transition-colors"
+                    >
+                        <FilePlus size={15} />
+                    </button>
                 </div>
-                <Button onClick={handleCreateDocument} className="gap-2">
-                    <Plus size={18} /> Novo Documento
-                </Button>
-            </div>
 
-            <div className="bg-white rounded-xl border border-border-subtle shadow-sm flex-1 flex flex-col overflow-hidden">
-                {/* Filtros */}
-                <div className="p-4 border-b border-border-subtle flex flex-wrap gap-4 items-center justify-between bg-gray-50/50 shrink-0">
-                    <div className="flex flex-wrap gap-4 items-center">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Buscar documentos..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="pl-10 pr-4 py-2 bg-white border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-brand/20 outline-none w-64 transition-all"
-                            />
-                        </div>
-
-                        <Select
-                            value={selectedProject}
-                            onChange={(e) => setSelectedProject(e.target.value)}
-                            containerClassName="w-64"
-                        >
-                            <option value="all">Todos os Projetos</option>
-                            {projects.map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                        </Select>
+                {/* Search */}
+                <div className="px-3 pb-2 shrink-0">
+                    <div className="relative">
+                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+                        <input
+                            ref={searchRef}
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Buscar..."
+                            className="w-full pl-7 pr-3 py-1.5 text-xs bg-surface-card border border-border-subtle rounded-lg outline-none focus:ring-2 focus:ring-brand/20"
+                        />
                     </div>
                 </div>
 
-                {/* Lista de Documentos */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                {/* Tree / Search results */}
+                <div className="flex-1 overflow-y-auto px-2 pb-4 custom-scrollbar">
                     {loading ? (
-                        <div className="flex items-center justify-center p-12">
-                            <div className="w-6 h-6 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+                        <div className="space-y-1 px-1 pt-1">
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="skeleton-pulse h-6 rounded-lg" style={{ width: `${70 + i * 5}%` }} />
+                            ))}
                         </div>
-                    ) : filteredDocuments.length === 0 ? (
-                        <div className="text-center py-20">
-                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <FileText size={32} className="text-gray-300" />
-                            </div>
-                            <p className="text-gray-500 font-medium">Nenhum documento encontrado</p>
-                            <p className="text-sm text-gray-400 mt-1">Comece criando seu primeiro documento.</p>
-                        </div>
+                    ) : searchResults ? (
+                        searchResults.length === 0 ? (
+                            <p className="text-xs text-muted px-2 py-4 text-center">Nenhum resultado</p>
+                        ) : (
+                            searchResults.map(doc => (
+                                <div
+                                    key={doc.id}
+                                    onClick={() => navigate(`/documentos/${doc.id}`)}
+                                    className={cn(
+                                        'flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-all',
+                                        id === doc.id ? 'bg-brand/10 text-brand font-semibold' : 'text-secondary hover:bg-surface-0'
+                                    )}
+                                >
+                                    <FileText size={13} className="shrink-0" />
+                                    <span className="truncate">{doc.title || 'Sem título'}</span>
+                                </div>
+                            ))
+                        )
+                    ) : rootDocs.length === 0 ? (
+                        <button
+                            onClick={handleCreate}
+                            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-muted hover:text-secondary hover:bg-surface-0 transition-all border border-dashed border-border-subtle mt-1"
+                        >
+                            <Plus size={13} /> Criar primeira página
+                        </button>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredDocuments.map(doc => {
-                                const project = projects.find(p => p.id === doc.project_id);
-                                return (
-                                    <div
-                                        key={doc.id}
-                                        onClick={() => navigate(`/documentos/${doc.id}`)}
-                                        className="group bg-white border border-border-subtle rounded-xl p-5 hover:border-brand hover:shadow-lg transition-all cursor-pointer flex flex-col h-48"
-                                    >
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className="w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
-                                                <FileText size={20} />
-                                            </div>
-                                            <button
-                                                onClick={(e) => handleDeleteDocument(e, doc.id, doc.title)}
-                                                className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                                                title="Excluir documento"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-
-                                        <h3 className="font-bold text-gray-900 group-hover:text-brand transition-colors line-clamp-2 mb-auto">
-                                            {doc.title}
-                                        </h3>
-
-                                        <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-                                            <div className="flex items-center gap-1.5">
-                                                <Calendar size={12} />
-                                                {format(new Date(doc.updated_at!), 'dd MMM', { locale: ptBR })}
-                                            </div>
-                                            {project && (
-                                                <div className="flex items-center gap-1.5 bg-gray-100 px-2 py-0.5 rounded text-gray-600">
-                                                    <Folder size={10} />
-                                                    <span className="truncate max-w-[80px]">{project.name}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        rootDocs.map(doc => (
+                            <DocTreeItem
+                                key={doc.id}
+                                doc={doc}
+                                allDocs={documents}
+                                depth={0}
+                                activeId={id}
+                                onSelect={docId => navigate(`/documentos/${docId}`)}
+                                onAddChild={handleAddChild}
+                                onDelete={handleDelete}
+                            />
+                        ))
                     )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-3 py-3 border-t border-border-subtle shrink-0">
+                    <Button size="sm" onClick={handleCreate} className="w-full gap-2 justify-center">
+                        <Plus size={14} /> Nova página
+                    </Button>
                 </div>
             </div>
 
-            {id && <DocumentEditor documentId={id} onClose={() => navigate('/documentos')} />}
+            {/* ── Área principal ── */}
+            <div className="flex-1 overflow-hidden">
+                {id ? (
+                    <DocumentEditor
+                        key={id}
+                        documentId={id}
+                        onClose={() => navigate('/documentos')}
+                        onAddSubPage={handleAddChild}
+                    />
+                ) : (
+                    <EmptyState onCreate={handleCreate} />
+                )}
+            </div>
         </div>
     );
 }

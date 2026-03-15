@@ -43,7 +43,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
         let currentWorkspaceIds = members ? members.map(m => m.workspace_id) : [];
 
         if (currentWorkspaceIds.length === 0) {
-            console.log('No workspaces found, starting auto-creation flow...');
+            if (import.meta.env.DEV) console.log('No workspaces found, starting auto-creation flow...');
 
             // 1. Ensure profile exists first (Foreign Key requirement)
             const { data: profile, error: profileError } = await supabase
@@ -53,7 +53,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
                 .single();
 
             if (profileError || !profile) {
-                console.log('Profile missing, creating profile...');
+                if (import.meta.env.DEV) console.log('Profile missing, creating profile...');
                 const { error: insertProfileError } = await supabase
                     .from('profiles')
                     .insert({
@@ -100,7 +100,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
             }
 
             currentWorkspaceIds = [newWorkspace.id];
-            console.log('Workspace auto-created successfully:', newWorkspace.id);
+            if (import.meta.env.DEV) console.log('Workspace auto-created successfully:', newWorkspace.id);
         }
 
         const workspaceIds = currentWorkspaceIds;

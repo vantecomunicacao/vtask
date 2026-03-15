@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProjectStore } from '../store/projectStore';
 import { useTaskStore } from '../store/taskStore';
@@ -20,7 +20,7 @@ const PRIORITY_LABELS: Record<string, { label: string; className: string }> = {
     urgent: { label: 'Urgente', className: 'text-red-600' },
     high: { label: 'Alta', className: 'text-orange-500' },
     medium: { label: 'Média', className: 'text-yellow-600' },
-    low: { label: 'Baixa', className: 'text-gray-400' },
+    low: { label: 'Baixa', className: 'text-muted' },
 };
 
 function formatDueDate(due: string) {
@@ -28,7 +28,7 @@ function formatDueDate(due: string) {
     if (isToday(date)) return { label: 'Hoje', className: 'text-red-600' };
     if (isTomorrow(date)) return { label: 'Amanhã', className: 'text-orange-500' };
     if (isPast(date)) return { label: format(date, "dd/MM", { locale: ptBR }), className: 'text-red-600' };
-    return { label: format(date, "dd/MM", { locale: ptBR }), className: 'text-gray-500' };
+    return { label: format(date, "dd/MM", { locale: ptBR }), className: 'text-secondary' };
 }
 
 export default function ProjetoDetalhe() {
@@ -87,7 +87,7 @@ export default function ProjetoDetalhe() {
     };
 
     if (!project) {
-        return <div className="p-8 text-center text-gray-500">Projeto não encontrado ou carregando...</div>;
+        return <div className="p-8 text-center text-secondary">Projeto não encontrado ou carregando...</div>;
     }
 
     return (
@@ -95,39 +95,39 @@ export default function ProjetoDetalhe() {
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-bold text-gray-400" style={project.color ? { color: project.color } : {}}>#</span>
-                        <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+                        <span className="text-sm font-bold text-muted" style={project.color ? { color: project.color } : {}}>#</span>
+                        <h1 className="text-2xl font-bold text-primary">{project.name}</h1>
                         <div className="flex items-center gap-1 ml-2">
                             <button
                                 onClick={() => setIsProjectModalOpen(true)}
-                                className="p-1 text-gray-400 hover:text-brand hover:bg-brand-light rounded transition-colors"
+                                className="p-1 text-muted hover:text-brand hover:bg-brand-light rounded transition-colors"
                                 title="Editar Projeto"
                             >
                                 <Edit2 size={16} />
                             </button>
                             <button
                                 onClick={handleDeleteProject}
-                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                className="p-1 text-muted hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                 title="Excluir Projeto"
                             >
                                 <Trash2 size={16} />
                             </button>
                         </div>
                     </div>
-                    <p className="text-sm text-gray-500">{project.client?.name || 'Projeto Interno'}</p>
+                    <p className="text-sm text-secondary">{project.client?.name || 'Projeto Interno'}</p>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="flex bg-gray-100 p-1 rounded-lg border border-border-subtle">
+                    <div className="flex bg-surface-0 p-1 rounded-lg border border-border-subtle">
                         <button
                             onClick={() => setView('kanban')}
-                            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${view === 'kanban' ? 'bg-white shadow-sm text-brand' : 'text-gray-500 hover:text-gray-900'}`}
+                            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${view === 'kanban' ? 'bg-white shadow-sm text-brand' : 'text-secondary hover:text-primary'}`}
                         >
                             <Trello size={16} /> Kanban
                         </button>
                         <button
                             onClick={() => setView('list')}
-                            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${view === 'list' ? 'bg-white shadow-sm text-brand' : 'text-gray-500 hover:text-gray-900'}`}
+                            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${view === 'list' ? 'bg-white shadow-sm text-brand' : 'text-secondary hover:text-primary'}`}
                         >
                             <LayoutList size={16} /> Lista
                         </button>
@@ -151,9 +151,9 @@ export default function ProjetoDetalhe() {
                         onTaskClick={(task) => setSelectedTask(task as TaskWithAssignee)}
                     />
                 ) : (
-                    <div className="bg-white border border-border-subtle rounded-xl overflow-hidden flex flex-col h-full">
+                    <div className="bg-white border border-border-subtle rounded-card overflow-hidden flex flex-col h-full">
                         {/* Header */}
-                        <div className="bg-bg-main border-b border-border-subtle px-4 py-3 grid grid-cols-12 gap-4 text-xs font-bold text-gray-500 uppercase tracking-widest shrink-0">
+                        <div className="bg-bg-main border-b border-border-subtle px-4 py-3 grid grid-cols-12 gap-4 text-xs font-bold text-secondary uppercase tracking-widest shrink-0">
                             <div className="col-span-5">Tarefa</div>
                             <div className="col-span-2">Status</div>
                             <div className="col-span-2">Prazo</div>
@@ -164,9 +164,9 @@ export default function ProjetoDetalhe() {
                         {/* Rows */}
                         <div className="flex-1 overflow-y-auto divide-y divide-border-subtle">
                             {tasks.length === 0 ? (
-                                <div className="p-12 text-center text-gray-500 text-sm">
-                                    <LayoutList size={40} className="mx-auto text-gray-300 mb-3" />
-                                    <p className="font-medium text-gray-700">Nenhuma tarefa neste projeto</p>
+                                <div className="p-12 text-center text-secondary text-sm">
+                                    <LayoutList size={40} className="mx-auto text-muted mb-3" />
+                                    <p className="font-medium text-secondary">Nenhuma tarefa neste projeto</p>
                                     <p className="text-xs mt-1">Crie a primeira tarefa com o botão acima.</p>
                                 </div>
                             ) : (
@@ -178,24 +178,24 @@ export default function ProjetoDetalhe() {
                                     return (
                                         <div
                                             key={task.id}
-                                            className="px-4 py-3 grid grid-cols-12 gap-4 items-center group hover:bg-gray-50 transition-colors cursor-pointer"
+                                            className="px-4 py-3 grid grid-cols-12 gap-4 items-center group hover:bg-surface-2 transition-colors cursor-pointer"
                                             onClick={() => setSelectedTask(task)}
                                         >
                                             <div className="col-span-5 flex items-center gap-3">
-                                                <div className="w-4 h-4 rounded-full border-2 border-gray-300 shrink-0" />
-                                                <span className="text-sm font-medium text-gray-900 group-hover:text-brand transition-colors truncate">
+                                                <div className="w-4 h-4 rounded-full border-2 border-border-subtle shrink-0" />
+                                                <span className="text-sm font-medium text-primary group-hover:text-brand transition-colors truncate">
                                                     {task.title}
                                                 </span>
                                             </div>
 
                                             <div className="col-span-2">
                                                 {status ? (
-                                                    <span className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
+                                                    <span className="flex items-center gap-1.5 text-xs font-medium text-secondary">
                                                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: status.color || '#ccc' }} />
                                                         {status.name}
                                                     </span>
                                                 ) : (
-                                                    <span className="text-xs text-gray-400">—</span>
+                                                    <span className="text-xs text-muted">—</span>
                                                 )}
                                             </div>
 
@@ -221,7 +221,7 @@ export default function ProjetoDetalhe() {
                                                         </span>
                                                     </span>
                                                 ) : (
-                                                    <span className="text-xs text-gray-400">—</span>
+                                                    <span className="text-xs text-muted">—</span>
                                                 )}
                                             </div>
 
@@ -231,13 +231,13 @@ export default function ProjetoDetalhe() {
                                                         <Flag size={12} className="fill-current" /> {priority.label}
                                                     </span>
                                                 ) : (
-                                                    <span className="text-xs text-gray-400">—</span>
+                                                    <span className="text-xs text-muted">—</span>
                                                 )}
                                             </div>
 
                                             <div className="col-span-1 flex justify-end">
                                                 <button
-                                                    className="text-gray-400 hover:text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="text-muted hover:text-secondary opacity-0 group-hover:opacity-100 transition-opacity"
                                                     onClick={(e) => e.stopPropagation()}
                                                 >
                                                     <MoreHorizontal size={18} />

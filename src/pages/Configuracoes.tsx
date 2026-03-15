@@ -1,14 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2, Eye, EyeOff } from 'lucide-react';
+import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2, Eye, EyeOff, Paintbrush } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useTaskStore } from '../store/taskStore';
+import { useTaskStore, type CustomStatus } from '../store/taskStore';
+import { useThemeStore, THEMES } from '../store/themeStore';
 import { toast } from 'sonner';
 import type { Database } from '../lib/database.types';
+type TaskCategory = Database['public']['Tables']['task_categories']['Row'];
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type WorkspaceMemberRole = Database['public']['Tables']['workspace_members']['Row']['role'];
@@ -27,7 +29,8 @@ export default function Configuracoes() {
     const [loading, setLoading] = useState(false);
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
     const [inviteEmail, setInviteEmail] = useState('');
-    const [activeTab, setActiveTab] = useState<'geral' | 'equipe' | 'fluxo' | 'categorias'>('geral');
+    const [activeTab, setActiveTab] = useState<'geral' | 'equipe' | 'fluxo' | 'categorias' | 'aparencia'>('geral');
+    const { theme, setTheme } = useThemeStore();
 
     // Status management state
     const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export default function Configuracoes() {
             setStatusName('');
             setStatusColor('#808080');
             toast.success('Status adicionado com sucesso!');
-        } catch (error) {
+        } catch {
             toast.error('Erro ao adicionar status');
         } finally {
             setLoading(false);
@@ -107,12 +110,12 @@ export default function Configuracoes() {
             setEditingStatusId(null);
             setStatusName('');
             toast.success('Status atualizado!');
-        } catch (error) {
+        } catch {
             toast.error('Erro ao atualizar status');
         }
     };
 
-    const startEditing = (status: any) => {
+    const startEditing = (status: CustomStatus) => {
         setEditingStatusId(status.id);
         setStatusName(status.name);
         setStatusColor(status.color || '#808080');
@@ -123,7 +126,7 @@ export default function Configuracoes() {
         try {
             await deleteStatus(id);
             toast.success('Status removido');
-        } catch (error) {
+        } catch {
             toast.error('Erro ao remover status');
         }
     };
@@ -141,7 +144,7 @@ export default function Configuracoes() {
 
         try {
             await updateStatusPositions(newOrder);
-        } catch (error) {
+        } catch {
             toast.error('Erro ao reordenar status');
         }
     };
@@ -154,7 +157,7 @@ export default function Configuracoes() {
             setCategoryName('');
             setCategoryColor('#3b82f6');
             toast.success('Tipo de tarefa adicionado!');
-        } catch (error) {
+        } catch {
             toast.error('Erro ao adicionar tipo');
         } finally {
             setLoading(false);
@@ -167,7 +170,7 @@ export default function Configuracoes() {
             setEditingCategoryId(null);
             setCategoryName('');
             toast.success('Tipo de tarefa atualizado!');
-        } catch (error) {
+        } catch {
             toast.error('Erro ao atualizar tipo');
         }
     };
@@ -177,12 +180,12 @@ export default function Configuracoes() {
         try {
             await deleteCategory(id);
             toast.success('Tipo de tarefa removido');
-        } catch (error) {
+        } catch {
             toast.error('Erro ao remover tipo');
         }
     };
 
-    const startEditingCategory = (category: any) => {
+    const startEditingCategory = (category: TaskCategory) => {
         setEditingCategoryId(category.id);
         setCategoryName(category.name);
         setCategoryColor(category.color || '#3b82f6');
@@ -202,7 +205,7 @@ export default function Configuracoes() {
                 await addCategory(activeWorkspace.id, item.name, item.color);
             }
             toast.success('Padrões carregados com sucesso!');
-        } catch (error) {
+        } catch {
             toast.error('Erro ao carregar padrões');
         } finally {
             setLoading(false);
@@ -214,8 +217,8 @@ export default function Configuracoes() {
     return (
         <div className="max-w-4xl mx-auto space-y-6 fade-in h-full pb-10">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Configurações do Workspace</h1>
-                <p className="text-sm text-gray-500">Gerencie detalhes da sua agência e os membros da sua equipe.</p>
+                <h1 className="text-2xl font-bold text-primary mb-2">Configurações do Workspace</h1>
+                <p className="text-sm text-secondary">Gerencie detalhes da sua agência e os membros da sua equipe.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -224,30 +227,33 @@ export default function Configuracoes() {
                 <div className="col-span-1 space-y-2">
                     <button
                         onClick={() => setActiveTab('geral')}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'geral' ? 'bg-brand-light text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'geral' ? 'bg-brand-light text-brand' : 'hover:bg-surface-0 text-secondary'}`}
                     >
                         <Building2 size={18} /> Geral
                     </button>
                     <button
                         onClick={() => setActiveTab('equipe')}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'equipe' ? 'bg-brand-light text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'equipe' ? 'bg-brand-light text-brand' : 'hover:bg-surface-0 text-secondary'}`}
                     >
                         <Users2 size={18} /> Equipe
                     </button>
                     <button
                         onClick={() => setActiveTab('fluxo')}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'fluxo' ? 'bg-brand-light text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'fluxo' ? 'bg-brand-light text-brand' : 'hover:bg-surface-0 text-secondary'}`}
                     >
                         <Layout size={18} /> Fluxo de Trabalho
                     </button>
                     <button
                         onClick={() => setActiveTab('categorias')}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'categorias' ? 'bg-brand-light text-brand' : 'hover:bg-gray-100 text-gray-700'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'categorias' ? 'bg-brand-light text-brand' : 'hover:bg-surface-0 text-secondary'}`}
                     >
                         <Palette size={18} /> Tipos de Tarefa
                     </button>
-                    <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 text-gray-700 transition-colors">
-                        <Settings2 size={18} /> Aparência (Em breve)
+                    <button
+                        onClick={() => setActiveTab('aparencia')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'aparencia' ? 'bg-brand-light text-brand' : 'hover:bg-surface-0 text-secondary'}`}
+                    >
+                        <Paintbrush size={18} /> Aparência
                     </button>
                 </div>
 
@@ -262,7 +268,7 @@ export default function Configuracoes() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-1">
-                                    <label className="block text-sm font-medium text-gray-700">Nome do Workspace</label>
+                                    <label className="block text-sm font-medium text-secondary">Nome do Workspace</label>
                                     <Input
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
@@ -270,8 +276,8 @@ export default function Configuracoes() {
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="block text-sm font-medium text-gray-700">OpenAI API Key</label>
-                                    <p className="text-xs text-gray-500">Chave compartilhada por todos os perfis de e-mail do workspace.</p>
+                                    <label className="block text-sm font-medium text-secondary">OpenAI API Key</label>
+                                    <p className="text-xs text-secondary">Chave compartilhada por todos os perfis de e-mail do workspace.</p>
                                     <div className="relative">
                                         <Input
                                             type={showOpenaiKey ? 'text' : 'password'}
@@ -283,7 +289,7 @@ export default function Configuracoes() {
                                         <button
                                             type="button"
                                             onClick={() => setShowOpenaiKey(v => !v)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-secondary"
                                         >
                                             {showOpenaiKey ? <EyeOff size={15} /> : <Eye size={15} />}
                                         </button>
@@ -327,8 +333,8 @@ export default function Configuracoes() {
                                                         {profile.full_name?.substring(0, 2) || profile.email?.substring(0, 2)}
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-bold text-gray-900">{profile.full_name || 'Usuário Pendente'}</p>
-                                                        <p className="text-xs text-gray-500">{profile.email}</p>
+                                                        <p className="text-sm font-bold text-primary">{profile.full_name || 'Usuário Pendente'}</p>
+                                                        <p className="text-xs text-secondary">{profile.email}</p>
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-2 items-center">
@@ -365,9 +371,9 @@ export default function Configuracoes() {
 
                                     {/* Add New Status */}
                                     {!editingStatusId && (
-                                        <div className="flex gap-3 items-end p-4 border border-dashed border-gray-200 rounded-xl">
+                                        <div className="flex gap-3 items-end p-4 border border-dashed border-border-subtle rounded-card">
                                             <div className="flex-1 space-y-1">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Novo Status</label>
+                                                <label className="text-xs font-bold text-secondary uppercase">Novo Status</label>
                                                 <Input
                                                     placeholder="Ex: Aguardando Feedback"
                                                     value={statusName}
@@ -375,7 +381,7 @@ export default function Configuracoes() {
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Cor</label>
+                                                <label className="text-xs font-bold text-secondary uppercase">Cor</label>
                                                 <input
                                                     type="color"
                                                     value={statusColor}
@@ -392,28 +398,28 @@ export default function Configuracoes() {
                                     {/* Status List */}
                                     <div className="space-y-3">
                                         {statuses.length === 0 ? (
-                                            <div className="p-10 text-center border border-dashed border-gray-200 rounded-lg">
-                                                <p className="text-sm text-gray-500 italic">Nenhum status configurado. O sistema usará o padrão (A Fazer para Entregue).</p>
+                                            <div className="p-10 text-center border border-dashed border-border-subtle rounded-lg">
+                                                <p className="text-sm text-secondary italic">Nenhum status configurado. O sistema usará o padrão (A Fazer para Entregue).</p>
                                             </div>
                                         ) : (
                                             statuses.map((status, index) => (
                                                 <div
                                                     key={status.id}
-                                                    className={`flex items-center justify-between p-4 border rounded-xl transition-all ${editingStatusId === status.id ? 'border-brand ring-2 ring-brand/10 bg-brand/5' : 'border-border-subtle bg-white hover:border-gray-300'}`}
+                                                    className={`flex items-center justify-between p-4 border rounded-card transition-all ${editingStatusId === status.id ? 'border-brand ring-2 ring-brand/10 bg-brand/5' : 'border-border-subtle bg-white hover:border-border-subtle'}`}
                                                 >
                                                     <div className="flex items-center gap-4 flex-1">
                                                         <div className="flex flex-col gap-1">
                                                             <button
                                                                 onClick={() => moveStatus(status.id, 'up')}
                                                                 disabled={index === 0}
-                                                                className="text-gray-400 hover:text-gray-900 disabled:opacity-20"
+                                                                className="text-muted hover:text-primary disabled:opacity-20"
                                                             >
                                                                 <GripVertical size={14} className="rotate-0" />
                                                             </button>
                                                             <button
                                                                 onClick={() => moveStatus(status.id, 'down')}
                                                                 disabled={index === statuses.length - 1}
-                                                                className="text-gray-400 hover:text-gray-900 disabled:opacity-20"
+                                                                className="text-muted hover:text-primary disabled:opacity-20"
                                                             >
                                                                 <GripVertical size={14} className="rotate-180" />
                                                             </button>
@@ -438,7 +444,7 @@ export default function Configuracoes() {
                                                         ) : (
                                                             <>
                                                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color || '#ccc' }} />
-                                                                <span className="font-bold text-gray-900 text-sm">{status.name}</span>
+                                                                <span className="font-bold text-primary text-sm">{status.name}</span>
                                                             </>
                                                         )}
                                                     </div>
@@ -447,13 +453,13 @@ export default function Configuracoes() {
                                                         <div className="flex items-center gap-2">
                                                             <button
                                                                 onClick={() => startEditing(status)}
-                                                                className="p-2 text-gray-400 hover:text-brand hover:bg-brand-light rounded-lg transition-colors"
+                                                                className="p-2 text-muted hover:text-brand hover:bg-brand-light rounded-lg transition-colors"
                                                             >
                                                                 <Settings2 size={16} />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeleteStatus(status.id)}
-                                                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                className="p-2 text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                             >
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -494,9 +500,9 @@ export default function Configuracoes() {
 
                                     {/* Add New Category */}
                                     {!editingCategoryId && (
-                                        <div className="flex gap-3 items-end p-4 border border-dashed border-gray-200 rounded-xl">
+                                        <div className="flex gap-3 items-end p-4 border border-dashed border-border-subtle rounded-card">
                                             <div className="flex-1 space-y-1">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Novo Tipo</label>
+                                                <label className="text-xs font-bold text-secondary uppercase">Novo Tipo</label>
                                                 <Input
                                                     placeholder="Ex: Tráfego Pago"
                                                     value={categoryName}
@@ -504,7 +510,7 @@ export default function Configuracoes() {
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Cor</label>
+                                                <label className="text-xs font-bold text-secondary uppercase">Cor</label>
                                                 <input
                                                     type="color"
                                                     value={categoryColor}
@@ -523,7 +529,7 @@ export default function Configuracoes() {
                                         {taskCategories.map((category) => (
                                             <div
                                                 key={category.id}
-                                                className={`flex items-center justify-between p-4 border rounded-xl transition-all ${editingCategoryId === category.id ? 'border-brand ring-2 ring-brand/10 bg-brand/5' : 'border-border-subtle bg-white hover:border-gray-300'}`}
+                                                className={`flex items-center justify-between p-4 border rounded-card transition-all ${editingCategoryId === category.id ? 'border-brand ring-2 ring-brand/10 bg-brand/5' : 'border-border-subtle bg-white hover:border-border-subtle'}`}
                                             >
                                                 <div className="flex items-center gap-4 flex-1">
                                                     {editingCategoryId === category.id ? (
@@ -545,7 +551,7 @@ export default function Configuracoes() {
                                                     ) : (
                                                         <>
                                                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color || '#ccc' }} />
-                                                            <span className="font-bold text-gray-900 text-sm">{category.name}</span>
+                                                            <span className="font-bold text-primary text-sm">{category.name}</span>
                                                         </>
                                                     )}
                                                 </div>
@@ -554,13 +560,13 @@ export default function Configuracoes() {
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             onClick={() => startEditingCategory(category)}
-                                                            className="p-2 text-gray-400 hover:text-brand hover:bg-brand-light rounded-lg transition-colors"
+                                                            className="p-2 text-muted hover:text-brand hover:bg-brand-light rounded-lg transition-colors"
                                                         >
                                                             <Settings2 size={16} />
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteCategory(category.id)}
-                                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                            className="p-2 text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                         >
                                                             <Trash2 size={16} />
                                                         </button>
@@ -572,6 +578,42 @@ export default function Configuracoes() {
                                 </CardContent>
                             </Card>
                         </div>
+                    )}
+
+                    {/* Aparência */}
+                    {activeTab === 'aparencia' && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Paintbrush size={20} className="text-brand" />
+                                    Aparência
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div>
+                                    <p className="text-sm text-secondary mb-4">Escolha o estilo visual da interface. A troca é instantânea e salva automaticamente.</p>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {THEMES.map((t) => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => setTheme(t.id)}
+                                                className={`flex items-center justify-between p-4 rounded-[var(--radius-card)] border-2 text-left transition-all ${
+                                                    theme === t.id
+                                                        ? 'border-brand bg-brand-light'
+                                                        : 'border-border-subtle hover:border-border-subtle bg-white'
+                                                }`}
+                                            >
+                                                <div>
+                                                    <p className={`text-sm font-bold ${theme === t.id ? 'text-brand' : 'text-primary'}`}>{t.label}</p>
+                                                    <p className="text-xs text-secondary mt-0.5">{t.description}</p>
+                                                </div>
+                                                <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${theme === t.id ? 'border-brand bg-brand' : 'border-border-subtle'}`} />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     )}
 
                 </div>

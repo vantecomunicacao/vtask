@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
     | string
     | number
     | boolean
@@ -9,6 +9,28 @@
 export interface Database {
     public: {
         Tables: {
+            document_folders: {
+                Row: {
+                    id: string
+                    workspace_id: string
+                    name: string
+                    parent_id: string | null
+                    created_by: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    workspace_id: string
+                    name: string
+                    parent_id?: string | null
+                    created_by?: string | null
+                    created_at?: string
+                }
+                Update: {
+                    name?: string
+                    parent_id?: string | null
+                }
+            }
             profiles: {
                 Row: {
                     id: string
@@ -211,6 +233,7 @@ export interface Database {
                     category_id: string | null
                     created_at: string
                     updated_at: string
+                    deleted_at: string | null
                 }
                 Insert: {
                     id?: string
@@ -228,6 +251,7 @@ export interface Database {
                     labels?: string[] | null
                     recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | null
                     category_id?: string | null
+                    deleted_at?: string | null
                 }
                 Update: {
                     project_id?: string
@@ -245,6 +269,7 @@ export interface Database {
                     recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | null
                     category_id?: string | null
                     updated_at?: string
+                    deleted_at?: string | null
                 }
             }
             comments: {
@@ -301,29 +326,56 @@ export interface Database {
                     id: string
                     workspace_id: string
                     project_id: string | null
+                    folder_id: string | null
+                    parent_id: string | null
                     title: string
                     content: Json | null
                     created_by: string | null
                     created_at: string
                     updated_at: string
+                    deleted_at: string | null
                 }
                 Insert: {
                     id?: string
                     workspace_id: string
                     project_id?: string | null
+                    folder_id?: string | null
+                    parent_id?: string | null
                     title: string
                     content?: Json | null
                     created_by?: string | null
                     created_at?: string
                     updated_at?: string
+                    deleted_at?: string | null
                 }
                 Update: {
                     workspace_id?: string
                     project_id?: string | null
+                    folder_id?: string | null
+                    parent_id?: string | null
                     title?: string
                     content?: Json | null
                     created_by?: string | null
                     updated_at?: string
+                    deleted_at?: string | null
+                }
+            }
+            task_documents: {
+                Row: {
+                    id: string
+                    task_id: string
+                    document_id: string
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    task_id: string
+                    document_id: string
+                    created_at?: string
+                }
+                Update: {
+                    task_id?: string
+                    document_id?: string
                 }
             }
         }

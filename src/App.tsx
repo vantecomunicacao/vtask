@@ -11,22 +11,25 @@ const Configuracoes = lazy(() => import('./pages/Configuracoes'));
 const Documentos = lazy(() => import('./pages/Documentos'));
 const GeradorEmail = lazy(() => import('./pages/GeradorEmail'));
 const DesignSystem = lazy(() => import('./pages/DesignSystem'));
+const Lixeira = lazy(() => import('./pages/Lixeira'));
 
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { CommandPalette } from './components/ui/CommandPalette';
 import { Toaster } from './components/ui/Toaster';
 import { useAuthListener } from './hooks/useAuth';
+import { ThemeProvider } from './components/providers/ThemeProvider';
+import { ErrorBoundary } from './components/providers/ErrorBoundary';
 
 function AppRoutes() {
     useAuthListener();
 
     return (
         <Suspense fallback={
-            <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+            <div className="flex h-screen w-full items-center justify-center bg-surface-1">
                 <div className="flex flex-col items-center gap-2">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent" />
-                    <span className="text-sm font-medium text-gray-500">Carregando vFlow...</span>
+                    <span className="text-sm font-medium text-secondary">Carregando vFlow...</span>
                 </div>
             </div>
         }>
@@ -45,6 +48,7 @@ function AppRoutes() {
                         <Route path="/configuracoes" element={<Configuracoes />} />
                         <Route path="/gerador-email" element={<GeradorEmail />} />
                         <Route path="/design-system" element={<DesignSystem />} />
+                        <Route path="/lixeira" element={<Lixeira />} />
                     </Route>
                 </Route>
             </Routes>
@@ -54,10 +58,14 @@ function AppRoutes() {
 
 export default function App() {
     return (
-        <BrowserRouter>
-            <CommandPalette />
-            <Toaster />
-            <AppRoutes />
-        </BrowserRouter>
+        <ErrorBoundary>
+            <ThemeProvider>
+                <BrowserRouter>
+                    <CommandPalette />
+                    <Toaster />
+                    <AppRoutes />
+                </BrowserRouter>
+            </ThemeProvider>
+        </ErrorBoundary>
     );
 }

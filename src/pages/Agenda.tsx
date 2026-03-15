@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -19,12 +19,16 @@ export default function Agenda() {
     return (
         <div className="space-y-6 fade-in h-full flex flex-col">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
+                <h1 className="text-2xl font-bold text-primary">Agenda</h1>
 
                 <div className="flex items-center gap-4">
-                    {/* Mock de botão do Google Calendar */}
-                    <Button variant="ghost" className="gap-2 bg-white border border-[#e8e5e0] text-gray-700 font-medium">
-                        <img src="https://www.google.com/images/branding/product/2x/calendar_48dp.png" alt="Google Calendar" className="w-4 h-4" />
+                    <Button
+                        variant="ghost"
+                        className="gap-2 bg-white border border-[#e8e5e0] text-muted font-medium cursor-not-allowed opacity-60"
+                        disabled
+                        title="Integração em desenvolvimento"
+                    >
+                        <img src="https://www.google.com/images/branding/product/2x/calendar_48dp.png" alt="Google Calendar" className="w-4 h-4 grayscale" />
                         Sincronizar Google Calendar
                     </Button>
                     <Button size="sm" className="gap-2">
@@ -35,7 +39,7 @@ export default function Agenda() {
 
             <Card className="flex-1 flex flex-col overflow-hidden bg-white">
                 <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-bg-main">
-                    <h2 className="text-lg font-bold text-gray-900 capitalize">
+                    <h2 className="text-lg font-bold text-primary capitalize">
                         {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
                     </h2>
                     <div className="flex items-center gap-2">
@@ -53,7 +57,7 @@ export default function Agenda() {
 
                 <div className="grid grid-cols-7 border-b border-border-subtle bg-bg-sidebar">
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
-                        <div key={day} className="py-2 text-center text-[11px] font-bold text-gray-500 uppercase tracking-widest border-r border-border-subtle last:border-0">
+                        <div key={day} className="py-2 text-center text-[11px] font-bold text-secondary uppercase tracking-widest border-r border-border-subtle last:border-0">
                             {day}
                         </div>
                     ))}
@@ -68,7 +72,7 @@ export default function Agenda() {
                     {daysInMonth.map((date) => (
                         <div
                             key={date.toString()}
-                            className={`bg-white p-2 min-h-[100px] hover:bg-bg-sidebar transition-colors cursor-pointer group flex flex-col ${!isSameMonth(date, currentDate) ? 'text-gray-400 bg-bg-sidebar/50' : 'text-gray-900'
+                            className={`bg-white p-2 min-h-[100px] hover:bg-bg-sidebar transition-colors cursor-pointer group flex flex-col ${!isSameMonth(date, currentDate) ? 'text-muted bg-bg-sidebar/50' : 'text-primary'
                                 }`}
                         >
                             <div className="flex items-start justify-between">
@@ -76,7 +80,7 @@ export default function Agenda() {
                                     }`}>
                                     {format(date, 'd')}
                                 </span>
-                                <button className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-brand transition-opacity">
+                                <button className="opacity-0 group-hover:opacity-100 text-muted hover:text-brand transition-opacity">
                                     +
                                 </button>
                             </div>
@@ -88,7 +92,7 @@ export default function Agenda() {
                                 </div>
                             )}
                             {isToday(addMonths(date, -1)) && (
-                                <div className="mt-2 text-xs font-medium text-gray-700 bg-bg-main border border-border-subtle px-2 py-1 rounded truncate">
+                                <div className="mt-2 text-xs font-medium text-secondary bg-bg-main border border-border-subtle px-2 py-1 rounded truncate">
                                     Entrega Ads (15:00)
                                 </div>
                             )}

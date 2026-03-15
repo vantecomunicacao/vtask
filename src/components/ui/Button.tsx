@@ -13,7 +13,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
         const variants = {
             primary: 'bg-brand text-white hover:bg-brand/90 border border-transparent',
-            ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 border border-border-subtle hover:border-gray-300',
+            ghost: 'bg-transparent text-secondary hover:bg-surface-0 border border-border-subtle hover:border-border-subtle',
             danger: 'bg-red-50 text-brand hover:bg-red-100 border border-transparent',
         };
 
@@ -29,7 +29,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 ref={ref}
                 disabled={disabled || isLoading}
                 className={cn(
-                    'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none',
+                    'inline-flex items-center justify-center rounded-[var(--radius-md)] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none',
                     variants[variant],
                     sizes[size],
                     className

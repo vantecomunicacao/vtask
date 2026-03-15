@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog } from '../ui/Dialog';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
+import { DatePicker } from '../ui/DatePicker';
 import { supabase } from '../../lib/supabase';
 import { useTaskStore } from '../../store/taskStore';
 import { useProjectStore } from '../../store/projectStore';
@@ -43,7 +44,7 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
     const [loading, setLoading] = useState(false);
     const [users, setUsers] = useState<Profile[]>([]);
 
-    const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<TaskFormData>({
+    const { control, register, handleSubmit, formState: { errors }, reset, setValue } = useForm<TaskFormData>({
         resolver: zodResolver(taskSchema),
         defaultValues: {
             priority: 'medium',
@@ -99,7 +100,7 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
             if (projectId) {
                 await fetchTasks(projectId);
             } else if (activeWorkspace) {
-                await fetchWorkspaceTasks(activeWorkspace.id);
+                await fetchWorkspaceTasks(activeWorkspace.id, true);
             }
 
             // Callback para páginas que precisam recarregar
@@ -131,7 +132,7 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
                         {...register('description')}
                         rows={4}
                         placeholder="Adicione uma descrição detalhada..."
-                        className="w-full px-3 py-2 border border-border-subtle rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 sm:text-sm text-gray-900 resize-none"
+                        className="w-full px-3 py-2 border border-border-subtle rounded-[var(--radius-md)] shadow-none placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 sm:text-sm text-primary resize-none bg-surface-card"
                     />
                 </div>
 
@@ -139,81 +140,127 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
                     {/* Seletor de projeto — só aparece quando não foi passado via prop */}
                     {!projectId && (
                         <div className="col-span-2">
-                            <Select
-                                label="Projeto"
-                                {...register('project_id')}
-                                error={errors.project_id?.message}
-                            >
-                                <option value="" disabled>Selecione um projeto</option>
-                                {projects.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </Select>
+                            <Controller
+                                name="project_id"
+                                control={control}
+                                render={({ field }) => (
+                                    <Select
+                                        label="Projeto"
+                                        value={field.value}
+                                        onChange={(e) => field.onChange(e.target.value)}
+                                        error={errors.project_id?.message}
+                                    >
+                                        <option value="" disabled>Selecione um projeto</option>
+                                        {projects.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </Select>
+                                )}
+                            />
                         </div>
                     )}
 
-                    <Select
-                        label="Status"
-                        {...register('status_id')}
-                        error={errors.status_id?.message}
-                    >
-                        <option value="" disabled>Selecione um status</option>
-                        {statuses.map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                    </Select>
+                    <Controller
+                        name="status_id"
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                label="Status"
+                                value={field.value}
+                                onChange={(e) => field.onChange(e.target.value)}
+                                error={errors.status_id?.message}
+                            >
+                                <option value="" disabled>Selecione um status</option>
+                                {statuses.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </Select>
+                        )}
+                    />
 
-                    <Select
-                        label="Prioridade"
-                        {...register('priority')}
-                    >
-                        <option value="low">Baixa</option>
-                        <option value="medium">Média</option>
-                        <option value="high">Alta</option>
-                        <option value="urgent">Urgente</option>
-                    </Select>
+                    <Controller
+                        name="priority"
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                label="Prioridade"
+                                value={field.value}
+                                onChange={(e) => field.onChange(e.target.value)}
+                            >
+                                <option value="low">Baixa</option>
+                                <option value="medium">Média</option>
+                                <option value="high">Alta</option>
+                                <option value="urgent">Urgente</option>
+                            </Select>
+                        )}
+                    />
 
                     <div className="col-span-2">
-                        <Select
-                            label="Responsável"
-                            {...register('assignee_id')}
-                        >
-                            <option value="">Não atribuído</option>
-                            {users.map(u => (
-                                <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
-                            ))}
-                        </Select>
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Data de Vencimento</label>
-                        <Input
-                            type="date"
-                            {...register('due_date')}
-                            error={errors.due_date?.message}
+                        <Controller
+                            name="assignee_id"
+                            control={control}
+                            render={({ field }) => (
+                                <Select
+                                    label="Responsável"
+                                    value={field.value || ''}
+                                    onChange={(e) => field.onChange(e.target.value)}
+                                >
+                                    <option value="">Não atribuído</option>
+                                    {users.map(u => (
+                                        <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
+                                    ))}
+                                </Select>
+                            )}
                         />
                     </div>
 
-                    <Select
-                        label="Recorrência"
-                        {...register('recurrence')}
-                    >
-                        <option value="none">Nenhuma</option>
-                        <option value="daily">Diária</option>
-                        <option value="weekly">Semanal</option>
-                        <option value="monthly">Mensal</option>
-                    </Select>
+                    <Controller
+                        name="due_date"
+                        control={control}
+                        render={({ field }) => (
+                            <DatePicker
+                                label="Data de Vencimento"
+                                value={field.value ?? null}
+                                onChange={field.onChange}
+                                error={errors.due_date?.message}
+                            />
+                        )}
+                    />
+
+                    <Controller
+                        name="recurrence"
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                label="Recorrência"
+                                value={field.value || 'none'}
+                                onChange={(e) => field.onChange(e.target.value)}
+                            >
+                                <option value="none">Nenhuma</option>
+                                <option value="daily">Diária</option>
+                                <option value="weekly">Semanal</option>
+                                <option value="monthly">Mensal</option>
+                            </Select>
+                        )}
+                    />
 
                     <div className="col-span-2">
-                        <Select
-                            label="Tipo de Tarefa"
-                            {...register('category_id')}
-                        >
-                            <option value="">Nenhum tipo selecionado</option>
-                            {taskCategories.map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </Select>
+                        <Controller
+                            name="category_id"
+                            control={control}
+                            render={({ field }) => (
+                                <Select
+                                    label="Tipo de Tarefa"
+                                    value={field.value || ''}
+                                    onChange={(e) => field.onChange(e.target.value)}
+                                >
+                                    <option value="">Nenhum tipo selecionado</option>
+                                    {taskCategories.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </Select>
+                            )}
+                        />
                     </div>
                 </div>
 

@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+﻿import { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog } from '../ui/Dialog';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { DatePicker } from '../ui/DatePicker';
 import { supabase } from '../../lib/supabase';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useProjectStore, type ProjectWithClient } from '../../store/projectStore';
@@ -33,7 +34,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: ProjectFormModalP
     const { fetchProjects, updateProject } = useProjectStore();
     const [loading, setLoading] = useState(false);
 
-    const { register, handleSubmit, formState: { errors }, watch, setValue, reset } = useForm<ProjectFormData>({
+    const { register, handleSubmit, formState: { errors }, watch, setValue, reset, control } = useForm<ProjectFormData>({
         resolver: zodResolver(projectSchema),
         defaultValues: {
             color: '#808080',
@@ -109,7 +110,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: ProjectFormModalP
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
                 <div className="space-y-1">
-                    <label className="block text-sm font-medium text-gray-700">Nome do Projeto</label>
+                    <label className="block text-sm font-medium text-secondary">Nome do Projeto</label>
                     <Input
                         placeholder="Ex: Rebranding Vante"
                         {...register('name')}
@@ -118,26 +119,30 @@ export function ProjectFormModal({ isOpen, onClose, project }: ProjectFormModalP
                 </div>
 
                 <div className="space-y-1">
-                    <label className="block text-sm font-medium text-gray-700">Descrição</label>
+                    <label className="block text-sm font-medium text-secondary">Descrição</label>
                     <textarea
                         {...register('description')}
                         rows={3}
                         placeholder="Opcional. Breve descrição sobre o projeto."
-                        className="w-full px-3 py-2 border border-border-subtle rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 sm:text-sm text-gray-900"
+                        className="w-full px-3 py-2 border border-border-subtle rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 sm:text-sm text-primary"
                     />
                 </div>
 
-                <div className="space-y-1">
-                    <label className="block text-sm font-medium text-gray-700">Data de Vencimento</label>
-                    <Input
-                        type="date"
-                        {...register('due_date')}
-                        error={errors.due_date?.message}
-                    />
-                </div>
+                <Controller
+                    name="due_date"
+                    control={control}
+                    render={({ field }) => (
+                        <DatePicker
+                            label="Data de Vencimento"
+                            value={field.value ?? null}
+                            onChange={field.onChange}
+                            error={errors.due_date?.message}
+                        />
+                    )}
+                />
 
                 <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">Cor do Projeto</label>
+                    <label className="block text-sm font-medium text-secondary">Cor do Projeto</label>
                     <div className="flex flex-wrap gap-2">
                         {COLORS.map(color => (
                             <button

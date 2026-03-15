@@ -48,7 +48,7 @@ export default function Projetos() {
     return (
         <div className="space-y-6 fade-in h-full flex flex-col">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-gray-900">Projetos</h1>
+                <h1 className="text-2xl font-bold text-primary">Projetos</h1>
                 <Button size="sm" className="gap-2" onClick={handleOpenCreate}>
                     <span className="text-lg leading-none">+</span> Novo Projeto
                 </Button>
@@ -59,10 +59,10 @@ export default function Projetos() {
                     <div className="w-8 h-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
                 </div>
             ) : projects.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl bg-white bg-opacity-50">
-                    <Folder className="w-12 h-12 text-gray-300 mb-4" />
-                    <h3 className="text-lg font-bold text-gray-900">Nenhum projeto encontrado</h3>
-                    <p className="text-sm text-gray-500 mb-6">Crie seu primeiro projeto para começar a gerenciar tarefas.</p>
+                <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border-subtle rounded-[var(--radius-card)] bg-surface-card/50">
+                    <Folder className="w-12 h-12 text-muted mb-4" />
+                    <h3 className="text-lg font-bold text-primary">Nenhum projeto encontrado</h3>
+                    <p className="text-sm text-secondary mb-6">Crie seu primeiro projeto para começar a gerenciar tarefas.</p>
                     <Button onClick={handleOpenCreate}>Criar Projeto</Button>
                 </div>
             ) : (
@@ -82,20 +82,20 @@ export default function Projetos() {
                                             <Link to={`/projetos/${project.id}`}>
                                                 <CardTitle className="text-lg hover:text-brand transition-colors cursor-pointer">{project.name}</CardTitle>
                                             </Link>
-                                            <p className="text-xs text-gray-500 mt-1">{project.client?.name || 'Agência'}</p>
+                                            <p className="text-xs text-muted mt-1">{project.client?.name || 'Agência'}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => handleOpenEdit(project)}
-                                            className="p-1.5 text-gray-400 hover:text-brand hover:bg-brand-light rounded-md transition-colors"
+                                            className="p-1.5 text-muted hover:text-brand hover:bg-brand-light rounded-md transition-colors"
                                             title="Editar Projeto"
                                         >
                                             <Edit2 size={16} />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(project.id)}
-                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                            className="p-1.5 text-muted hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                             title="Excluir Projeto"
                                         >
                                             <Trash2 size={16} />
@@ -105,16 +105,16 @@ export default function Projetos() {
                             </CardHeader>
                             <CardContent className="flex-1 flex flex-col justify-end">
                                 {project.due_date && (
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 font-medium mb-4">
+                                    <div className="flex items-center gap-2 text-xs text-muted font-medium mb-4">
                                         <Calendar size={14} />
-                                        Prazo: <span className="text-gray-900">{format(new Date(project.due_date), "dd 'de' MMM", { locale: ptBR })}</span>
+                                        Prazo: <span className="text-primary">{format(new Date(project.due_date), "dd 'de' MMM", { locale: ptBR })}</span>
                                     </div>
                                 )}
                                 <div className="pt-4 border-t border-border-subtle flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
+                                    <div className="flex items-center gap-2 text-xs text-muted font-medium">
                                         <Users size={14} /> Equipe
                                     </div>
-                                    <span className="text-xs font-bold px-2 py-1 rounded-md bg-gray-100 text-gray-600 uppercase tracking-wider">
+                                    <span className="text-xs font-bold px-2 py-1 rounded-[var(--radius-xs)] bg-surface-0 text-secondary uppercase tracking-wider">
                                         {project.status}
                                     </span>
                                 </div>

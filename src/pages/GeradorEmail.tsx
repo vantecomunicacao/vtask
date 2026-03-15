@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { toast } from 'sonner';
@@ -69,15 +69,15 @@ function SectionHeader({
     return (
         <button
             onClick={() => toggle(sectionKey)}
-            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors text-left"
+            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-surface-2 transition-colors text-left"
         >
-            <span className="text-sm font-medium text-gray-800 flex items-center gap-2">
+            <span className="text-sm font-medium text-primary flex items-center gap-2">
                 {title}
                 {badge !== undefined && badge > 0 && (
-                    <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full leading-none">{badge}</span>
+                    <span className="text-[11px] bg-surface-0 text-secondary px-1.5 py-0.5 rounded-full leading-none">{badge}</span>
                 )}
             </span>
-            <span className="text-gray-400 text-[10px]">{openSections[sectionKey] ? '▲' : '▼'}</span>
+            <span className="text-muted text-[10px]">{openSections[sectionKey] ? '▲' : '▼'}</span>
         </button>
     );
 }
@@ -573,9 +573,10 @@ export default function GeradorEmail() {
 
     return (
         <div className="h-full flex flex-col bg-bg-main">
+            <div className="flex-1 flex flex-col min-h-0 rounded-card border border-border-subtle shadow-card overflow-hidden">
 
             {/* ── Top Bar ── */}
-            <div className="flex-shrink-0 h-14 bg-white border-b flex items-center px-5 gap-3">
+            <div className="flex-shrink-0 h-14 bg-surface-card border-b border-border-subtle flex items-center px-5 gap-3">
                 {/* Email name */}
                 {isEditingName ? (
                     <input
@@ -584,20 +585,20 @@ export default function GeradorEmail() {
                         onChange={e => setEmailName(e.target.value)}
                         onBlur={() => setIsEditingName(false)}
                         onKeyDown={e => e.key === 'Enter' && setIsEditingName(false)}
-                        className="text-sm font-semibold bg-transparent border-b border-gray-300 outline-none w-44"
+                        className="text-sm font-semibold bg-transparent border-b border-border-subtle outline-none w-44"
                     />
                 ) : (
                     <button
                         onClick={() => setIsEditingName(true)}
                         title="Clique para renomear"
-                        className="text-sm font-semibold text-gray-800 hover:text-gray-500 transition-colors max-w-44 truncate"
+                        className="text-sm font-semibold text-primary hover:text-secondary transition-colors max-w-44 truncate"
                     >
                         {emailName}
                     </button>
                 )}
 
                 {/* Status pill */}
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 flex-shrink-0">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-0 text-secondary flex-shrink-0">
                     {result ? 'Pronto' : 'Rascunho'}
                 </span>
 
@@ -605,14 +606,14 @@ export default function GeradorEmail() {
 
                 {/* Status message */}
                 {status && (
-                    <span className="text-xs text-gray-400 hidden lg:block truncate max-w-xs">{status}</span>
+                    <span className="text-xs text-muted hidden lg:block truncate max-w-xs">{status}</span>
                 )}
 
                 {/* Mobile / Desktop toggle */}
                 <button
                     onClick={() => setMobilePreview(v => !v)}
                     title="Alternar preview mobile/desktop"
-                    className={`h-8 px-3 rounded-md text-xs font-medium border transition-all ${mobilePreview ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                    className={`h-8 px-3 rounded-md text-xs font-medium border transition-all ${mobilePreview ? 'bg-gray-900 text-white border-gray-900' : 'bg-surface-card text-secondary border-border-subtle hover:bg-surface-2'}`}
                 >
                     {mobilePreview ? '📱 Mobile' : '🖥 Desktop'}
                 </button>
@@ -621,7 +622,7 @@ export default function GeradorEmail() {
                 <button
                     onClick={handleSaveDraft}
                     disabled={savingDraft}
-                    className="h-8 px-3 rounded-md text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    className="h-8 px-3 rounded-md text-xs font-medium border border-border-subtle bg-surface-card text-secondary hover:bg-surface-2 transition-colors disabled:opacity-50"
                 >
                     {savingDraft ? 'Salvando...' : 'Salvar rascunho'}
                 </button>
@@ -640,7 +641,7 @@ export default function GeradorEmail() {
             <div className="flex-1 flex min-h-0 overflow-hidden">
 
                 {/* ── Left Panel ── */}
-                <div className="w-[340px] flex-shrink-0 flex flex-col overflow-y-auto border-r bg-white custom-scrollbar">
+                <div className="w-[340px] flex-shrink-0 flex flex-col overflow-y-auto border-r border-border-subtle bg-surface-card custom-scrollbar">
 
                     {/* Section: Perfil */}
                     <div className="border-b">
@@ -664,7 +665,7 @@ export default function GeradorEmail() {
                                     <button
                                         onClick={() => setShowProfilesModal(true)}
                                         title="Gerenciar perfis"
-                                        className="h-10 w-10 flex items-center justify-center rounded-lg border border-border-subtle text-gray-400 hover:text-brand hover:border-brand hover:bg-brand/5 transition-all flex-shrink-0 mt-auto"
+                                        className="h-10 w-10 flex items-center justify-center rounded-lg border border-border-subtle text-muted hover:text-brand hover:border-brand hover:bg-brand/5 transition-all flex-shrink-0 mt-auto"
                                     >
                                         <Pencil size={14} />
                                     </button>
@@ -692,16 +693,16 @@ export default function GeradorEmail() {
                                         ))}
                                     </Select>
                                     {mailchimpLists.length === 0 && (
-                                        <p className="text-[11px] text-gray-400 mt-1">Servidor local não conectado ou sem listas.</p>
+                                        <p className="text-[11px] text-muted mt-1">Servidor local não conectado ou sem listas.</p>
                                     )}
                                 </div>
 
                                 {/* Assunto */}
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5">
-                                        <label className="text-xs font-medium text-gray-500">Assunto</label>
+                                        <label className="text-xs font-medium text-secondary">Assunto</label>
                                         <div className="flex items-center gap-2.5">
-                                            <span className={`text-[11px] ${subject.length > 60 ? 'text-red-400 font-medium' : 'text-gray-400'}`}>
+                                            <span className={`text-[11px] ${subject.length > 60 ? 'text-red-400 font-medium' : 'text-muted'}`}>
                                                 {subject.length}/60
                                             </span>
                                             <button
@@ -718,15 +719,15 @@ export default function GeradorEmail() {
                                         placeholder="Linha de assunto do e-mail"
                                         value={subject}
                                         onChange={e => setSubject(e.target.value)}
-                                        className="w-full h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
+                                        className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                                     />
                                 </div>
 
                                 {/* Texto de Prévia */}
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5">
-                                        <label className="text-xs font-medium text-gray-500">Texto de Prévia</label>
-                                        <span className={`text-[11px] ${previewText.length > 130 ? 'text-red-400 font-medium' : 'text-gray-400'}`}>
+                                        <label className="text-xs font-medium text-secondary">Texto de Prévia</label>
+                                        <span className={`text-[11px] ${previewText.length > 130 ? 'text-red-400 font-medium' : 'text-muted'}`}>
                                             {previewText.length}/130
                                         </span>
                                     </div>
@@ -735,17 +736,17 @@ export default function GeradorEmail() {
                                         placeholder="Snippet exibido antes de abrir o e-mail..."
                                         value={previewText}
                                         onChange={e => setPreviewText(e.target.value)}
-                                        className="w-full h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
+                                        className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                                     />
                                 </div>
 
                                 {/* Horário de Envio */}
                                 <div>
                                     <div className="flex items-center justify-between mb-2">
-                                        <label className="text-xs font-medium text-gray-500">Horário de Envio</label>
+                                        <label className="text-xs font-medium text-secondary">Horário de Envio</label>
                                         <button
                                             onClick={() => setScheduleEnabled(v => !v)}
-                                            className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${scheduleEnabled ? 'bg-brand' : 'bg-gray-200'}`}
+                                            className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${scheduleEnabled ? 'bg-brand' : 'bg-surface-0'}`}
                                         >
                                             <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${scheduleEnabled ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
                                         </button>
@@ -755,10 +756,10 @@ export default function GeradorEmail() {
                                             type="datetime-local"
                                             value={scheduledAt}
                                             onChange={e => setScheduledAt(e.target.value)}
-                                            className="w-full h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
+                                            className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                                         />
                                     ) : (
-                                        <p className="text-[11px] text-gray-400">Envio imediato ao exportar</p>
+                                        <p className="text-[11px] text-muted">Envio imediato ao exportar</p>
                                     )}
                                 </div>
                             </div>
@@ -771,20 +772,20 @@ export default function GeradorEmail() {
                         {openSections.rascunhos && (
                             <div className="divide-y max-h-52 overflow-y-auto">
                                 {drafts.length === 0 ? (
-                                    <p className="text-xs text-gray-400 text-center py-5">Nenhum rascunho salvo.</p>
+                                    <p className="text-xs text-muted text-center py-5">Nenhum rascunho salvo.</p>
                                 ) : drafts.map(draft => (
                                     <div
                                         key={draft.id}
                                         onClick={() => handleLoadDraft(draft)}
-                                        className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 cursor-pointer group"
+                                        className="flex items-center justify-between px-5 py-3 hover:bg-surface-2 cursor-pointer group"
                                     >
                                         <div className="min-w-0">
-                                            <p className="text-sm font-medium text-gray-900 truncate">{draft.name}</p>
-                                            <p className="text-[11px] text-gray-400">{draft.template_id} · {formatDate(draft.created_at)}</p>
+                                            <p className="text-sm font-medium text-primary truncate">{draft.name}</p>
+                                            <p className="text-[11px] text-muted">{draft.template_id} · {formatDate(draft.created_at)}</p>
                                         </div>
                                         <button
                                             onClick={e => handleDeleteDraft(draft.id, e)}
-                                            className="ml-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 text-sm"
+                                            className="ml-2 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 text-sm"
                                         >🗑️</button>
                                     </div>
                                 ))}
@@ -800,28 +801,28 @@ export default function GeradorEmail() {
 
                                 {/* Template cards */}
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-2">Template</label>
+                                    <label className="block text-xs font-medium text-secondary mb-2">Template</label>
                                     <div className="grid grid-cols-2 gap-2">
                                         {TEMPLATES.map(t => (
                                             <button
                                                 key={t.id}
                                                 onClick={() => setInternalTemplateId(t.id)}
-                                                className={`flex flex-col rounded-lg border-2 overflow-hidden text-left transition-all ${internalTemplateId === t.id ? 'border-brand' : 'border-gray-100 hover:border-gray-200'} ${t.id === 'boas-vindas' ? 'col-span-2 flex-row items-center' : ''}`}
+                                                className={`flex flex-col rounded-lg border-2 overflow-hidden text-left transition-all ${internalTemplateId === t.id ? 'border-brand' : 'border-border-subtle hover:border-border-subtle'} ${t.id === 'boas-vindas' ? 'col-span-2 flex-row items-center' : ''}`}
                                             >
                                                 {t.id === 'boas-vindas' ? (
                                                     <>
                                                         <div style={{ backgroundColor: t.color }} className="w-1.5 self-stretch flex-shrink-0" />
                                                         <div className="px-3 py-2">
-                                                            <p className="text-xs font-medium text-gray-800">{t.label}</p>
-                                                            <p className="text-[10px] text-gray-400">{t.desc}</p>
+                                                            <p className="text-xs font-medium text-primary">{t.label}</p>
+                                                            <p className="text-[10px] text-muted">{t.desc}</p>
                                                         </div>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <div style={{ backgroundColor: getTemplateHeaderColor(t.id) }} className="h-4 w-full flex-shrink-0" />
                                                         <div className="px-2 py-1.5">
-                                                            <p className="text-xs font-medium text-gray-800">{t.label}</p>
-                                                            <p className="text-[10px] text-gray-400">{t.desc}</p>
+                                                            <p className="text-xs font-medium text-primary">{t.label}</p>
+                                                            <p className="text-[10px] text-muted">{t.desc}</p>
                                                         </div>
                                                     </>
                                                 )}
@@ -832,33 +833,33 @@ export default function GeradorEmail() {
 
                                 {/* Título */}
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Título no e-mail</label>
+                                    <label className="block text-xs font-medium text-secondary mb-1.5">Título no e-mail</label>
                                     <input
                                         type="text"
                                         placeholder="Título visível no corpo do e-mail"
                                         value={title}
                                         onChange={e => setTitle(e.target.value)}
-                                        className="w-full h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
+                                        className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                                     />
                                 </div>
 
                                 {/* CTA */}
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1.5">Texto do botão</label>
+                                        <label className="block text-xs font-medium text-secondary mb-1.5">Texto do botão</label>
                                         <input type="text" placeholder="Saiba mais" value={buttonText} onChange={e => setButtonText(e.target.value)}
-                                            className="w-full h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+                                            className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1.5">Link do botão</label>
+                                        <label className="block text-xs font-medium text-secondary mb-1.5">Link do botão</label>
                                         <input type="text" placeholder="https://..." value={buttonLink} onChange={e => setButtonLink(e.target.value)}
-                                            className="w-full h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+                                            className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
                                     </div>
                                 </div>
 
                                 {/* Imagens */}
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-2">Imagens</label>
+                                    <label className="block text-xs font-medium text-secondary mb-2">Imagens</label>
                                     <div className="space-y-1.5">
                                         {([
                                             { key: 'logo' as const, label: 'Logotipo', url: logoUrl },
@@ -867,12 +868,12 @@ export default function GeradorEmail() {
                                         ]).map(({ key, label, url }) => (
                                             <label
                                                 key={key}
-                                                className={`flex items-center gap-3 p-2.5 rounded-lg border border-dashed cursor-pointer hover:bg-gray-50 transition-colors ${url ? 'border-green-300 bg-green-50/40' : 'border-gray-200'}`}
+                                                className={`flex items-center gap-3 p-2.5 rounded-lg border border-dashed cursor-pointer hover:bg-surface-2 transition-colors ${url ? 'border-green-300 bg-green-50/40' : 'border-border-subtle'}`}
                                             >
-                                                <span className="text-xs font-medium text-gray-600 w-24 flex-shrink-0">{label}</span>
+                                                <span className="text-xs font-medium text-secondary w-24 flex-shrink-0">{label}</span>
                                                 {url
                                                     ? <span className="text-xs text-green-600 font-medium">✓ Enviada</span>
-                                                    : <span className="text-xs text-gray-400">Clique para enviar</span>
+                                                    : <span className="text-xs text-muted">Clique para enviar</span>
                                                 }
                                                 <input type="file" className="hidden" onChange={e => handleFileUpload(e, key)} accept="image/*" />
                                             </label>
@@ -883,19 +884,19 @@ export default function GeradorEmail() {
                                 {/* Cores */}
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1.5">Cor de fundo</label>
+                                        <label className="block text-xs font-medium text-secondary mb-1.5">Cor de fundo</label>
                                         <div className="flex items-center gap-2">
                                             <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)}
                                                 className="h-9 w-9 rounded-md cursor-pointer border p-0.5 flex-shrink-0" />
-                                            <span className="text-xs text-gray-400 font-mono">{bgColor}</span>
+                                            <span className="text-xs text-muted font-mono">{bgColor}</span>
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1.5">Cor de destaque</label>
+                                        <label className="block text-xs font-medium text-secondary mb-1.5">Cor de destaque</label>
                                         <div className="flex items-center gap-2">
                                             <input type="color" value={buttonColor} onChange={e => setButtonColor(e.target.value)}
                                                 className="h-9 w-9 rounded-md cursor-pointer border p-0.5 flex-shrink-0" />
-                                            <span className="text-xs text-gray-400 font-mono">{buttonColor}</span>
+                                            <span className="text-xs text-muted font-mono">{buttonColor}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -910,7 +911,7 @@ export default function GeradorEmail() {
                             <div className="px-5 pb-5 space-y-3">
                                 {/* OpenAI API Key */}
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-1.5">OpenAI API Key</label>
+                                    <label className="block text-xs font-medium text-secondary mb-1.5">OpenAI API Key</label>
                                     <div className="flex gap-2">
                                         <div className="relative flex-1">
                                             <input
@@ -918,12 +919,12 @@ export default function GeradorEmail() {
                                                 value={openaiKey}
                                                 onChange={e => setOpenaiKey(e.target.value)}
                                                 placeholder="sk-..."
-                                                className="w-full h-9 rounded-md border border-gray-200 px-3 pr-8 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/30"
+                                                className="w-full h-9 rounded-md border border-border-subtle px-3 pr-8 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/30"
                                             />
                                             <button
                                                 type="button"
                                                 onClick={() => setShowOpenaiKey(v => !v)}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-secondary"
                                             >
                                                 {showOpenaiKey ? <EyeOff size={13} /> : <Eye size={13} />}
                                             </button>
@@ -932,7 +933,7 @@ export default function GeradorEmail() {
                                             <button
                                                 onClick={handleSaveOpenaiKey}
                                                 disabled={savingOpenaiKey}
-                                                className="h-9 px-3 rounded-md border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50 flex-shrink-0"
+                                                className="h-9 px-3 rounded-md border border-border-subtle text-xs text-secondary hover:bg-surface-2 disabled:opacity-50 flex-shrink-0"
                                             >
                                                 {savingOpenaiKey ? '...' : 'Salvar'}
                                             </button>
@@ -940,7 +941,7 @@ export default function GeradorEmail() {
                                     </div>
                                 </div>
                                 <textarea
-                                    className="w-full min-h-[100px] rounded-md border border-gray-200 px-3 py-2 text-sm placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-brand/30"
+                                    className="w-full min-h-[100px] rounded-md border border-border-subtle px-3 py-2 text-sm placeholder:text-muted resize-none focus:outline-none focus:ring-2 focus:ring-brand/30"
                                     placeholder="Descreva o que a IA deve escrever..."
                                     value={prompt}
                                     onChange={e => setPrompt(e.target.value)}
@@ -963,15 +964,15 @@ export default function GeradorEmail() {
                     {result ? (
                         <>
                             {/* Preview toolbar */}
-                            <div className="flex-shrink-0 h-12 bg-white border-b flex items-center px-4 gap-3">
+                            <div className="flex-shrink-0 h-12 bg-surface-card border-b border-border-subtle flex items-center px-4 gap-3">
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-0.5">Assunto</p>
-                                    <p className="text-sm font-medium text-gray-800 truncate">{finalSubject || '(sem assunto)'}</p>
+                                    <p className="text-[10px] text-muted uppercase tracking-widest leading-none mb-0.5">Assunto</p>
+                                    <p className="text-sm font-medium text-primary truncate">{finalSubject || '(sem assunto)'}</p>
                                 </div>
                                 <button
                                     onClick={toggleEditMode}
                                     disabled={loading}
-                                    className={`h-8 px-3 rounded-md text-xs font-medium border transition-all flex-shrink-0 ${isEditing ? 'bg-brand text-white border-brand' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                                    className={`h-8 px-3 rounded-md text-xs font-medium border transition-all flex-shrink-0 ${isEditing ? 'bg-brand text-white border-brand' : 'bg-surface-card text-secondary border-border-subtle hover:bg-surface-2'}`}
                                 >
                                     {isEditing ? '✓ Salvar edições' : '✏️ Editar texto'}
                                 </button>
@@ -979,7 +980,7 @@ export default function GeradorEmail() {
 
                             {/* iframe container */}
                             <div className="flex-1 bg-[#f0f2f5] overflow-auto flex justify-center p-6">
-                                <div className={`bg-white shadow-xl rounded-sm overflow-hidden flex flex-col transition-all duration-300 ${mobilePreview ? 'w-[375px]' : 'w-full max-w-[650px]'}`}>
+                                <div className={`bg-surface-card shadow-float rounded-sm overflow-hidden flex flex-col transition-all duration-300 ${mobilePreview ? 'w-[375px]' : 'w-full max-w-[650px]'}`}>
                                     <iframe
                                         ref={iframeRef}
                                         srcDoc={result.body}
@@ -990,11 +991,11 @@ export default function GeradorEmail() {
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-400">
-                            <div className="h-16 w-16 bg-white shadow-sm rounded-full flex items-center justify-center mb-4 border border-gray-100">
+                        <div className="flex-1 flex flex-col items-center justify-center text-center text-muted">
+                            <div className="h-16 w-16 bg-surface-card shadow-card rounded-full flex items-center justify-center mb-4 border border-border-subtle">
                                 <span className="text-2xl">✉️</span>
                             </div>
-                            <h3 className="text-base font-medium text-gray-600 mb-1">Preview aparecerá aqui</h3>
+                            <h3 className="text-base font-medium text-secondary mb-1">Preview aparecerá aqui</h3>
                             <p className="text-sm max-w-xs">Configure o design, escreva o prompt e clique em "Gerar E-mail com IA".</p>
                         </div>
                     )}
@@ -1019,9 +1020,9 @@ export default function GeradorEmail() {
             {/* ── Checklist Modal ── */}
             {showChecklist && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
-                        <h3 className="text-base font-semibold text-gray-900 mb-1">Antes de exportar</h3>
-                        <p className="text-xs text-gray-400 mb-5">Revise os itens abaixo antes de enviar para o Mailchimp.</p>
+                    <div className="bg-surface-card rounded-card shadow-modal border border-border-subtle w-full max-w-sm mx-4 p-6">
+                        <h3 className="text-base font-semibold text-primary mb-1">Antes de exportar</h3>
+                        <p className="text-xs text-muted mb-5">Revise os itens abaixo antes de enviar para o Mailchimp.</p>
 
                         <div className="space-y-3 mb-5">
                             {checks.map((check, i) => (
@@ -1029,7 +1030,7 @@ export default function GeradorEmail() {
                                     <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${check.ok ? 'bg-green-100 text-green-600' : check.blocking ? 'bg-red-100 text-red-500' : 'bg-amber-100 text-amber-600'}`}>
                                         {check.ok ? '✓' : check.blocking ? '✗' : '!'}
                                     </span>
-                                    <span className={`text-sm leading-snug ${check.ok ? 'text-gray-700' : check.blocking ? 'text-red-600 font-medium' : 'text-amber-700'}`}>
+                                    <span className={`text-sm leading-snug ${check.ok ? 'text-secondary' : check.blocking ? 'text-red-600 font-medium' : 'text-amber-700'}`}>
                                         {check.label}
                                     </span>
                                 </div>
@@ -1037,7 +1038,7 @@ export default function GeradorEmail() {
                         </div>
 
                         {scheduleEnabled && scheduledAt && (
-                            <div className="text-xs text-gray-500 mb-4 bg-gray-50 rounded-lg px-3 py-2.5">
+                            <div className="text-xs text-secondary mb-4 bg-surface-2 rounded-lg px-3 py-2.5">
                                 📅 Agendado para {new Date(scheduledAt).toLocaleString('pt-BR')}
                             </div>
                         )}
@@ -1045,7 +1046,7 @@ export default function GeradorEmail() {
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setShowChecklist(false)}
-                                className="flex-1 h-9 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                                className="flex-1 h-9 rounded-lg border border-border-subtle text-sm text-secondary hover:bg-surface-2 transition-colors"
                             >
                                 Cancelar
                             </button>
@@ -1060,6 +1061,7 @@ export default function GeradorEmail() {
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -49,12 +49,12 @@ export default function Login() {
                 <Card>
                     <CardHeader className="text-center">
                         <CardTitle className="text-xl">Bem-vindo ao FlowDesk</CardTitle>
-                        <p className="text-sm text-gray-500 mt-2">Faça login na sua conta da agência</p>
+                        <p className="text-sm text-secondary mt-2">Faça login na sua conta da agência</p>
                     </CardHeader>
                     <CardContent>
                         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700" htmlFor="email">Email</label>
+                                <label className="text-sm font-medium text-secondary" htmlFor="email">Email</label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -67,7 +67,7 @@ export default function Login() {
                             </div>
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <label className="text-sm font-medium text-gray-700" htmlFor="password">Senha</label>
+                                    <label className="text-sm font-medium text-secondary" htmlFor="password">Senha</label>
                                     <a href="#" className="text-xs text-brand hover:underline">Esqueceu?</a>
                                 </div>
                                 <Input

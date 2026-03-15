@@ -43,7 +43,14 @@
       "Bash(curl -s http://localhost:3001/health)",
       "Bash(powershell -Command \"Stop-Process -Id 18488 -Force\")",
       "Bash(xargs grep -l \"Sidebar\\\\|sidebar\")",
-      "Bash(npm run dev)"
+      "Bash(npm run dev)",
+      "Bash(npx eslint:*)",
+      "Bash(powershell -Command \":*)",
+      "Bash(grep -r \"text-gray-[3-9]00\\\\|bg-gray-[0-9]*\\\\b\\\\|shadow-xl\\\\|shadow-2xl\\\\|rounded-xl\\\\b\" src/pages/ src/components/ui/ src/components/kanban/ src/components/projects/ src/components/tasks/StatusPopover.tsx src/App.tsx --include=*.tsx -l)",
+      "Bash(grep -r \"text-gray-[3-9]00\\\\|bg-gray-[0-9]*\\\\b\" src/pages/ src/components/ui/ src/components/kanban/ src/components/projects/ src/components/tasks/StatusPopover.tsx src/App.tsx --include=*.tsx)",
+      "Bash(npm install:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
