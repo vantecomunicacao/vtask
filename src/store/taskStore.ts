@@ -12,6 +12,7 @@ export type TaskWithAssignee = Task & {
     assignee?: Profile | null,
     category?: TaskCategory | null,
     project?: { id: string; name: string; color: string | null } | null;
+    comments_count?: number;
 };
 
 const CACHE_TTL_MS = 30_000;
@@ -23,10 +24,12 @@ interface TaskState {
     loading: boolean;
     error: string | null;
     tasksCache: { workspaceId: string; at: number } | null;
+    autoMovedCount: number;
     fetchTasks: (projectId: string) => Promise<void>;
     fetchStatuses: (workspaceId: string) => Promise<void>;
     fetchCategories: (workspaceId: string) => Promise<void>;
     fetchWorkspaceTasks: (workspaceId: string, force?: boolean) => Promise<void>;
+    autoMovePastDueTasks: () => Promise<void>;
     invalidateTasksCache: () => void;
     addStatus: (workspaceId: string, name: string, color: string) => Promise<void>;
     updateStatus: (id: string, updates: Partial<CustomStatus>) => Promise<void>;
@@ -51,6 +54,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     loading: false,
     error: null,
     tasksCache: null,
+    autoMovedCount: 0,
 
     invalidateTasksCache: () => set({ tasksCache: null }),
 
@@ -138,17 +142,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
         set({ statuses: updatedStatuses });
 
-        // Update DB in parallel
-        const promises = orderedIds.map((id, index) =>
-            supabase
-                .from('custom_statuses')
-                .update({ position: index + 1 })
-                .eq('id', id)
-        );
+        // Update DB in a single upsert
+        const { error } = await supabase
+            .from('custom_statuses')
+            .upsert(orderedIds.map((id, index) => ({ id, position: index + 1 })));
 
-        const results = await Promise.all(promises);
-        const firstError = results.find(r => r.error);
-        if (firstError) throw firstError.error;
+        if (error) throw error;
     },
 
     addCategory: async (workspaceId: string, name: string, color: string) => {
@@ -257,7 +256,45 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             return;
         }
 
-        set({ tasks: (data as TaskWithAssignee[]) || [], loading: false, tasksCache: { workspaceId, at: Date.now() } });
+        const loadedTasks = (data as TaskWithAssignee[]) || [];
+        set({ tasks: loadedTasks, loading: false, tasksCache: { workspaceId, at: Date.now() } });
+    },
+
+    autoMovePastDueTasks: async () => {
+        const { tasks, statuses } = get();
+        if (tasks.length === 0 || statuses.length === 0) return;
+
+        const firstStatus = statuses[0];
+        const doneStatus = statuses[statuses.length - 1];
+        const today = new Date().toISOString().split('T')[0];
+
+        const idsToMove = tasks
+            .filter(t =>
+                t.due_date != null &&
+                t.due_date.substring(0, 10) <= today &&
+                t.status_id !== firstStatus.id &&
+                t.status_id !== doneStatus.id
+            )
+            .map(t => t.id);
+
+        if (idsToMove.length === 0) {
+            set({ autoMovedCount: 0 });
+            return;
+        }
+
+        const { error: moveError } = await supabase
+            .from('tasks')
+            .update({ status_id: firstStatus.id })
+            .in('id', idsToMove);
+
+        if (!moveError) {
+            set({
+                autoMovedCount: idsToMove.length,
+                tasks: get().tasks.map(t =>
+                    idsToMove.includes(t.id) ? { ...t, status_id: firstStatus.id } : t
+                ),
+            });
+        }
     },
 
     moveTask: async (taskId: string, newStatusId: string | null, newPosition: number) => {
@@ -366,7 +403,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         if (isCompleted) {
             const task = tasks.find(t => t.id === taskId);
             if (task && task.recurrence && task.recurrence !== 'none' && task.due_date) {
-                const currentDate = new Date(task.due_date);
+                const currentDate = new Date(task.due_date.length === 10 ? `${task.due_date}T00:00:00` : task.due_date);
                 let nextDate: Date;
 
                 switch (task.recurrence) {

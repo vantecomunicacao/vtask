@@ -56,7 +56,7 @@ export default function Configuracoes() {
     useEffect(() => {
         if (activeWorkspace) {
             setName(activeWorkspace.name);
-            setOpenaiKey((activeWorkspace as unknown as Record<string, string>).openai_api_key ?? '');
+            setOpenaiKey(activeWorkspace.openai_api_key ?? '');
             loadMembers();
             fetchStatuses(activeWorkspace.id);
             fetchCategories(activeWorkspace.id);
@@ -201,9 +201,7 @@ export default function Configuracoes() {
 
         setLoading(true);
         try {
-            for (const item of defaults) {
-                await addCategory(activeWorkspace.id, item.name, item.color);
-            }
+            await Promise.all(defaults.map(item => addCategory(activeWorkspace.id, item.name, item.color)));
             toast.success('Padrões carregados com sucesso!');
         } catch {
             toast.error('Erro ao carregar padrões');
@@ -367,6 +365,22 @@ export default function Configuracoes() {
                                             <strong>Dica:</strong> Defina as etapas do seu processo (Ex: Briefing, Em Produção, Revisão).
                                             As tarefas se movem da esquerda para a direita no Kanban seguindo esta ordem.
                                         </p>
+                                    </div>
+
+                                    <div className="p-4 bg-surface-0 border border-border-subtle rounded-lg space-y-2">
+                                        <p className="text-xs font-black text-muted uppercase tracking-widest">Comportamento automático</p>
+                                        <div className="flex items-start gap-2">
+                                            <span className="mt-0.5 w-2 h-2 rounded-full bg-brand shrink-0" />
+                                            <p className="text-xs text-secondary leading-relaxed">
+                                                <strong className="text-primary">1º status</strong> — ponto de entrada das novas tarefas. Tarefas com prazo vencido (hoje ou anterior) são movidas automaticamente para cá ao abrir o app.
+                                            </p>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <span className="mt-0.5 w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                                            <p className="text-xs text-secondary leading-relaxed">
+                                                <strong className="text-primary">Último status</strong> — sempre considerado como "Concluído". Marcar uma tarefa como feita a move para cá.
+                                            </p>
+                                        </div>
                                     </div>
 
                                     {/* Add New Status */}

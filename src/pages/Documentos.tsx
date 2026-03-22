@@ -2,11 +2,12 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDocumentStore, type Document } from '../store/documentStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { useProjectStore } from '../store/projectStore';
 import { Button } from '../components/ui/Button';
 import { DocumentEditor } from '../components/documents/DocumentEditor';
 import {
     FileText, Plus, ChevronRight, ChevronDown,
-    Trash2, Inbox, Search, FilePlus
+    Trash2, Inbox, Search, FilePlus, GripVertical, FolderOpen, X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -19,6 +20,12 @@ function DocTreeItem({
     onSelect,
     onAddChild,
     onDelete,
+    dragging,
+    dropTarget,
+    onDragStart,
+    onDragOver,
+    onDragLeave,
+    onDrop,
 }: {
     doc: Document;
     allDocs: Document[];
@@ -27,21 +34,46 @@ function DocTreeItem({
     onSelect: (id: string) => void;
     onAddChild: (parentId: string) => void;
     onDelete: (doc: Document) => void;
+    dragging: string | null;
+    dropTarget: string | null;
+    onDragStart: (id: string) => void;
+    onDragOver: (id: string) => void;
+    onDragLeave: () => void;
+    onDrop: (targetId: string) => void;
 }) {
     const children = allDocs.filter(d => d.parent_id === doc.id);
     const [open, setOpen] = useState(depth === 0);
     const isActive = activeId === doc.id;
+    const isDropTarget = dropTarget === doc.id && dragging !== doc.id;
+    const isDragging = dragging === doc.id;
 
     return (
         <div>
             <div
                 className={cn(
                     'group flex items-center gap-1 rounded-lg py-1 pr-1 cursor-pointer text-sm transition-all select-none',
-                    isActive ? 'bg-brand/10 text-brand font-semibold' : 'text-secondary hover:bg-surface-0 hover:text-primary'
+                    isDragging && 'opacity-40',
+                    isDropTarget && 'ring-2 ring-brand/40 bg-brand/5',
+                    !isDropTarget && isActive && 'bg-brand/10 text-brand font-semibold',
+                    !isDropTarget && !isActive && 'text-secondary hover:bg-surface-0 hover:text-primary',
                 )}
                 style={{ paddingLeft: `${6 + depth * 14}px` }}
+                draggable={true}
+                onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(doc.id); }}
+                onDragEnd={() => onDragLeave()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); onDragOver(doc.id); }}
+                onDragLeave={(e) => { e.stopPropagation(); onDragLeave(); }}
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDrop(doc.id); }}
                 onClick={() => onSelect(doc.id)}
             >
+                {/* Drag handle */}
+                <span
+                    className="hidden group-hover:flex items-center text-muted/40 hover:text-muted cursor-grab shrink-0"
+                    onMouseDown={e => e.stopPropagation()}
+                >
+                    <GripVertical size={12} />
+                </span>
+
                 {/* Expand toggle */}
                 <button
                     className="p-0.5 shrink-0 text-muted hover:text-secondary rounded"
@@ -85,6 +117,12 @@ function DocTreeItem({
                     onSelect={onSelect}
                     onAddChild={onAddChild}
                     onDelete={onDelete}
+                    dragging={dragging}
+                    dropTarget={dropTarget}
+                    onDragStart={onDragStart}
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
                 />
             ))}
         </div>
@@ -111,14 +149,21 @@ export default function Documentos() {
     const navigate = useNavigate();
     const { id } = useParams();
     const { activeWorkspace } = useWorkspaceStore();
-    const { documents, fetchDocuments, createDocument, createSubDocument, deleteDocument, loading } = useDocumentStore();
+    const { documents, fetchDocuments, createDocument, createSubDocument, deleteDocument, moveDocument, loading } = useDocumentStore();
+    const { projects, fetchProjects } = useProjectStore();
 
     const [search, setSearch] = useState('');
+    const [projectFilter, setProjectFilter] = useState<string | null>(null);
+    const [dragging, setDragging] = useState<string | null>(null);
+    const [dropTarget, setDropTarget] = useState<string | null>(null);
     const searchRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (activeWorkspace) fetchDocuments(activeWorkspace.id);
-    }, [activeWorkspace, fetchDocuments]);
+        if (activeWorkspace) {
+            fetchDocuments(activeWorkspace.id);
+            if (projects.length === 0) fetchProjects(activeWorkspace.id);
+        }
+    }, [activeWorkspace, fetchDocuments, fetchProjects, projects.length]);
 
     const handleCreate = useCallback(async () => {
         if (!activeWorkspace) return;
@@ -126,12 +171,12 @@ export default function Documentos() {
             workspace_id: activeWorkspace.id,
             title: 'Nova página',
             content: { type: 'doc', content: [] },
-            project_id: null,
+            project_id: projectFilter || null,
             folder_id: null,
             parent_id: null,
         });
         if (newDoc) navigate(`/documentos/${newDoc.id}`);
-    }, [activeWorkspace, createDocument, navigate]);
+    }, [activeWorkspace, createDocument, navigate, projectFilter]);
 
     const handleAddChild = useCallback(async (parentId: string) => {
         if (!activeWorkspace) return;
@@ -150,6 +195,45 @@ export default function Documentos() {
         }
     }, [documents, deleteDocument, id, navigate]);
 
+    // ─── Drag-and-drop helpers ────────────────────────────────────
+    const isDescendant = useCallback((nodeId: string, ancestorId: string): boolean => {
+        const node = documents.find(d => d.id === nodeId);
+        if (!node?.parent_id) return false;
+        if (node.parent_id === ancestorId) return true;
+        return isDescendant(node.parent_id, ancestorId);
+    }, [documents]);
+
+    const handleDragStart = useCallback((id: string) => {
+        setDragging(id);
+        setDropTarget(null);
+    }, []);
+
+    const handleDragOver = useCallback((targetId: string) => {
+        if (!dragging || targetId === dragging) return;
+        if (isDescendant(targetId, dragging)) return; // would create cycle
+        setDropTarget(targetId);
+    }, [dragging, isDescendant]);
+
+    const handleDragLeave = useCallback(() => {
+        setDropTarget(null);
+    }, []);
+
+    const handleDrop = useCallback(async (targetId: string) => {
+        if (!dragging || dragging === targetId) { setDragging(null); setDropTarget(null); return; }
+        if (isDescendant(targetId, dragging)) { setDragging(null); setDropTarget(null); return; }
+        await moveDocument(dragging, targetId);
+        setDragging(null);
+        setDropTarget(null);
+    }, [dragging, isDescendant, moveDocument]);
+
+    const handleRootDrop = useCallback(async (e: React.DragEvent) => {
+        e.preventDefault();
+        if (!dragging) return;
+        await moveDocument(dragging, null);
+        setDragging(null);
+        setDropTarget(null);
+    }, [dragging, moveDocument]);
+
     // Keyboard shortcut
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -165,9 +249,18 @@ export default function Documentos() {
     // Docs raiz (sem pai)
     const rootDocs = documents.filter(d => !d.parent_id);
 
-    // Busca flat (todos os docs que batem com o search)
+    // Busca flat
     const searchResults = search.trim()
         ? documents.filter(d => d.title.toLowerCase().includes(search.toLowerCase()))
+        : null;
+
+    // Filtro por projeto (flat list)
+    const filteredByProject = projectFilter
+        ? documents.filter(d => d.project_id === projectFilter)
+        : null;
+
+    const activeProjectName = projectFilter
+        ? projects.find(p => p.id === projectFilter)?.name
         : null;
 
     return (
@@ -177,14 +270,58 @@ export default function Documentos() {
                 {/* Header */}
                 <div className="px-3 pt-4 pb-2 flex items-center justify-between shrink-0">
                     <span className="text-[11px] font-bold text-muted uppercase tracking-widest">Páginas</span>
-                    <button
-                        onClick={handleCreate}
-                        title="Nova página (N)"
-                        className="p-1 rounded-lg hover:bg-surface-0 text-muted hover:text-primary transition-colors"
-                    >
-                        <FilePlus size={15} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                        {/* Project filter button */}
+                        {projects.length > 0 && (
+                            <div className="relative group/filter">
+                                <button
+                                    title="Filtrar por projeto"
+                                    className={cn(
+                                        'p-1 rounded-lg hover:bg-surface-0 transition-colors',
+                                        projectFilter ? 'text-brand bg-brand/10' : 'text-muted hover:text-primary'
+                                    )}
+                                    onClick={() => {/* toggle handled by select below */}}
+                                >
+                                    <FolderOpen size={14} />
+                                </button>
+                                <select
+                                    value={projectFilter || ''}
+                                    onChange={e => setProjectFilter(e.target.value || null)}
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                    title="Filtrar por projeto"
+                                >
+                                    <option value="">Todos os documentos</option>
+                                    {projects.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        <button
+                            onClick={handleCreate}
+                            title="Nova página (N)"
+                            className="p-1 rounded-lg hover:bg-surface-0 text-muted hover:text-primary transition-colors"
+                        >
+                            <FilePlus size={15} />
+                        </button>
+                    </div>
                 </div>
+
+                {/* Active project filter badge */}
+                {activeProjectName && (
+                    <div className="px-3 pb-1.5 shrink-0">
+                        <div className="flex items-center gap-1.5 bg-brand/8 text-brand rounded-lg px-2 py-1">
+                            <FolderOpen size={11} />
+                            <span className="text-[11px] font-medium flex-1 truncate">{activeProjectName}</span>
+                            <button
+                                onClick={() => setProjectFilter(null)}
+                                className="hover:text-brand/60"
+                            >
+                                <X size={11} />
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Search */}
                 <div className="px-3 pb-2 shrink-0">
@@ -200,8 +337,12 @@ export default function Documentos() {
                     </div>
                 </div>
 
-                {/* Tree / Search results */}
-                <div className="flex-1 overflow-y-auto px-2 pb-4 custom-scrollbar">
+                {/* Tree / Search / Filter results */}
+                <div
+                    className="flex-1 overflow-y-auto px-2 pb-4 custom-scrollbar"
+                    onDragOver={dragging && !dropTarget ? (e) => e.preventDefault() : undefined}
+                    onDrop={dragging ? handleRootDrop : undefined}
+                >
                     {loading ? (
                         <div className="space-y-1 px-1 pt-1">
                             {[...Array(5)].map((_, i) => (
@@ -226,6 +367,32 @@ export default function Documentos() {
                                 </div>
                             ))
                         )
+                    ) : filteredByProject ? (
+                        filteredByProject.length === 0 ? (
+                            <div className="py-4 text-center">
+                                <p className="text-xs text-muted">Nenhum documento neste projeto</p>
+                                <button
+                                    onClick={handleCreate}
+                                    className="mt-2 text-xs text-brand hover:underline"
+                                >
+                                    Criar documento vinculado
+                                </button>
+                            </div>
+                        ) : (
+                            filteredByProject.map(doc => (
+                                <div
+                                    key={doc.id}
+                                    onClick={() => navigate(`/documentos/${doc.id}`)}
+                                    className={cn(
+                                        'flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-all',
+                                        id === doc.id ? 'bg-brand/10 text-brand font-semibold' : 'text-secondary hover:bg-surface-0'
+                                    )}
+                                >
+                                    <FileText size={13} className="shrink-0" />
+                                    <span className="flex-1 truncate">{doc.title || 'Sem título'}</span>
+                                </div>
+                            ))
+                        )
                     ) : rootDocs.length === 0 ? (
                         <button
                             onClick={handleCreate}
@@ -234,18 +401,36 @@ export default function Documentos() {
                             <Plus size={13} /> Criar primeira página
                         </button>
                     ) : (
-                        rootDocs.map(doc => (
-                            <DocTreeItem
-                                key={doc.id}
-                                doc={doc}
-                                allDocs={documents}
-                                depth={0}
-                                activeId={id}
-                                onSelect={docId => navigate(`/documentos/${docId}`)}
-                                onAddChild={handleAddChild}
-                                onDelete={handleDelete}
-                            />
-                        ))
+                        <>
+                            {rootDocs.map(doc => (
+                                <DocTreeItem
+                                    key={doc.id}
+                                    doc={doc}
+                                    allDocs={documents}
+                                    depth={0}
+                                    activeId={id}
+                                    onSelect={docId => navigate(`/documentos/${docId}`)}
+                                    onAddChild={handleAddChild}
+                                    onDelete={handleDelete}
+                                    dragging={dragging}
+                                    dropTarget={dropTarget}
+                                    onDragStart={handleDragStart}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                />
+                            ))}
+                            {/* Root drop zone — shown while dragging */}
+                            {dragging && (
+                                <div
+                                    className="mt-2 p-2 rounded-lg border-2 border-dashed border-brand/30 text-[11px] text-brand/60 text-center transition-colors hover:border-brand/60 hover:text-brand"
+                                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDropTarget(null); }}
+                                    onDrop={async (e) => { e.preventDefault(); e.stopPropagation(); await handleRootDrop(e); }}
+                                >
+                                    Soltar aqui para nível raiz
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
 

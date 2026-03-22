@@ -23,13 +23,18 @@ export default function Lixeira() {
     const load = async () => {
         if (!activeWorkspace) return;
         setLoading(true);
-        const [t, d] = await Promise.all([
-            fetchTrashedTasks(activeWorkspace.id),
-            fetchTrashedDocuments(activeWorkspace.id),
-        ]);
-        setTasks(t);
-        setDocuments(d);
-        setLoading(false);
+        try {
+            const [t, d] = await Promise.all([
+                fetchTrashedTasks(activeWorkspace.id),
+                fetchTrashedDocuments(activeWorkspace.id),
+            ]);
+            setTasks(t);
+            setDocuments(d);
+        } catch {
+            toast.error('Erro ao carregar lixeira');
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => { load(); }, [activeWorkspace]);

@@ -19,6 +19,8 @@ import { common, createLowlight } from 'lowlight';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentStore } from '../../store/documentStore';
+import { useProjectStore } from '../../store/projectStore';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Callout } from './extensions/Callout';
 import { Details } from './extensions/Details';
 import { Button } from '../ui/Button';
@@ -28,7 +30,7 @@ import {
     Heading1, Heading2, Heading3, Link as LinkIcon,
     AlignLeft, AlignCenter, AlignRight, Table as TableIcon,
     CheckSquare, Code, Image as ImageIcon, Trash2, Minus,
-    FileText, Plus, Undo, Redo, Palette, Highlighter,
+    FileText, Plus, Undo, Redo, Palette, Highlighter, FolderOpen,
 } from 'lucide-react';
 
 const lowlight = createLowlight(common);
@@ -67,6 +69,8 @@ interface DocumentEditorProps {
 export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEditorProps) {
     const navigate = useNavigate();
     const { documents, updateDocument, deleteDocument, uploadImage } = useDocumentStore();
+    const { projects, fetchProjects } = useProjectStore();
+    const { activeWorkspace } = useWorkspaceStore();
     const doc = documents.find(d => d.id === documentId);
     const subPages = documents.filter(d => d.parent_id === documentId);
 
@@ -76,6 +80,13 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
 
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const handleSaveRef = useRef<() => void>(() => {});
+
+    // Carrega projetos se necessário
+    useEffect(() => {
+        if (activeWorkspace && projects.length === 0) {
+            fetchProjects(activeWorkspace.id);
+        }
+    }, [activeWorkspace, projects.length, fetchProjects]);
 
     // ─── Upload de imagem ─────────────────────────────────────────
     const handleFileUpload = useCallback(async (file: File) => {
@@ -223,6 +234,23 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                     className="text-lg font-bold text-primary outline-none flex-1 bg-transparent mr-4 placeholder:text-muted placeholder:font-normal"
                 />
                 <div className="flex items-center gap-2">
+                    {/* Project link */}
+                    {projects.length > 0 && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <FolderOpen size={13} className="text-muted shrink-0" />
+                            <select
+                                value={doc.project_id || ''}
+                                onChange={e => updateDocument(documentId, { project_id: e.target.value || null })}
+                                className="text-xs text-secondary bg-transparent border border-border-subtle rounded px-1.5 py-0.5 outline-none hover:border-brand/40 focus:ring-1 focus:ring-brand/20 max-w-[130px] cursor-pointer"
+                            >
+                                <option value="">Sem projeto</option>
+                                {projects.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    <div className="w-px h-5 bg-border-subtle" />
                     <span className="text-[10px] text-muted font-medium uppercase tracking-wider hidden sm:block">
                         {saving ? 'Salvando...' : 'Salvo'}
                     </span>
@@ -248,17 +276,17 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                 >
                     {/* Heading selector */}
                     <button
-                        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }}
+                        onMouseDown={e => { e.preventDefault(); editor.chain().toggleHeading({ level: 1 }).run(); }}
                         className={`px-1.5 py-1 rounded text-xs font-bold hover:bg-white/10 transition-colors ${editor.isActive('heading', { level: 1 }) ? 'text-brand' : 'text-gray-300'}`}
                         title="Título 1"
                     >H1</button>
                     <button
-                        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }}
+                        onMouseDown={e => { e.preventDefault(); editor.chain().toggleHeading({ level: 2 }).run(); }}
                         className={`px-1.5 py-1 rounded text-xs font-bold hover:bg-white/10 transition-colors ${editor.isActive('heading', { level: 2 }) ? 'text-brand' : 'text-gray-300'}`}
                         title="Título 2"
                     >H2</button>
                     <button
-                        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); }}
+                        onMouseDown={e => { e.preventDefault(); editor.chain().toggleHeading({ level: 3 }).run(); }}
                         className={`px-1.5 py-1 rounded text-xs font-bold hover:bg-white/10 transition-colors ${editor.isActive('heading', { level: 3 }) ? 'text-brand' : 'text-gray-300'}`}
                         title="Título 3"
                     >H3</button>
@@ -266,17 +294,17 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                     <div className="w-px h-4 bg-white/20 mx-0.5" />
 
                     <button
-                        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }}
+                        onMouseDown={e => { e.preventDefault(); editor.chain().toggleBold().run(); }}
                         className={`p-1.5 rounded hover:bg-white/10 transition-colors ${editor.isActive('bold') ? 'text-brand' : ''}`}
                         title="Negrito (Ctrl+B)"
                     ><Bold size={14} /></button>
                     <button
-                        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }}
+                        onMouseDown={e => { e.preventDefault(); editor.chain().toggleItalic().run(); }}
                         className={`p-1.5 rounded hover:bg-white/10 transition-colors ${editor.isActive('italic') ? 'text-brand' : ''}`}
                         title="Itálico (Ctrl+I)"
                     ><Italic size={14} /></button>
                     <button
-                        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleStrike().run(); }}
+                        onMouseDown={e => { e.preventDefault(); editor.chain().toggleStrike().run(); }}
                         className={`p-1.5 rounded hover:bg-white/10 transition-colors ${editor.isActive('strike') ? 'text-brand' : ''}`}
                         title="Tachado"
                     ><Strikethrough size={14} /></button>
@@ -284,7 +312,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                     <div className="w-px h-4 bg-white/20 mx-0.5" />
 
                     <button
-                        onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHighlight({ color: '#FEF08A' }).run(); }}
+                        onMouseDown={e => { e.preventDefault(); editor.chain().toggleHighlight({ color: '#FEF08A' }).run(); }}
                         className={`p-1.5 rounded hover:bg-white/10 transition-colors ${editor.isActive('highlight') ? 'text-yellow-400' : ''}`}
                         title="Destacar"
                     ><Highlighter size={14} /></button>
@@ -295,7 +323,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                         <input
                             type="color"
                             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                            onInput={e => editor.chain().focus().setColor((e.target as HTMLInputElement).value).run()}
+                            onInput={e => editor.chain().setColor((e.target as HTMLInputElement).value).run()}
                         />
                     </label>
 
@@ -305,10 +333,10 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                         onMouseDown={e => {
                             e.preventDefault();
                             if (editor.isActive('link')) {
-                                editor.chain().focus().unsetLink().run();
+                                editor.chain().unsetLink().run();
                             } else {
                                 const url = window.prompt('URL do link:');
-                                if (url) editor.chain().focus().setLink({ href: url }).run();
+                                if (url) editor.chain().setLink({ href: url }).run();
                             }
                         }}
                         className={`p-1.5 rounded hover:bg-white/10 transition-colors ${editor.isActive('link') ? 'text-brand' : ''}`}

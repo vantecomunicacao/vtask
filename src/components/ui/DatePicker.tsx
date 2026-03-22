@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
     format,
     addDays,
@@ -38,6 +39,137 @@ const SHORTCUTS = [
     { label: 'Prox. mês', getDate: () => addMonths(new Date(), 1) },
 ];
 
+// ─── Standalone popover (for inline use, e.g. TaskRow) ────────────────────────
+interface DatePickerPopoverProps {
+    open: boolean;
+    onClose: () => void;
+    value?: string | null;
+    onChange: (value: string | null) => void;
+    anchorRef: React.RefObject<HTMLElement | null>;
+}
+
+export function DatePickerPopover({ open, onClose, value, onChange, anchorRef }: DatePickerPopoverProps) {
+    const [viewDate, setViewDate] = useState<Date>(() => value ? parseISO(value) : new Date());
+    const popoverRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState({ top: 0, left: 0 });
+
+    useEffect(() => { if (value) setViewDate(parseISO(value)); }, [value]);
+
+    useEffect(() => {
+        if (!open) return;
+        const anchor = anchorRef.current;
+        if (anchor) {
+            const rect = anchor.getBoundingClientRect();
+            setPos({ top: rect.bottom + 6, left: rect.left });
+        }
+        const handler = (e: MouseEvent) => {
+            if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) onClose();
+        };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        setTimeout(() => {
+            document.addEventListener('mousedown', handler);
+            document.addEventListener('keydown', onKey);
+        }, 0);
+        return () => {
+            document.removeEventListener('mousedown', handler);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [open]);
+
+    if (!open) return null;
+
+    const selectedDate = value ? parseISO(value) : null;
+    const days = eachDayOfInterval({
+        start: startOfWeek(startOfMonth(viewDate), { weekStartsOn: 1 }),
+        end: endOfWeek(endOfMonth(viewDate), { weekStartsOn: 1 }),
+    });
+
+    const select = (d: Date) => { onChange(format(d, 'yyyy-MM-dd')); onClose(); };
+    const clear = (e: React.MouseEvent) => { e.stopPropagation(); onChange(null); onClose(); };
+
+    return createPortal(
+        <div
+            ref={popoverRef}
+            style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+            className="w-64 bg-surface-card rounded-[var(--radius-card)] shadow-float border border-border-subtle overflow-hidden popover-enter"
+        >
+            {/* Selected display */}
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border-subtle">
+                <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Data de Vencimento</label>
+            </div>
+            <div className="px-3 py-2 border-b border-border-subtle">
+                <div className={cn(
+                    'flex h-9 w-full items-center gap-2 rounded-[var(--radius-md)] border bg-surface-0 px-3 text-sm',
+                    selectedDate ? 'border-brand/40' : 'border-border-subtle'
+                )}>
+                    <Calendar size={14} className={selectedDate ? 'text-brand' : 'text-muted'} />
+                    <span className={cn('flex-1 text-left capitalize text-sm', selectedDate ? 'text-primary' : 'text-muted')}>
+                        {selectedDate ? format(selectedDate, "d 'de' MMMM", { locale: ptBR }) : 'Selecionar Data'}
+                    </span>
+                    {selectedDate && (
+                        <button onClick={clear} className="text-muted hover:text-primary transition-colors">
+                            <X size={13} />
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Shortcuts */}
+            <div className="flex gap-1 p-2 border-b border-border-subtle">
+                {SHORTCUTS.map(s => (
+                    <button key={s.label} type="button" onClick={() => select(s.getDate())}
+                        className="flex-1 text-[10px] font-bold px-1 py-1.5 rounded-[var(--radius-sm)] text-secondary bg-surface-0 hover:bg-brand hover:text-white transition-colors">
+                        {s.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Month navigation */}
+            <div className="flex items-center justify-between px-3 py-2">
+                <button type="button" onClick={() => setViewDate(d => subMonths(d, 1))} className="p-1 rounded text-muted hover:bg-surface-0 hover:text-primary transition-colors">
+                    <ChevronLeft size={14} />
+                </button>
+                <span className="text-xs font-bold text-primary capitalize select-none">
+                    {format(viewDate, 'MMMM yyyy', { locale: ptBR })}
+                </span>
+                <button type="button" onClick={() => setViewDate(d => addMonths(d, 1))} className="p-1 rounded text-muted hover:bg-surface-0 hover:text-primary transition-colors">
+                    <ChevronRight size={14} />
+                </button>
+            </div>
+
+            {/* Day headers */}
+            <div className="grid grid-cols-7 px-2 mb-0.5">
+                {WEEK_DAYS.map((d, i) => (
+                    <div key={i} className="text-center text-[10px] font-bold text-muted py-1 select-none">{d}</div>
+                ))}
+            </div>
+
+            {/* Days */}
+            <div className="grid grid-cols-7 px-2 pb-2 gap-y-0.5">
+                {days.map(day => {
+                    const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
+                    const isCurrent = isToday(day);
+                    const isInMonth = isSameMonth(day, viewDate);
+                    return (
+                        <button key={day.toISOString()} type="button" onClick={() => select(day)}
+                            className={cn(
+                                'h-8 w-full text-xs rounded-[var(--radius-sm)] transition-colors font-medium',
+                                isSelected ? 'bg-brand text-white font-bold shadow-sm'
+                                    : isCurrent ? 'bg-brand-light text-brand font-bold'
+                                    : isInMonth ? 'text-primary hover:bg-surface-0'
+                                    : 'text-muted/50 hover:bg-surface-0'
+                            )}>
+                            {format(day, 'd')}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>,
+        document.body
+    );
+}
+
+// ─── Full DatePicker (with trigger button) ─────────────────────────────────────
 export function DatePicker({
     value,
     onChange,
@@ -146,7 +278,7 @@ export function DatePicker({
                     className={cn(
                         'absolute z-50 top-[calc(100%+6px)] left-0 right-0 min-w-[240px]',
                         'bg-surface-card rounded-[var(--radius-card)] shadow-float border border-border-subtle',
-                        'overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100',
+                        'overflow-hidden popover-enter',
                     )}
                 >
                     {/* Shortcuts */}

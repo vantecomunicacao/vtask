@@ -17,8 +17,12 @@ interface KanbanBoardProps {
     onTaskClick: (task: TaskWithAssignee) => void;
 }
 
+// Strings date-only (YYYY-MM-DD) são parseadas como UTC midnight por new Date().
+// Adicionar T00:00:00 força parsing como horário local, evitando bug de fuso horário.
+const parseLocalDate = (d: string) => new Date(d.length === 10 ? `${d}T00:00:00` : d);
+
 function formatCardDate(due: string) {
-    const date = new Date(due);
+    const date = parseLocalDate(due);
     const isOverdue = isPast(date) && !isToday(date);
     return {
         label: format(date, "dd MMM", { locale: ptBR }),
@@ -87,9 +91,11 @@ const KanbanCard = React.memo(function KanbanCard({ task, index, onTaskClick }: 
                                             <RefreshCw size={12} />
                                         </div>
                                     )}
-                                    <div className="flex items-center gap-1 text-[11px] font-medium">
-                                        <MessageSquare size={12} /> 2
-                                    </div>
+                                    {(task.comments_count ?? 0) > 0 && (
+                                        <div className="flex items-center gap-1 text-[11px] font-medium">
+                                            <MessageSquare size={12} /> {task.comments_count}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {task.priority === 'urgent' && <Flag size={12} className="fill-brand text-brand" />}
@@ -159,7 +165,7 @@ export function KanbanBoard({ tasks, statuses, onTaskClick }: KanbanBoardProps) 
                 {activeStatuses.map((status) => {
                     const columnTasks = tasksByStatus[status.id] || [];
                     return (
-                        <div key={status.id} className="flex flex-col w-80 shrink-0 bg-surface-0 rounded-[var(--radius-card)]">
+                        <div key={status.id} className="group flex flex-col w-80 shrink-0 bg-surface-0 rounded-[var(--radius-card)]">
                             <div className="px-4 py-3 flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: status.color || '#db4035' }} />

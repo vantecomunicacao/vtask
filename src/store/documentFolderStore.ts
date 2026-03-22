@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 import type { Database } from '../lib/database.types';
 
 export type DocumentFolder = Database['public']['Tables']['document_folders']['Row'];
@@ -7,6 +8,7 @@ export type DocumentFolder = Database['public']['Tables']['document_folders']['R
 interface DocumentFolderState {
     folders: DocumentFolder[];
     loading: boolean;
+    error: string | null;
     fetchFolders: (workspaceId: string) => Promise<void>;
     createFolder: (name: string, workspaceId: string, parentId?: string | null) => Promise<DocumentFolder | null>;
     renameFolder: (id: string, name: string) => Promise<void>;
@@ -16,14 +18,20 @@ interface DocumentFolderState {
 export const useDocumentFolderStore = create<DocumentFolderState>((set, get) => ({
     folders: [],
     loading: false,
+    error: null,
 
     fetchFolders: async (workspaceId) => {
-        set({ loading: true });
-        const { data } = await supabase
+        set({ loading: true, error: null });
+        const { data, error } = await supabase
             .from('document_folders')
             .select('*')
             .eq('workspace_id', workspaceId)
             .order('name', { ascending: true });
+        if (error) {
+            set({ loading: false, error: error.message });
+            toast.error('Erro ao carregar pastas');
+            return;
+        }
         set({ folders: data || [], loading: false });
     },
 

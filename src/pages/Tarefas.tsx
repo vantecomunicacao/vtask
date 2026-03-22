@@ -2,10 +2,11 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { ArrowUpDown, Calendar as CalendarIcon, Clock, Inbox, List, Zap } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Calendar as CalendarIcon, Clock, Inbox, List, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useTaskStore, type TaskWithAssignee } from '../store/taskStore';
+
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal';
 import { TaskFormModal } from '../components/tasks/TaskFormModal';
 import { celebrate } from '../lib/confetti';
@@ -15,6 +16,7 @@ import { StatusPopover } from '../components/tasks/StatusPopover';
 import { TaskFiltersBar } from '../components/tasks/TaskFiltersBar';
 import { TaskGroupSection } from '../components/tasks/TaskGroupSection';
 import { BulkActionsBar } from '../components/tasks/BulkActionsBar';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useTaskFilters, type GroupBy, type SortField, type SortConfig } from '../hooks/useTaskFilters';
 
 // ─── Skeleton Component ────────────────────────
@@ -66,7 +68,7 @@ function EmptyState({ groupName, hasFilters }: { groupName?: string; hasFilters:
 
 export default function Tarefas() {
     const { activeWorkspace } = useWorkspaceStore();
-    const { tasks, loading, fetchWorkspaceTasks, fetchCategories, toggleTaskCompletion, statuses, fetchStatuses, updateTask } = useTaskStore();
+    const { tasks, loading, error, fetchWorkspaceTasks, autoMovePastDueTasks, fetchCategories, toggleTaskCompletion, statuses, fetchStatuses, updateTask, autoMovedCount } = useTaskStore();
 
     const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -80,11 +82,20 @@ export default function Tarefas() {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'due_date', direction: 'asc' });
 
     // UI states
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+    const [defaultExpanded, setDefaultExpanded] = useState<boolean>(() => {
+        const saved = localStorage.getItem('tasks-default-expanded');
+        return saved !== null ? saved === 'true' : true;
+    });
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(
+        () => defaultExpanded ? new Set(['todo', 'overdue', 'today', 'tomorrow', 'future', 'none']) : new Set()
+    );
+    const hasExpandedStatuses = useRef(false);
     const [animatingGroups, setAnimatingGroups] = useState<Map<string, 'enter' | 'exit'>>(new Map());
     const animationTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
     const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
     const [statusPopover, setStatusPopover] = useState<{ taskId: string; position: { top: number; left: number } } | null>(null);
+    const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+    const [shortcutsOpen, setShortcutsOpen] = useState(false);
     const [focusedTaskIndex, setFocusedTaskIndex] = useState<number>(-1);
 
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -96,21 +107,45 @@ export default function Tarefas() {
 
     const doneStatusId = statuses.length > 0 ? statuses[statuses.length - 1].id : undefined;
 
+    useEffect(() => { if (error) toast.error(error); }, [error]);
+
     useEffect(() => {
         return () => { animationTimersRef.current.forEach(clearTimeout); };
     }, []);
 
     useEffect(() => {
-        if (activeWorkspace) {
-            fetchStatuses(activeWorkspace.id);
-            fetchCategories(activeWorkspace.id);
-            fetchWorkspaceTasks(activeWorkspace.id).then(() => {
-                if (expandedSections.size === 0 && statuses.length > 0) {
-                    setExpandedSections(new Set([...statuses.map(s => s.id), 'todo', 'overdue', 'today', 'tomorrow', 'future', 'none']));
-                }
-            });
+        if (statuses.length > 0 && !hasExpandedStatuses.current) {
+            hasExpandedStatuses.current = true;
+            if (defaultExpanded) {
+                setExpandedSections(prev => new Set([...prev, ...statuses.map(s => s.id)]));
+            }
         }
-    }, [activeWorkspace, fetchStatuses, fetchWorkspaceTasks]);
+    }, [statuses, defaultExpanded]);
+
+    useEffect(() => {
+        if (!activeWorkspace) return;
+        (async () => {
+            await Promise.all([
+                fetchStatuses(activeWorkspace.id),
+                fetchWorkspaceTasks(activeWorkspace.id),
+                fetchCategories(activeWorkspace.id),
+            ]);
+            await autoMovePastDueTasks();
+        })();
+    }, [activeWorkspace, fetchStatuses, fetchWorkspaceTasks, fetchCategories, autoMovePastDueTasks]);
+
+    // Toast feedback when tasks are auto-moved
+    const prevAutoMovedCount = useRef(0);
+    useEffect(() => {
+        if (autoMovedCount > 0 && autoMovedCount !== prevAutoMovedCount.current && statuses.length > 0) {
+            prevAutoMovedCount.current = autoMovedCount;
+            const firstName = statuses[0].name;
+            toast.info(
+                `${autoMovedCount} ${autoMovedCount === 1 ? 'tarefa movida' : 'tarefas movidas'} para "${firstName}" — prazo vencido`,
+                { duration: 5000 }
+            );
+        }
+    }, [autoMovedCount, statuses]);
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -165,6 +200,13 @@ export default function Tarefas() {
         setSortConfig(prev => ({ field, direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc' }));
     };
 
+    const SortIcon = ({ field }: { field: SortField }) => {
+        if (sortConfig.field !== field) return <ArrowUpDown size={10} className="text-muted" />;
+        return sortConfig.direction === 'asc'
+            ? <ArrowUp size={10} className="text-brand" />
+            : <ArrowDown size={10} className="text-brand" />;
+    };
+
     const toggleSelectTask = useCallback((taskId: string) => {
         setSelectedTaskIds(prev => {
             const next = new Set(prev);
@@ -187,16 +229,25 @@ export default function Tarefas() {
         if (!error) { setSelectedTaskIds(new Set()); if (activeWorkspace) fetchWorkspaceTasks(activeWorkspace.id, true); }
     };
 
-    const handleBulkDelete = async () => {
+    const handleBulkDelete = () => {
         if (!activeWorkspace || selectedTaskIds.size === 0) return;
-        if (!window.confirm(`Excluir ${selectedTaskIds.size} tarefas?`)) return;
+        setConfirmDeleteOpen(true);
+    };
+
+    const executeBulkDelete = async () => {
+        if (!activeWorkspace || selectedTaskIds.size === 0) return;
         try {
-            const { error } = await supabase.from('tasks').delete().in('id', Array.from(selectedTaskIds));
+            const { error } = await supabase
+                .from('tasks')
+                .update({ deleted_at: new Date().toISOString() })
+                .in('id', Array.from(selectedTaskIds));
             if (error) throw error;
+            toast.success(`${selectedTaskIds.size} tarefas movidas para a lixeira`);
             setSelectedTaskIds(new Set());
-            if (activeWorkspace) fetchWorkspaceTasks(activeWorkspace.id, true);
+            fetchWorkspaceTasks(activeWorkspace.id, true);
         } catch (error) {
             console.error('Error bulk deleting tasks:', error);
+            toast.error('Erro ao mover tarefas para a lixeira');
         }
     };
 
@@ -218,6 +269,21 @@ export default function Tarefas() {
             animationTimersRef.current.push(t);
         }
     }, [expandedSections]);
+
+    const expandAll = useCallback(() => {
+        const allIds = groupedTasks.map(g => (g.id || 'todo') as string);
+        setExpandedSections(new Set(allIds));
+    }, [groupedTasks]);
+
+    const collapseAll = useCallback(() => {
+        setExpandedSections(new Set());
+    }, []);
+
+    const handleDefaultExpandedChange = useCallback((value: boolean) => {
+        setDefaultExpanded(value);
+        localStorage.setItem('tasks-default-expanded', String(value));
+        // Only saves preference for next load — use expandAll/collapseAll for immediate action
+    }, []);
 
     const handleStatusSelect = async (taskId: string, newStatusId: string) => {
         const task = tasks.find(t => t.id === taskId);
@@ -279,41 +345,36 @@ export default function Tarefas() {
         tasks.filter(t => t.status_id === groupId || (!t.status_id && groupId === 'todo')).length;
 
     return (
-        <div className="space-y-6 fade-in h-full flex flex-col">
+        <div className="space-y-3 fade-in h-full flex flex-col">
             {/* Page Header */}
-            <div className="flex items-center justify-between shrink-0">
-                <div>
-                    <h1 className="text-2xl font-bold text-primary">Minhas Tarefas</h1>
-                    <p className="text-sm text-secondary">Gerencie e acompanhe todas as suas tarefas.</p>
+            <div className="flex items-center justify-between gap-4 shrink-0">
+                <div className="flex items-center gap-4 min-w-0">
+                    <h1 className="text-2xl font-bold text-primary shrink-0">Minhas Tarefas</h1>
+                    <div className="hidden sm:flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-card border border-border-subtle text-xs font-semibold text-secondary">
+                            <List size={13} className="text-brand" />
+                            <span className="font-bold text-primary">{counters.total}</span>
+                            <span className="text-muted">em aberto</span>
+                        </div>
+                        {counters.overdue > 0 && (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50 border border-red-100 text-xs font-semibold text-red-600">
+                                <Clock size={13} />
+                                <span className="font-bold">{counters.overdue}</span>
+                                <span className="text-red-400">atrasadas</span>
+                            </div>
+                        )}
+                        {counters.today > 0 && (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand/5 border border-brand/15 text-xs font-semibold text-brand">
+                                <CalendarIcon size={13} />
+                                <span className="font-bold">{counters.today}</span>
+                                <span className="text-brand/60">hoje</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <Button size="sm" className="gap-2" onClick={() => setIsTaskModalOpen(true)}>
+                <Button size="sm" className="gap-2 shrink-0" onClick={() => setIsTaskModalOpen(true)}>
                     <span className="text-lg leading-none">+</span> Nova Tarefa
                 </Button>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-                <Card className="p-4 flex items-center gap-4 transition-all hover:shadow-float">
-                    <div className="w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center text-brand"><List size={20} /></div>
-                    <div>
-                        <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Total em Aberto</p>
-                        <p className="text-xl font-bold text-primary">{counters.total}</p>
-                    </div>
-                </Card>
-                <Card className="p-4 flex items-center gap-4 transition-all hover:shadow-float">
-                    <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-600"><Clock size={20} /></div>
-                    <div>
-                        <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Atrasadas</p>
-                        <p className="text-xl font-bold text-red-600 tracking-tight">{counters.overdue}</p>
-                    </div>
-                </Card>
-                <Card className="p-4 flex items-center gap-4 transition-all hover:shadow-float">
-                    <div className="w-10 h-10 rounded-lg bg-brand-light flex items-center justify-center text-brand"><CalendarIcon size={20} /></div>
-                    <div>
-                        <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Para Hoje</p>
-                        <p className="text-xl font-bold text-brand tracking-tight">{counters.today}</p>
-                    </div>
-                </Card>
             </div>
 
             <Card className="flex-1 flex flex-col overflow-hidden">
@@ -325,6 +386,8 @@ export default function Tarefas() {
                     uniqueProjects={uniqueProjects} uniqueAssignees={uniqueAssignees}
                     activeFilterCount={activeFilterCount}
                     showCompleted={showCompleted} onShowCompletedChange={setShowCompleted}
+                    defaultExpanded={defaultExpanded} onDefaultExpandedChange={handleDefaultExpandedChange}
+                    onExpandAll={expandAll} onCollapseAll={collapseAll}
                 />
 
                 {/* Table header */}
@@ -336,23 +399,23 @@ export default function Tarefas() {
                             onChange={toggleSelectAll}
                             className={cn("w-4 h-4 rounded border-border-subtle text-brand focus:ring-brand cursor-pointer transition-opacity shrink-0", selectedTaskIds.size === 0 && "opacity-0 group-hover/hrow:opacity-100")}
                         />
-                        <button onClick={() => handleSort('title')} className="text-[10px] font-black text-muted uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors">
-                            Tarefa <ArrowUpDown size={10} />
+                        <button onClick={() => handleSort('title')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors", sortConfig.field === 'title' ? 'text-brand' : 'text-muted')}>
+                            Tarefa <SortIcon field="title" />
                         </button>
                     </div>
                     <div className="col-span-2">
-                        <button onClick={() => handleSort('project')} className="text-[10px] font-black text-muted uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors">
-                            Projeto <ArrowUpDown size={10} />
+                        <button onClick={() => handleSort('project')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors", sortConfig.field === 'project' ? 'text-brand' : 'text-muted')}>
+                            Projeto <SortIcon field="project" />
                         </button>
                     </div>
                     <div className="col-span-2">
-                        <button onClick={() => handleSort('due_date')} className="text-[10px] font-black text-muted uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors">
-                            Prazo <ArrowUpDown size={10} />
+                        <button onClick={() => handleSort('due_date')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors", sortConfig.field === 'due_date' ? 'text-brand' : 'text-muted')}>
+                            Prazo <SortIcon field="due_date" />
                         </button>
                     </div>
                     <div className="col-span-1">
-                        <button onClick={() => handleSort('priority')} className="text-[10px] font-black text-muted uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors">
-                            Prioridade <ArrowUpDown size={10} />
+                        <button onClick={() => handleSort('priority')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors", sortConfig.field === 'priority' ? 'text-brand' : 'text-muted')}>
+                            Prioridade <SortIcon field="priority" />
                         </button>
                     </div>
                     <div className="col-span-1" />
@@ -399,17 +462,42 @@ export default function Tarefas() {
                 />
             </Card>
 
-            {/* Keyboard shortcuts hint */}
-            <div className="fixed bottom-4 right-4 z-30 opacity-0 hover:opacity-100 transition-opacity duration-300">
-                <div className="bg-gray-900/90 backdrop-blur-sm text-white px-4 py-3 rounded-card shadow-float text-[10px] space-y-1">
-                    <p className="font-bold text-muted uppercase tracking-widest mb-1.5 flex items-center gap-1"><Zap size={10} /> Atalhos</p>
-                    <p><kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[9px] font-mono">N</kbd> Nova tarefa</p>
-                    <p><kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[9px] font-mono">/</kbd> Buscar</p>
-                    <p><kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[9px] font-mono">↑↓</kbd> Navegar</p>
-                    <p><kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[9px] font-mono">Enter</kbd> Abrir</p>
-                    <p><kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[9px] font-mono">Espaço</kbd> Status</p>
-                    <p><kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[9px] font-mono">1-9</kbd> Mover rápido</p>
-                </div>
+            {/* Keyboard shortcuts button */}
+            <div className="fixed bottom-4 right-4 z-30">
+                {shortcutsOpen && (
+                    <>
+                        <div className="fixed inset-0" onClick={() => setShortcutsOpen(false)} />
+                        <div className="absolute bottom-10 right-0 bg-gray-900/95 backdrop-blur-sm text-white px-4 py-3 rounded-card shadow-float text-[10px] space-y-1.5 w-44 popup-spring">
+                            <p className="font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Zap size={10} /> Atalhos</p>
+                            {[
+                                ['N', 'Nova tarefa'],
+                                ['/', 'Buscar'],
+                                ['↑↓', 'Navegar'],
+                                ['Enter', 'Abrir detalhes'],
+                                ['Espaço', 'Mudar status'],
+                                ['D', 'Editar prazo'],
+                                ['1-9', 'Mover para status'],
+                            ].map(([key, label]) => (
+                                <p key={key} className="flex items-center justify-between gap-2">
+                                    <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[9px] font-mono shrink-0">{key}</kbd>
+                                    <span className="text-gray-300">{label}</span>
+                                </p>
+                            ))}
+                        </div>
+                    </>
+                )}
+                <button
+                    onClick={() => setShortcutsOpen(v => !v)}
+                    aria-label="Atalhos de teclado"
+                    className={cn(
+                        "w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shadow-float transition-all duration-200",
+                        shortcutsOpen
+                            ? "bg-brand text-white scale-110"
+                            : "bg-gray-900/80 text-gray-400 hover:bg-gray-900 hover:text-white hover:scale-110"
+                    )}
+                >
+                    ?
+                </button>
             </div>
 
             {selectedTask && (
@@ -417,6 +505,16 @@ export default function Tarefas() {
             )}
 
             <TaskFormModal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} />
+
+            <ConfirmDialog
+                isOpen={confirmDeleteOpen}
+                onClose={() => setConfirmDeleteOpen(false)}
+                onConfirm={executeBulkDelete}
+                title="Mover para lixeira"
+                description={`Tem certeza que deseja mover ${selectedTaskIds.size} ${selectedTaskIds.size === 1 ? 'tarefa' : 'tarefas'} para a lixeira?`}
+                confirmLabel="Mover para lixeira"
+                variant="danger"
+            />
 
             {statusPopover && (
                 <StatusPopover

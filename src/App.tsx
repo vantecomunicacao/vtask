@@ -49,6 +49,7 @@ function AppRoutes() {
                         <Route path="/gerador-email" element={<GeradorEmail />} />
                         <Route path="/design-system" element={<DesignSystem />} />
                         <Route path="/lixeira" element={<Lixeira />} />
+                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
                     </Route>
                 </Route>
             </Routes>

@@ -2,8 +2,9 @@
 import { useParams } from 'react-router-dom';
 import { useProjectStore } from '../store/projectStore';
 import { useTaskStore } from '../store/taskStore';
+import { useDocumentStore } from '../store/documentStore';
 import { Button } from '../components/ui/Button';
-import { LayoutList, Trello, Calendar as CalendarIcon, Flag, MoreHorizontal, Edit2, Trash2, RefreshCw } from 'lucide-react';
+import { LayoutList, Trello, Calendar as CalendarIcon, Flag, MoreHorizontal, Edit2, Trash2, RefreshCw, FileText, Plus } from 'lucide-react';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { TaskFormModal } from '../components/tasks/TaskFormModal';
@@ -34,16 +35,19 @@ function formatDueDate(due: string) {
 export default function ProjetoDetalhe() {
     const { id } = useParams<{ id: string }>();
     const { projects } = useProjectStore();
-    const { fetchTasks, fetchStatuses, loading, tasks, statuses } = useTaskStore();
+    const { fetchTasks, fetchStatuses, loading, error, tasks, statuses } = useTaskStore();
     const { activeWorkspace } = useWorkspaceStore();
-    const [view, setView] = useState<'list' | 'kanban'>('kanban');
+    const [view, setView] = useState<'list' | 'kanban' | 'docs'>('kanban');
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
     const { deleteProject } = useProjectStore();
+    const { documents, fetchDocuments, createDocument } = useDocumentStore();
     const navigate = useNavigate();
 
     const project = projects.find(p => p.id === id);
+
+    useEffect(() => { if (error) toast.error(error); }, [error]);
 
     useEffect(() => {
         if (id) {
@@ -56,6 +60,14 @@ export default function ProjetoDetalhe() {
             fetchStatuses(activeWorkspace.id);
         }
     }, [activeWorkspace, fetchStatuses]);
+
+    useEffect(() => {
+        if (activeWorkspace && view === 'docs' && documents.length === 0) {
+            fetchDocuments(activeWorkspace.id);
+        }
+    }, [activeWorkspace, view, documents.length, fetchDocuments]);
+
+    const projectDocs = documents.filter(d => d.project_id === id);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -131,11 +143,34 @@ export default function ProjetoDetalhe() {
                         >
                             <LayoutList size={16} /> Lista
                         </button>
+                        <button
+                            onClick={() => setView('docs')}
+                            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${view === 'docs' ? 'bg-white shadow-sm text-brand' : 'text-secondary hover:text-primary'}`}
+                        >
+                            <FileText size={16} /> Documentos
+                        </button>
                     </div>
 
-                    <Button size="sm" className="gap-2" onClick={() => setIsTaskModalOpen(true)}>
-                        <span className="text-lg leading-none">+</span> Nova Tarefa (C)
-                    </Button>
+                    {view !== 'docs' ? (
+                        <Button size="sm" className="gap-2" onClick={() => setIsTaskModalOpen(true)}>
+                            <span className="text-lg leading-none">+</span> Nova Tarefa (C)
+                        </Button>
+                    ) : (
+                        <Button size="sm" className="gap-2" onClick={async () => {
+                            if (!activeWorkspace || !id) return;
+                            const newDoc = await createDocument({
+                                workspace_id: activeWorkspace.id,
+                                title: 'Nova página',
+                                content: { type: 'doc', content: [] },
+                                project_id: id,
+                                folder_id: null,
+                                parent_id: null,
+                            });
+                            if (newDoc) navigate(`/documentos/${newDoc.id}`);
+                        }}>
+                            <Plus size={14} /> Novo Documento
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -150,6 +185,56 @@ export default function ProjetoDetalhe() {
                         statuses={statuses}
                         onTaskClick={(task) => setSelectedTask(task as TaskWithAssignee)}
                     />
+                ) : view === 'docs' ? (
+                    <div className="bg-white border border-border-subtle rounded-card overflow-hidden flex flex-col h-full">
+                        {projectDocs.length === 0 ? (
+                            <div className="flex-1 flex flex-col items-center justify-center gap-3 py-20">
+                                <div className="w-14 h-14 rounded-card bg-surface-0 flex items-center justify-center">
+                                    <FileText size={28} className="text-muted" />
+                                </div>
+                                <p className="text-secondary font-medium text-sm">Nenhum documento neste projeto</p>
+                                <button
+                                    className="text-xs text-brand hover:underline"
+                                    onClick={async () => {
+                                        if (!activeWorkspace || !id) return;
+                                        const newDoc = await createDocument({
+                                            workspace_id: activeWorkspace.id,
+                                            title: 'Nova página',
+                                            content: { type: 'doc', content: [] },
+                                            project_id: id,
+                                            folder_id: null,
+                                            parent_id: null,
+                                        });
+                                        if (newDoc) navigate(`/documentos/${newDoc.id}`);
+                                    }}
+                                >
+                                    Criar primeiro documento
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex-1 overflow-y-auto divide-y divide-border-subtle">
+                                {projectDocs.map(doc => (
+                                    <div
+                                        key={doc.id}
+                                        className="flex items-center gap-3 px-5 py-3 hover:bg-surface-2 cursor-pointer group transition-colors"
+                                        onClick={() => navigate(`/documentos/${doc.id}`)}
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-surface-0 flex items-center justify-center text-muted group-hover:bg-brand/10 group-hover:text-brand transition-colors shrink-0">
+                                            <FileText size={15} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-primary group-hover:text-brand transition-colors truncate">
+                                                {doc.title || 'Sem título'}
+                                            </p>
+                                            <p className="text-xs text-muted mt-0.5">
+                                                Atualizado {new Date(doc.updated_at).toLocaleDateString('pt-BR')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 ) : (
                     <div className="bg-white border border-border-subtle rounded-card overflow-hidden flex flex-col h-full">
                         {/* Header */}

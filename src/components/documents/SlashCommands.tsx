@@ -251,7 +251,8 @@ export const suggestionItems: SlashCommandItem[] = [
 // ─── Render ───────────────────────────────────────────────────────
 export const renderItems = () => {
     let renderer: ReactRenderer<CommandListHandle, SuggestionProps<SlashCommandItem>> | null = null;
-    let popup: ReturnType<typeof tippy> | null = null;
+    // tippy('body', ...) retorna Instance[] — guardar somente o [0]
+    let popup: ReturnType<typeof tippy>[0] | null = null;
 
     return {
         onStart: (props: SuggestionProps<SlashCommandItem>) => {
@@ -259,26 +260,27 @@ export const renderItems = () => {
                 CommandList,
                 { props, editor: props.editor }
             );
-            popup = tippy('body', {
-                getReferenceClientRect: props.clientRect as any,
+            const instances = tippy('body', {
+                getReferenceClientRect: props.clientRect as () => DOMRect,
                 appendTo: () => document.body,
                 content: renderer.element,
                 showOnCreate: true,
                 interactive: true,
                 trigger: 'manual',
                 placement: 'bottom-start',
-            }) as any;
+            });
+            popup = instances[0];
         },
         onUpdate(props: SuggestionProps<SlashCommandItem>) {
             renderer?.updateProps(props);
-            (popup as any)?.setProps({ getReferenceClientRect: props.clientRect as any });
+            popup?.setProps({ getReferenceClientRect: props.clientRect as () => DOMRect });
         },
         onKeyDown(props: SuggestionKeyDownProps) {
-            if (props.event.key === 'Escape') { (popup as any)?.hide(); return true; }
+            if (props.event.key === 'Escape') { popup?.hide(); return true; }
             return renderer?.ref?.onKeyDown(props) ?? false;
         },
         onExit() {
-            (popup as any)?.destroy();
+            popup?.destroy();
             renderer?.destroy();
             popup = null;
             renderer = null;
@@ -366,7 +368,7 @@ const CommandList = forwardRef<CommandListHandle, SuggestionProps<SlashCommandIt
 function CommandItem({ item, isSelected, onClick }: { item: SlashCommandItem; isSelected: boolean; onClick: () => void }) {
     return (
         <button
-            onClick={onClick}
+            onMouseDown={e => { e.preventDefault(); onClick(); }}
             className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors ${isSelected ? 'bg-brand/10 text-brand' : 'hover:bg-gray-50 text-gray-700'}`}
         >
             <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${isSelected ? 'bg-white border-brand/20 text-brand' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>

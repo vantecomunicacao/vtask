@@ -17,6 +17,7 @@ interface DocumentState {
     permanentDeleteDocument: (id: string) => Promise<void>;
     fetchTrashedDocuments: (workspaceId: string) => Promise<Document[]>;
     uploadImage: (file: File) => Promise<string | null>;
+    moveDocument: (id: string, newParentId: string | null) => Promise<void>;
 }
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
@@ -145,6 +146,16 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
         if (error) { set({ error: error.message }); return []; }
         return data || [];
+    },
+
+    moveDocument: async (id, newParentId) => {
+        const { error } = await supabase
+            .from('documents')
+            .update({ parent_id: newParentId })
+            .eq('id', id);
+        if (!error) {
+            set({ documents: get().documents.map(d => d.id === id ? { ...d, parent_id: newParentId } : d) });
+        }
     },
 
     uploadImage: async (file: File) => {

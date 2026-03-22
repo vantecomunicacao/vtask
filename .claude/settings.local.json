@@ -50,7 +50,14 @@
       "Bash(grep -r \"text-gray-[3-9]00\\\\|bg-gray-[0-9]*\\\\b\" src/pages/ src/components/ui/ src/components/kanban/ src/components/projects/ src/components/tasks/StatusPopover.tsx src/App.tsx --include=*.tsx)",
       "Bash(npm install:*)",
       "Bash(npx vitest:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm test:*)",
+      "Bash(start cmd:*)",
+      "Bash(grep -r \"tailwindcss-animate\\\\|animate-in\\\\|slide-in\" package.json tailwind.config* vite.config*)",
+      "Bash(npx vite:*)",
+      "Bash(grep -o \"slide-in-from-top\\\\|animate-in\\\\|zoom-in-95\" dist/assets/*.css)",
+      "Bash(grep \"popover-enter\" dist/assets/*.css)",
+      "Bash(ls c:UsersleofbOneDriveDocumentosProjetos Antigravityvflow-tarefas/*.sql)"
     ]
   }
 }

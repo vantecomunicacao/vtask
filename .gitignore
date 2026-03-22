@@ -34,6 +34,11 @@ dist-ssr
 # Scripts
 *.ps1
 
+# Tool output files
+lint.txt
+tsc_errors.txt
+coverage/
+
 # Build and configuration
 .next/
 .serverless/

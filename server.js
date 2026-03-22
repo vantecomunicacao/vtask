@@ -6,10 +6,90 @@ import mailchimp from '@mailchimp/mailchimp_marketing';
 import mjml2html from 'mjml';
 import cron from 'node-cron';
 import { createClient } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient.js'; // New import
 
 const app = express();
-app.use(cors());
+const port = process.env.PORT || 3001; // New port definition
+
+// Configuração de CORS restrita
+const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+app.use(cors({
+  origin: allowedOrigin,
+  optionsSuccessStatus: 200
+}));
+
 app.use(express.json());
+
+// Middleware de Autenticação para proteger as rotas da API
+const requireAuth = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const secret = process.env.SERVER_SECRET;
+
+  // Se o secret não estiver configurado no server, bloqueia preventivamente
+  if (!secret) {
+    console.error('SERVER_SECRET não está configurado no servidor!');
+    return res.status(500).json({ error: 'Erro de configuração no servidor' });
+  }
+
+  if (!authHeader || authHeader !== `Bearer ${secret}`) {
+    return res.status(401).json({ error: 'Acesso não autorizado. Token inválido ou ausente.' });
+  }
+
+  next();
+};
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+const SERVER_API_KEY = process.env.SERVER_API_KEY || "";
+
+function requireApiKey(req, res, next) {
+  if (!SERVER_API_KEY) {
+    // Key not configured — skip validation (useful during initial setup)
+    console.warn('⚠️  SERVER_API_KEY não configurado — rotas sem autenticação');
+    return next();
+  }
+  const auth = req.headers['authorization'] || '';
+  if (!auth.startsWith('Bearer ') || auth.slice(7) !== SERVER_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+// Calcula a próxima execução com base na expressão cron (min hour dom month dow)
+function calcNextRun(cronExpr) {
+  const parts = (cronExpr || '').split(' ');
+  if (parts.length !== 5) return new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  const [min, hour, dom, , dow] = parts;
+  const minute = parseInt(min) || 0;
+  const hourNum = parseInt(hour) || 9;
+
+  const now = new Date();
+  const next = new Date(now);
+  next.setSeconds(0, 0);
+  next.setHours(hourNum, minute, 0, 0);
+
+  if (dom !== '*') {
+    // Mensal: dia específico do mês
+    const targetDay = parseInt(dom);
+    next.setDate(targetDay);
+    if (next <= now) {
+      next.setMonth(next.getMonth() + 1);
+      next.setDate(targetDay);
+    }
+  } else if (dow !== '*') {
+    // Semanal: dia específico da semana (0=Dom, 1=Seg, ...)
+    const targetDow = parseInt(dow);
+    const currentDow = now.getDay();
+    let daysUntil = (targetDow - currentDow + 7) % 7;
+    if (daysUntil === 0 && next <= now) daysUntil = 7;
+    next.setDate(next.getDate() + daysUntil);
+  } else {
+    // Diário
+    if (next <= now) next.setDate(next.getDate() + 1);
+  }
+
+  return next;
+}
 
 // Chaves via variáveis de ambiente para segurança
 const OPENAI_KEY = process.env.OPENAI_API_KEY || "";
@@ -235,7 +315,7 @@ function renderMjml(mjmlString, data) {
 
 // --- ROTAS ---
 
-app.post('/api/generate-email', async (req, res) => {
+app.post('/api/generate-email', requireAuth, async (req, res) => {
   try {
     const { prompt, internalTemplateId, title, bgColor, buttonColor, headerColor, logoUrl, bannerUrl, bottomImageUrl, buttonText, buttonLink, previewText, clientContext, profileName, openaiApiKey, ctaEnabled = true, emailLength = 'medium' } = req.body;
     const ai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : openai;
@@ -287,7 +367,7 @@ app.post('/api/generate-email', async (req, res) => {
   }
 });
 
-app.post('/api/create-campaign', async (req, res) => {
+app.post('/api/create-campaign', requireAuth, async (req, res) => {
   try {
     const { subject, htmlContent, listId, previewText, scheduleTime, apiKey, serverPrefix, fromName, replyTo } = req.body;
     if (apiKey && serverPrefix) {
@@ -315,7 +395,7 @@ app.post('/api/create-campaign', async (req, res) => {
   }
 });
 
-app.get('/api/mailchimp-lists', async (_req, res) => {
+app.get('/api/mailchimp-lists', requireAuth, async (_req, res) => {
   try {
     const data = await mailchimp.lists.getAllLists({ count: 50 });
     res.json({ lists: data.lists.map(l => ({ id: l.id, name: l.name, count: l.stats.member_count })) });
@@ -324,7 +404,7 @@ app.get('/api/mailchimp-lists', async (_req, res) => {
   }
 });
 
-app.post('/api/suggest-subject', async (req, res) => {
+app.post('/api/suggest-subject', requireAuth, async (req, res) => {
   try {
     const { prompt, title, clientContext, openaiApiKey } = req.body;
     const ai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : openai;
@@ -350,7 +430,7 @@ app.post('/api/suggest-subject', async (req, res) => {
 });
 
 // Listas Mailchimp de um cliente específico
-app.post('/api/client-mailchimp-lists', async (req, res) => {
+app.post('/api/client-mailchimp-lists', requireAuth, async (req, res) => {
   try {
     const { apiKey, server } = req.body;
     if (!apiKey || !server) return res.status(400).json({ error: 'apiKey e server são obrigatórios' });
@@ -369,7 +449,7 @@ app.post('/api/client-mailchimp-lists', async (req, res) => {
 });
 
 // Sugestão de Temas com IA
-app.post('/api/suggest-themes', async (req, res) => {
+app.post('/api/suggest-themes', requireApiKey, async (req, res) => {
   try {
     const { clientContext } = req.body;
     const now = new Date();
@@ -519,12 +599,27 @@ cron.schedule('*/15 * * * *', async () => {
       console.error(`❌ Agendamento "${schedule.name}" falhou:`, err.message);
     }
 
-    // Calcular próxima execução (simplificado: +1 dia como fallback)
-    const nextRun = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    // Calcular próxima execução com base na expressão cron do agendamento
+    const cronParts = schedule.cron_expression.split(' ');
+    const nextRun = new Date(now);
+    const dayOfMonth = cronParts[2];
+    const dayOfWeek = cronParts[4];
+    
+    if (dayOfWeek !== '*') {
+      nextRun.setDate(nextRun.getDate() + 7);
+    } else if (dayOfMonth !== '*') {
+      if (dayOfMonth.includes(',')) {
+        nextRun.setDate(nextRun.getDate() + 14);
+      } else {
+        nextRun.setMonth(nextRun.getMonth() + 1);
+      }
+    } else {
+      nextRun.setDate(nextRun.getDate() + 1);
+    }
 
     await supabaseAdmin.from('email_schedules').update({
       last_run_at: now,
-      next_run_at: nextRun,
+      next_run_at: nextRun.toISOString(),
     }).eq('id', schedule.id);
 
     await supabaseAdmin.from('email_schedule_history').insert({

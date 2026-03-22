@@ -61,17 +61,20 @@ export interface Database {
                     logo_url: string | null
                     color: string | null
                     created_at: string
+                    openai_api_key: string | null
                 }
                 Insert: {
                     id?: string
                     name: string
                     logo_url?: string | null
                     color?: string | null
+                    openai_api_key?: string | null
                 }
                 Update: {
                     name?: string
                     logo_url?: string | null
                     color?: string | null
+                    openai_api_key?: string | null
                 }
             }
             workspace_members: {

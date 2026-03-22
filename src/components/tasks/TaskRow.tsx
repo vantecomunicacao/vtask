@@ -1,14 +1,20 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import { MoreHorizontal, Calendar as CalendarIcon, CheckCircle2 } from 'lucide-react';
 import { isToday, isTomorrow, isPast, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '../../lib/utils';
 import type { TaskWithAssignee, CustomStatus } from '../../store/taskStore';
+import { useTaskStore } from '../../store/taskStore';
 import type { GroupBy } from '../../hooks/useTaskFilters';
+import { DatePickerPopover } from '../ui/DatePicker';
+
+// Strings date-only (YYYY-MM-DD) são parseadas como UTC midnight por new Date().
+// Adicionar T00:00:00 força parsing como horário local, evitando bug de fuso horário.
+const parseLocalDate = (d: string) => new Date(d.length === 10 ? `${d}T00:00:00` : d);
 
 function formatDueDate(due: string) {
-    const date = new Date(due);
+    const date = parseLocalDate(due);
     if (isToday(date)) return { label: 'Hoje', className: 'text-red-600 font-semibold' };
     if (isTomorrow(date)) return { label: 'Amanhã', className: 'text-orange-500' };
     if (isPast(date)) return { label: format(date, "dd/MM", { locale: ptBR }), className: 'text-red-600 font-bold underline' };
@@ -42,8 +48,24 @@ export const TaskRow = React.memo(function TaskRow({
     onToggleStatusPopover,
     onOpenDetail,
 }: TaskRowProps) {
+    const { updateTask } = useTaskStore();
+    const [isEditingDate, setIsEditingDate] = useState(false);
+    const dateBtnRef = useRef<HTMLButtonElement>(null);
+
+    // Keyboard shortcut: D opens date picker when this row is focused
+    React.useEffect(() => {
+        if (!isFocused) return;
+        const handler = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+            if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setIsEditingDate(true); }
+        };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [isFocused]);
+
     const isCompleted = task.status_id === doneStatusId;
-    const isTodayTask = task.due_date ? isToday(new Date(task.due_date)) : false;
+    const isTodayTask = task.due_date ? isToday(parseLocalDate(task.due_date)) : false;
     const due = task.due_date ? formatDueDate(task.due_date) : null;
     const currentStatus = statuses.find(s => s.id === task.status_id);
     const statusBorderColor = isCompleted ? '#10b981' : (currentStatus?.color || 'transparent');
@@ -74,6 +96,7 @@ export const TaskRow = React.memo(function TaskRow({
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => onToggleSelect(task.id)}
+                            aria-label={`Selecionar tarefa: ${task.title}`}
                             className={cn(
                                 "w-4 h-4 rounded border-border-subtle text-brand focus:ring-brand cursor-pointer shrink-0 transition-opacity",
                                 !isSelected && !anySelected && "opacity-0 group-hover:opacity-100"
@@ -82,6 +105,7 @@ export const TaskRow = React.memo(function TaskRow({
                         <div className="relative flex items-center justify-center shrink-0">
                             <button
                                 onClick={(e) => onToggleStatusPopover(e, task.id)}
+                                aria-label={isCompleted ? 'Marcar como pendente' : 'Mudar status'}
                                 className={cn(
                                     "w-5 h-5 rounded-full border-2 transition-all duration-200 flex items-center justify-center",
                                     isCompleted
@@ -101,8 +125,8 @@ export const TaskRow = React.memo(function TaskRow({
                             className={cn(
                                 "text-sm font-medium transition-colors duration-150 cursor-pointer truncate flex items-center gap-2 min-w-0",
                                 isCompleted && 'line-through text-muted',
-                                !isCompleted && task.due_date && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date)) && 'text-red-700 font-bold',
-                                !isCompleted && !(task.due_date && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date))) && 'text-primary group-hover:text-brand'
+                                !isCompleted && task.due_date && isPast(parseLocalDate(task.due_date)) && !isToday(parseLocalDate(task.due_date)) && 'text-red-700 font-bold',
+                                !isCompleted && !(task.due_date && isPast(parseLocalDate(task.due_date)) && !isToday(parseLocalDate(task.due_date))) && 'text-primary group-hover:text-brand'
                             )}
                         >
                             {task.category && task.category.color && (
@@ -117,23 +141,53 @@ export const TaskRow = React.memo(function TaskRow({
                         </span>
                     </div>
 
-                    <div
-                        onClick={() => onOpenDetail(task)}
-                        className="col-span-4 grid grid-cols-4 gap-3 h-full items-center cursor-pointer"
-                    >
-                        <div className="col-span-2 flex items-center">
+                    <div className="col-span-4 grid grid-cols-4 gap-3 h-full items-center">
+                        <div
+                            onClick={() => onOpenDetail(task)}
+                            className="col-span-2 flex items-center cursor-pointer"
+                        >
                             {task.project ? (
-                                <span className="text-[10px] font-bold text-secondary border-l-2 pl-2 truncate" style={{ borderLeftColor: task.project.color || '#ccc' }}>
+                                <span
+                                    className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border truncate max-w-full"
+                                    style={{
+                                        backgroundColor: `${task.project.color || '#888'}18`,
+                                        color: task.project.color || '#888',
+                                        borderColor: `${task.project.color || '#888'}35`
+                                    }}
+                                >
                                     {task.project.name}
                                 </span>
                             ) : <span className="text-xs text-muted">—</span>}
                         </div>
 
-                        <div className="col-span-2 flex items-center gap-1.5 text-[11px] font-bold">
-                            {due
-                                ? <span className={`flex items-center gap-1 ${due.className}`}><CalendarIcon size={11} /> {due.label}</span>
-                                : <span className="text-muted">—</span>
-                            }
+                        <div className="col-span-2 flex items-center gap-1.5 text-[11px] font-bold relative">
+                            {due ? (
+                                <button
+                                    ref={dateBtnRef}
+                                    onClick={(e) => { e.stopPropagation(); setIsEditingDate(v => !v); }}
+                                    className={cn("flex items-center gap-1 hover:underline", due.className)}
+                                    title="Editar prazo (D)"
+                                >
+                                    <CalendarIcon size={11} /> {due.label}
+                                </button>
+                            ) : (
+                                <button
+                                    ref={dateBtnRef}
+                                    onClick={(e) => { e.stopPropagation(); setIsEditingDate(v => !v); }}
+                                    className="flex items-center gap-1 text-muted opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-brand transition-all"
+                                    title="Adicionar prazo (D)"
+                                >
+                                    <CalendarIcon size={11} />
+                                    <span className="text-[10px]">Data</span>
+                                </button>
+                            )}
+                            <DatePickerPopover
+                                open={isEditingDate}
+                                onClose={() => setIsEditingDate(false)}
+                                value={task.due_date}
+                                onChange={async (val) => { await updateTask(task.id, { due_date: val }); }}
+                                anchorRef={dateBtnRef}
+                            />
                         </div>
                     </div>
 
@@ -159,6 +213,7 @@ export const TaskRow = React.memo(function TaskRow({
                         <button
                             onClick={(e) => { e.stopPropagation(); onToggleStatusPopover(e, task.id); }}
                             className="p-1.5 text-muted hover:text-brand hover:bg-brand/5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200"
+                            aria-label="Mudar status"
                             title="Mudar status"
                         >
                             <CheckCircle2 size={14} />
@@ -166,6 +221,7 @@ export const TaskRow = React.memo(function TaskRow({
                         <button
                             onClick={(e) => { e.stopPropagation(); onOpenDetail(task); }}
                             className="p-1.5 text-muted hover:text-brand hover:bg-brand/5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200"
+                            aria-label="Abrir detalhes da tarefa"
                             title="Abrir detalhes"
                         >
                             <MoreHorizontal size={14} />

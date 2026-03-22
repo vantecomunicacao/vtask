@@ -13,9 +13,11 @@ import type { ProjectWithClient } from '../store/projectStore';
 
 export default function Projetos() {
     const { activeWorkspace } = useWorkspaceStore();
-    const { projects, loading, fetchProjects, deleteProject } = useProjectStore();
+    const { projects, loading, error, fetchProjects, deleteProject } = useProjectStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [projectToEdit, setProjectToEdit] = useState<ProjectWithClient | null>(null);
+
+    useEffect(() => { if (error) toast.error(error); }, [error]);
 
     useEffect(() => {
         if (activeWorkspace) {

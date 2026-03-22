@@ -1,11 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Search, ChevronDown, Filter, X } from 'lucide-react';
+import { Search, ChevronDown, Filter, X, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { Select } from '../ui/Select';
+import { Toggle } from '../ui/Toggle';
 import { cn } from '../../lib/utils';
 import type { GroupBy } from '../../hooks/useTaskFilters';
 
 interface Project { id: string; name: string; color?: string | null; }
-interface Assignee { id: string; email: string; }
+interface Assignee { id: string; email: string; full_name?: string | null; }
 
 interface TaskFiltersBarProps {
     search: string;
@@ -22,6 +23,10 @@ interface TaskFiltersBarProps {
     activeFilterCount: number;
     showCompleted: boolean;
     onShowCompletedChange: (v: boolean) => void;
+    defaultExpanded: boolean;
+    onDefaultExpandedChange: (v: boolean) => void;
+    onExpandAll: () => void;
+    onCollapseAll: () => void;
 }
 
 export function TaskFiltersBar({
@@ -31,6 +36,8 @@ export function TaskFiltersBar({
     selectedAssignee, onAssigneeChange,
     uniqueProjects, uniqueAssignees, activeFilterCount,
     showCompleted, onShowCompletedChange,
+    defaultExpanded, onDefaultExpandedChange,
+    onExpandAll, onCollapseAll,
 }: TaskFiltersBarProps) {
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
     const filtersRef = useRef<HTMLDivElement>(null);
@@ -120,7 +127,7 @@ export function TaskFiltersBar({
                                 <Select value={selectedAssignee} onChange={(e) => onAssigneeChange(e.target.value)}>
                                     <option value="all">Todos</option>
                                     {uniqueAssignees.map(a => (
-                                        <option key={a.id} value={a.id}>{a.email.split('@')[0]}</option>
+                                        <option key={a.id} value={a.id}>{a.full_name || a.email.split('@')[0]}</option>
                                     ))}
                                 </Select>
                             </div>
@@ -132,6 +139,35 @@ export function TaskFiltersBar({
                                     Limpar filtros
                                 </button>
                             )}
+
+                            {/* View preferences */}
+                            <div className="border-t border-border-subtle pt-3 flex flex-col gap-3">
+                                <label className="text-[10px] font-black text-muted uppercase tracking-widest">Visualização</label>
+
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className="text-xs text-secondary">Grupos abertos por padrão</span>
+                                    <Toggle
+                                        checked={defaultExpanded}
+                                        onCheckedChange={onDefaultExpandedChange}
+                                        className="scale-75 origin-right"
+                                    />
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => { onExpandAll(); setIsFiltersOpen(false); }}
+                                        className="flex-1 py-1.5 flex items-center justify-center gap-1.5 text-xs font-semibold text-secondary hover:text-primary border border-border-subtle rounded-md hover:bg-surface-2 transition-colors"
+                                    >
+                                        <ChevronsDown size={12} /> Expandir tudo
+                                    </button>
+                                    <button
+                                        onClick={() => { onCollapseAll(); setIsFiltersOpen(false); }}
+                                        className="flex-1 py-1.5 flex items-center justify-center gap-1.5 text-xs font-semibold text-secondary hover:text-primary border border-border-subtle rounded-md hover:bg-surface-2 transition-colors"
+                                    >
+                                        <ChevronsUp size={12} /> Recolher tudo
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -147,7 +183,7 @@ export function TaskFiltersBar({
                 )}
                 {selectedAssignee !== 'all' && (
                     <span className="flex items-center gap-1 px-2 py-0.5 bg-brand/10 text-brand text-xs rounded-full font-medium">
-                        {uniqueAssignees.find(a => a.id === selectedAssignee)?.email.split('@')[0]}
+                        {(() => { const a = uniqueAssignees.find(a => a.id === selectedAssignee); return a?.full_name || a?.email.split('@')[0]; })()}
                         <button onClick={() => onAssigneeChange('all')} className="hover:text-brand/60 transition-colors">
                             <X size={10} />
                         </button>

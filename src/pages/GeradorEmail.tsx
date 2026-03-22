@@ -1,86 +1,21 @@
-﻿import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Pencil } from 'lucide-react';
-import { Select } from '../components/ui/Select';
 import { ProfilesModal } from '../components/email/ProfilesModal';
+import { EmailPerfilSection } from '../components/email/EmailPerfilSection';
+import { EmailEnvioSection } from '../components/email/EmailEnvioSection';
+import { EmailRascunhosSection } from '../components/email/EmailRascunhosSection';
+import { EmailDesignSection } from '../components/email/EmailDesignSection';
+import { EmailIASection } from '../components/email/EmailIASection';
+import { EmailPreviewPanel } from '../components/email/EmailPreviewPanel';
+import { EmailChecklistModal } from '../components/email/EmailChecklistModal';
+import type { EmailDraft, EmailProfile, MailchimpList, SectionKey } from '../components/email/emailTypes';
+import { TEMPLATES } from '../components/email/emailTypes';
 
-type EmailDraft = {
-    id: string;
-    name: string;
-    template_id: string;
-    title: string | null;
-    prompt: string | null;
-    logo_url: string | null;
-    banner_url: string | null;
-    bottom_image_url: string | null;
-    button_text: string | null;
-    button_link: string | null;
-    bg_color: string | null;
-    button_color: string | null;
-    generated_html: string | null;
-    generated_subject: string | null;
-    created_at: string;
-};
-
-type MailchimpList = { id: string; name: string; count: number };
-type SectionKey = 'perfil' | 'envio' | 'rascunhos' | 'design' | 'ia';
-
-type EmailProfile = {
-    id: string;
-    name: string;
-    mailchimp_api_key: string | null;
-    mailchimp_server: string | null;
-    mailchimp_list_id: string | null;
-    ai_prompt: string | null;
-    brand_color: string;
-    logo_url: string | null;
-    banner_url: string | null;
-    default_button_text: string | null;
-    default_button_link: string | null;
-    test_email: string | null;
-    themes_list: string | null;
-    openai_api_key: string | null;
-    cta_enabled: boolean;
-    email_length: 'short' | 'medium' | 'long';
-    button_color: string;
-    sender_name: string | null;
-    sender_email: string | null;
-};
-
-const TEMPLATES = [
-    { id: 'newsletter', label: 'Newsletter', desc: 'Cabeçalho colorido', color: '' },
-    { id: 'comunicado', label: 'Comunicado', desc: 'Borda superior', color: '#2563eb' },
-    { id: 'promocao', label: 'Promoção', desc: 'Header escuro', color: '#111827' },
-    { id: 'alerta', label: 'Alerta', desc: 'Banner vermelho', color: '#ef4444' },
-    { id: 'boas-vindas', label: 'Boas-Vindas', desc: 'Onboarding', color: '#22c55e' },
-];
-
-function SectionHeader({
-    title, sectionKey, openSections, toggle, badge,
-}: {
-    title: string;
-    sectionKey: SectionKey;
-    openSections: Record<SectionKey, boolean>;
-    toggle: (k: SectionKey) => void;
-    badge?: number;
-}) {
-    return (
-        <button
-            onClick={() => toggle(sectionKey)}
-            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-surface-2 transition-colors text-left"
-        >
-            <span className="text-sm font-medium text-primary flex items-center gap-2">
-                {title}
-                {badge !== undefined && badge > 0 && (
-                    <span className="text-[11px] bg-surface-0 text-secondary px-1.5 py-0.5 rounded-full leading-none">{badge}</span>
-                )}
-            </span>
-            <span className="text-muted text-[10px]">{openSections[sectionKey] ? '▲' : '▼'}</span>
-        </button>
-    );
-}
+const SERVER_BASE = 'http://localhost:3001';
+const SERVER_KEY = import.meta.env.VITE_SERVER_API_KEY || '';
+const authHeader = SERVER_KEY ? { Authorization: `Bearer ${SERVER_KEY}` } : {};
 
 export default function GeradorEmail() {
     const { activeWorkspace } = useWorkspaceStore();
@@ -149,11 +84,10 @@ export default function GeradorEmail() {
         if (selectedProfile.default_button_text) setButtonText(selectedProfile.default_button_text);
         if (selectedProfile.default_button_link) setButtonLink(selectedProfile.default_button_link);
         setOpenaiKey(selectedProfile.openai_api_key ?? '');
-        // Load this client's Mailchimp lists
         if (selectedProfile.mailchimp_api_key && selectedProfile.mailchimp_server) {
-            fetch('http://localhost:3001/api/client-mailchimp-lists', {
+            fetch(`${SERVER_BASE}/api/client-mailchimp-lists`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeader },
                 body: JSON.stringify({
                     apiKey: selectedProfile.mailchimp_api_key,
                     server: selectedProfile.mailchimp_server,
@@ -175,7 +109,6 @@ export default function GeradorEmail() {
 
     const toggleSection = (k: SectionKey) => setOpenSections(p => ({ ...p, [k]: !p[k] }));
 
-    // Load drafts + cleanup on workspace change
     useEffect(() => {
         if (!workspaceId) return;
         loadDrafts();
@@ -183,21 +116,18 @@ export default function GeradorEmail() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workspaceId]);
 
-    // Load profiles once on mount
     useEffect(() => {
         supabase.from('email_profiles').select('*').order('name')
             .then(({ data }) => { if (data) setProfiles(data as EmailProfile[]); });
     }, []);
 
-    // Fetch Mailchimp lists
     useEffect(() => {
-        fetch('http://localhost:3001/api/mailchimp-lists')
+        fetch(`${SERVER_BASE}/api/mailchimp-lists`, { headers: { ...authHeader } })
             .then(r => r.json())
             .then(d => { if (d.lists) setMailchimpLists(d.lists); })
             .catch(() => { });
     }, []);
 
-    // Focus name input when editing
     useEffect(() => {
         if (isEditingName) nameInputRef.current?.select();
     }, [isEditingName]);
@@ -284,9 +214,9 @@ export default function GeradorEmail() {
         setIsEditing(false);
         setStatus('Gerando conteúdo com IA...');
         try {
-            const res = await fetch('http://localhost:3001/api/generate-email', {
+            const res = await fetch(`${SERVER_BASE}/api/generate-email`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeader },
                 body: JSON.stringify({
                     prompt, logoUrl, bannerUrl, bottomImageUrl,
                     buttonText, buttonLink, title, bgColor, buttonColor, headerColor,
@@ -316,9 +246,9 @@ export default function GeradorEmail() {
         if (!prompt && !title) return toast.error('Preencha o prompt ou o título primeiro.');
         setSuggestingSubject(true);
         try {
-            const res = await fetch('http://localhost:3001/api/suggest-subject', {
+            const res = await fetch(`${SERVER_BASE}/api/suggest-subject`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeader },
                 body: JSON.stringify({ prompt, title, clientContext: selectedProfile?.ai_prompt, openaiApiKey: openaiKey || undefined }),
             });
             const data = await res.json();
@@ -520,9 +450,9 @@ export default function GeradorEmail() {
             setIsEditing(false);
         }
         try {
-            const res = await fetch('http://localhost:3001/api/create-campaign', {
+            const res = await fetch(`${SERVER_BASE}/api/create-campaign`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeader },
                 body: JSON.stringify({
                     subject: subject || result?.subject,
                     htmlContent: finalHtml,
@@ -566,6 +496,7 @@ export default function GeradorEmail() {
         { label: previewText ? 'Texto de prévia preenchido' : 'Sem texto de prévia (recomendado)', ok: !!previewText, blocking: false },
     ];
     const canSend = checks.filter(c => c.blocking).every(c => c.ok);
+
     const getTemplateHeaderColor = (id: string) => {
         if (id === 'newsletter') return buttonColor;
         return TEMPLATES.find(t => t.id === id)?.color || '#6b7280';
@@ -577,7 +508,6 @@ export default function GeradorEmail() {
 
             {/* ── Top Bar ── */}
             <div className="flex-shrink-0 h-14 bg-surface-card border-b border-border-subtle flex items-center px-5 gap-3">
-                {/* Email name */}
                 {isEditingName ? (
                     <input
                         ref={nameInputRef}
@@ -596,20 +526,13 @@ export default function GeradorEmail() {
                         {emailName}
                     </button>
                 )}
-
-                {/* Status pill */}
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-0 text-secondary flex-shrink-0">
                     {result ? 'Pronto' : 'Rascunho'}
                 </span>
-
                 <div className="flex-1" />
-
-                {/* Status message */}
                 {status && (
                     <span className="text-xs text-muted hidden lg:block truncate max-w-xs">{status}</span>
                 )}
-
-                {/* Mobile / Desktop toggle */}
                 <button
                     onClick={() => setMobilePreview(v => !v)}
                     title="Alternar preview mobile/desktop"
@@ -617,8 +540,6 @@ export default function GeradorEmail() {
                 >
                     {mobilePreview ? '📱 Mobile' : '🖥 Desktop'}
                 </button>
-
-                {/* Save draft */}
                 <button
                     onClick={handleSaveDraft}
                     disabled={savingDraft}
@@ -626,8 +547,6 @@ export default function GeradorEmail() {
                 >
                     {savingDraft ? 'Salvando...' : 'Salvar rascunho'}
                 </button>
-
-                {/* Export */}
                 <button
                     onClick={handleExport}
                     disabled={loading || !result}
@@ -642,363 +561,89 @@ export default function GeradorEmail() {
 
                 {/* ── Left Panel ── */}
                 <div className="w-[340px] flex-shrink-0 flex flex-col overflow-y-auto border-r border-border-subtle bg-surface-card custom-scrollbar">
-
-                    {/* Section: Perfil */}
-                    <div className="border-b">
-                        <SectionHeader title="Perfil do Cliente" sectionKey="perfil" openSections={openSections} toggle={toggleSection} />
-                        {openSections.perfil && (
-                            <div className="px-5 pb-4 space-y-2">
-                                <div className="flex gap-2">
-                                    <Select
-                                        value={selectedProfile?.id ?? ''}
-                                        onChange={e => {
-                                            const p = profiles.find(p => p.id === e.target.value) ?? null;
-                                            setSelectedProfile(p);
-                                        }}
-                                        containerClassName="flex-1"
-                                    >
-                                        <option value="">Selecione um perfil...</option>
-                                        {profiles.map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                        ))}
-                                    </Select>
-                                    <button
-                                        onClick={() => setShowProfilesModal(true)}
-                                        title="Gerenciar perfis"
-                                        className="h-10 w-10 flex items-center justify-center rounded-lg border border-border-subtle text-muted hover:text-brand hover:border-brand hover:bg-brand/5 transition-all flex-shrink-0 mt-auto"
-                                    >
-                                        <Pencil size={14} />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Section: Configurações de Envio */}
-                    <div className="border-b">
-                        <SectionHeader title="Configurações de Envio" sectionKey="envio" openSections={openSections} toggle={toggleSection} />
-                        {openSections.envio && (
-                            <div className="px-5 pb-5 space-y-4">
-
-                                {/* Público */}
-                                <div>
-                                    <Select
-                                        label="Público (Mailchimp)"
-                                        value={selectedListId}
-                                        onChange={e => setSelectedListId(e.target.value)}
-                                    >
-                                        <option value="">Selecione um público...</option>
-                                        {mailchimpLists.map(l => (
-                                            <option key={l.id} value={l.id}>{l.name} ({l.count} contatos)</option>
-                                        ))}
-                                    </Select>
-                                    {mailchimpLists.length === 0 && (
-                                        <p className="text-[11px] text-muted mt-1">Servidor local não conectado ou sem listas.</p>
-                                    )}
-                                </div>
-
-                                {/* Assunto */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <label className="text-xs font-medium text-secondary">Assunto</label>
-                                        <div className="flex items-center gap-2.5">
-                                            <span className={`text-[11px] ${subject.length > 60 ? 'text-red-400 font-medium' : 'text-muted'}`}>
-                                                {subject.length}/60
-                                            </span>
-                                            <button
-                                                onClick={handleSuggestSubject}
-                                                disabled={suggestingSubject || (!prompt && !title)}
-                                                className="text-[11px] text-brand hover:underline disabled:opacity-40 font-medium"
-                                            >
-                                                {suggestingSubject ? '...' : '⚡ Sugerir'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Linha de assunto do e-mail"
-                                        value={subject}
-                                        onChange={e => setSubject(e.target.value)}
-                                        className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                    />
-                                </div>
-
-                                {/* Texto de Prévia */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <label className="text-xs font-medium text-secondary">Texto de Prévia</label>
-                                        <span className={`text-[11px] ${previewText.length > 130 ? 'text-red-400 font-medium' : 'text-muted'}`}>
-                                            {previewText.length}/130
-                                        </span>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Snippet exibido antes de abrir o e-mail..."
-                                        value={previewText}
-                                        onChange={e => setPreviewText(e.target.value)}
-                                        className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                    />
-                                </div>
-
-                                {/* Horário de Envio */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="text-xs font-medium text-secondary">Horário de Envio</label>
-                                        <button
-                                            onClick={() => setScheduleEnabled(v => !v)}
-                                            className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${scheduleEnabled ? 'bg-brand' : 'bg-surface-0'}`}
-                                        >
-                                            <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${scheduleEnabled ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
-                                        </button>
-                                    </div>
-                                    {scheduleEnabled ? (
-                                        <input
-                                            type="datetime-local"
-                                            value={scheduledAt}
-                                            onChange={e => setScheduledAt(e.target.value)}
-                                            className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                        />
-                                    ) : (
-                                        <p className="text-[11px] text-muted">Envio imediato ao exportar</p>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Section: Rascunhos */}
-                    <div className="border-b">
-                        <SectionHeader title="Rascunhos" sectionKey="rascunhos" openSections={openSections} toggle={toggleSection} badge={drafts.length} />
-                        {openSections.rascunhos && (
-                            <div className="divide-y max-h-52 overflow-y-auto">
-                                {drafts.length === 0 ? (
-                                    <p className="text-xs text-muted text-center py-5">Nenhum rascunho salvo.</p>
-                                ) : drafts.map(draft => (
-                                    <div
-                                        key={draft.id}
-                                        onClick={() => handleLoadDraft(draft)}
-                                        className="flex items-center justify-between px-5 py-3 hover:bg-surface-2 cursor-pointer group"
-                                    >
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-medium text-primary truncate">{draft.name}</p>
-                                            <p className="text-[11px] text-muted">{draft.template_id} · {formatDate(draft.created_at)}</p>
-                                        </div>
-                                        <button
-                                            onClick={e => handleDeleteDraft(draft.id, e)}
-                                            className="ml-2 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 text-sm"
-                                        >🗑️</button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Section: Design */}
-                    <div className="border-b">
-                        <SectionHeader title="Design" sectionKey="design" openSections={openSections} toggle={toggleSection} />
-                        {openSections.design && (
-                            <div className="px-5 pb-5 space-y-4">
-
-                                {/* Template cards */}
-                                <div>
-                                    <label className="block text-xs font-medium text-secondary mb-2">Template</label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {TEMPLATES.map(t => (
-                                            <button
-                                                key={t.id}
-                                                onClick={() => setInternalTemplateId(t.id)}
-                                                className={`flex flex-col rounded-lg border-2 overflow-hidden text-left transition-all ${internalTemplateId === t.id ? 'border-brand' : 'border-border-subtle hover:border-border-subtle'} ${t.id === 'boas-vindas' ? 'col-span-2 flex-row items-center' : ''}`}
-                                            >
-                                                {t.id === 'boas-vindas' ? (
-                                                    <>
-                                                        <div style={{ backgroundColor: t.color }} className="w-1.5 self-stretch flex-shrink-0" />
-                                                        <div className="px-3 py-2">
-                                                            <p className="text-xs font-medium text-primary">{t.label}</p>
-                                                            <p className="text-[10px] text-muted">{t.desc}</p>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div style={{ backgroundColor: getTemplateHeaderColor(t.id) }} className="h-4 w-full flex-shrink-0" />
-                                                        <div className="px-2 py-1.5">
-                                                            <p className="text-xs font-medium text-primary">{t.label}</p>
-                                                            <p className="text-[10px] text-muted">{t.desc}</p>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Título */}
-                                <div>
-                                    <label className="block text-xs font-medium text-secondary mb-1.5">Título no e-mail</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Título visível no corpo do e-mail"
-                                        value={title}
-                                        onChange={e => setTitle(e.target.value)}
-                                        className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                    />
-                                </div>
-
-                                {/* CTA */}
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label className="block text-xs font-medium text-secondary mb-1.5">Texto do botão</label>
-                                        <input type="text" placeholder="Saiba mais" value={buttonText} onChange={e => setButtonText(e.target.value)}
-                                            className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-secondary mb-1.5">Link do botão</label>
-                                        <input type="text" placeholder="https://..." value={buttonLink} onChange={e => setButtonLink(e.target.value)}
-                                            className="w-full h-9 rounded-md border border-border-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
-                                    </div>
-                                </div>
-
-                                {/* Imagens */}
-                                <div>
-                                    <label className="block text-xs font-medium text-secondary mb-2">Imagens</label>
-                                    <div className="space-y-1.5">
-                                        {([
-                                            { key: 'logo' as const, label: 'Logotipo', url: logoUrl },
-                                            { key: 'banner' as const, label: 'Banner principal', url: bannerUrl },
-                                            { key: 'bottom' as const, label: 'Imagem rodapé', url: bottomImageUrl },
-                                        ]).map(({ key, label, url }) => (
-                                            <label
-                                                key={key}
-                                                className={`flex items-center gap-3 p-2.5 rounded-lg border border-dashed cursor-pointer hover:bg-surface-2 transition-colors ${url ? 'border-green-300 bg-green-50/40' : 'border-border-subtle'}`}
-                                            >
-                                                <span className="text-xs font-medium text-secondary w-24 flex-shrink-0">{label}</span>
-                                                {url
-                                                    ? <span className="text-xs text-green-600 font-medium">✓ Enviada</span>
-                                                    : <span className="text-xs text-muted">Clique para enviar</span>
-                                                }
-                                                <input type="file" className="hidden" onChange={e => handleFileUpload(e, key)} accept="image/*" />
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Cores */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-xs font-medium text-secondary mb-1.5">Cor de fundo</label>
-                                        <div className="flex items-center gap-2">
-                                            <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)}
-                                                className="h-9 w-9 rounded-md cursor-pointer border p-0.5 flex-shrink-0" />
-                                            <span className="text-xs text-muted font-mono">{bgColor}</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-secondary mb-1.5">Cor de destaque</label>
-                                        <div className="flex items-center gap-2">
-                                            <input type="color" value={buttonColor} onChange={e => setButtonColor(e.target.value)}
-                                                className="h-9 w-9 rounded-md cursor-pointer border p-0.5 flex-shrink-0" />
-                                            <span className="text-xs text-muted font-mono">{buttonColor}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Section: Conteúdo IA */}
-                    <div className="border-b">
-                        <SectionHeader title="Conteúdo IA" sectionKey="ia" openSections={openSections} toggle={toggleSection} />
-                        {openSections.ia && (
-                            <div className="px-5 pb-5 space-y-3">
-                                {/* OpenAI API Key */}
-                                <div>
-                                    <label className="block text-xs font-medium text-secondary mb-1.5">OpenAI API Key</label>
-                                    <div className="flex gap-2">
-                                        <div className="relative flex-1">
-                                            <input
-                                                type={showOpenaiKey ? 'text' : 'password'}
-                                                value={openaiKey}
-                                                onChange={e => setOpenaiKey(e.target.value)}
-                                                placeholder="sk-..."
-                                                className="w-full h-9 rounded-md border border-border-subtle px-3 pr-8 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowOpenaiKey(v => !v)}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-secondary"
-                                            >
-                                                {showOpenaiKey ? <EyeOff size={13} /> : <Eye size={13} />}
-                                            </button>
-                                        </div>
-                                        {selectedProfile && (
-                                            <button
-                                                onClick={handleSaveOpenaiKey}
-                                                disabled={savingOpenaiKey}
-                                                className="h-9 px-3 rounded-md border border-border-subtle text-xs text-secondary hover:bg-surface-2 disabled:opacity-50 flex-shrink-0"
-                                            >
-                                                {savingOpenaiKey ? '...' : 'Salvar'}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                                <textarea
-                                    className="w-full min-h-[100px] rounded-md border border-border-subtle px-3 py-2 text-sm placeholder:text-muted resize-none focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                    placeholder="Descreva o que a IA deve escrever..."
-                                    value={prompt}
-                                    onChange={e => setPrompt(e.target.value)}
-                                />
-                                <button
-                                    onClick={handleGenerate}
-                                    disabled={loading || !prompt}
-                                    className="w-full h-9 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors disabled:opacity-40"
-                                >
-                                    {loading ? 'Gerando...' : 'Gerar E-mail com IA'}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
+                    <EmailPerfilSection
+                        openSections={openSections}
+                        toggle={toggleSection}
+                        profiles={profiles}
+                        selectedProfile={selectedProfile}
+                        onProfileChange={setSelectedProfile}
+                        onManageProfiles={() => setShowProfilesModal(true)}
+                    />
+                    <EmailEnvioSection
+                        openSections={openSections}
+                        toggle={toggleSection}
+                        mailchimpLists={mailchimpLists}
+                        selectedListId={selectedListId}
+                        onListChange={setSelectedListId}
+                        subject={subject}
+                        onSubjectChange={setSubject}
+                        previewText={previewText}
+                        onPreviewTextChange={setPreviewText}
+                        scheduleEnabled={scheduleEnabled}
+                        onScheduleToggle={() => setScheduleEnabled(v => !v)}
+                        scheduledAt={scheduledAt}
+                        onScheduledAtChange={setScheduledAt}
+                        suggestingSubject={suggestingSubject}
+                        onSuggestSubject={handleSuggestSubject}
+                        canSuggest={!!(prompt || title)}
+                    />
+                    <EmailRascunhosSection
+                        openSections={openSections}
+                        toggle={toggleSection}
+                        drafts={drafts}
+                        onLoad={handleLoadDraft}
+                        onDelete={handleDeleteDraft}
+                        formatDate={formatDate}
+                    />
+                    <EmailDesignSection
+                        openSections={openSections}
+                        toggle={toggleSection}
+                        internalTemplateId={internalTemplateId}
+                        onTemplateChange={setInternalTemplateId}
+                        title={title}
+                        onTitleChange={setTitle}
+                        buttonText={buttonText}
+                        onButtonTextChange={setButtonText}
+                        buttonLink={buttonLink}
+                        onButtonLinkChange={setButtonLink}
+                        logoUrl={logoUrl}
+                        bannerUrl={bannerUrl}
+                        bottomImageUrl={bottomImageUrl}
+                        onFileUpload={handleFileUpload}
+                        bgColor={bgColor}
+                        onBgColorChange={setBgColor}
+                        buttonColor={buttonColor}
+                        onButtonColorChange={setButtonColor}
+                        getTemplateHeaderColor={getTemplateHeaderColor}
+                    />
+                    <EmailIASection
+                        openSections={openSections}
+                        toggle={toggleSection}
+                        openaiKey={openaiKey}
+                        onOpenaiKeyChange={setOpenaiKey}
+                        showOpenaiKey={showOpenaiKey}
+                        onToggleShowKey={() => setShowOpenaiKey(v => !v)}
+                        savingOpenaiKey={savingOpenaiKey}
+                        onSaveKey={handleSaveOpenaiKey}
+                        selectedProfile={selectedProfile}
+                        prompt={prompt}
+                        onPromptChange={setPrompt}
+                        loading={loading}
+                        onGenerate={handleGenerate}
+                    />
                 </div>
 
                 {/* ── Right Panel: Preview ── */}
                 <div className="flex-1 flex flex-col min-w-0">
-                    {result ? (
-                        <>
-                            {/* Preview toolbar */}
-                            <div className="flex-shrink-0 h-12 bg-surface-card border-b border-border-subtle flex items-center px-4 gap-3">
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] text-muted uppercase tracking-widest leading-none mb-0.5">Assunto</p>
-                                    <p className="text-sm font-medium text-primary truncate">{finalSubject || '(sem assunto)'}</p>
-                                </div>
-                                <button
-                                    onClick={toggleEditMode}
-                                    disabled={loading}
-                                    className={`h-8 px-3 rounded-md text-xs font-medium border transition-all flex-shrink-0 ${isEditing ? 'bg-brand text-white border-brand' : 'bg-surface-card text-secondary border-border-subtle hover:bg-surface-2'}`}
-                                >
-                                    {isEditing ? '✓ Salvar edições' : '✏️ Editar texto'}
-                                </button>
-                            </div>
-
-                            {/* iframe container */}
-                            <div className="flex-1 bg-[#f0f2f5] overflow-auto flex justify-center p-6">
-                                <div className={`bg-surface-card shadow-float rounded-sm overflow-hidden flex flex-col transition-all duration-300 ${mobilePreview ? 'w-[375px]' : 'w-full max-w-[650px]'}`}>
-                                    <iframe
-                                        ref={iframeRef}
-                                        srcDoc={result.body}
-                                        className="w-full flex-1 border-0 min-h-[700px]"
-                                        title="Preview do Email"
-                                    />
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center text-muted">
-                            <div className="h-16 w-16 bg-surface-card shadow-card rounded-full flex items-center justify-center mb-4 border border-border-subtle">
-                                <span className="text-2xl">✉️</span>
-                            </div>
-                            <h3 className="text-base font-medium text-secondary mb-1">Preview aparecerá aqui</h3>
-                            <p className="text-sm max-w-xs">Configure o design, escreva o prompt e clique em "Gerar E-mail com IA".</p>
-                        </div>
-                    )}
+                    <EmailPreviewPanel
+                        result={result}
+                        mobilePreview={mobilePreview}
+                        iframeRef={iframeRef}
+                        isEditing={isEditing}
+                        onToggleEditMode={toggleEditMode}
+                        finalSubject={finalSubject}
+                        loading={loading}
+                    />
                 </div>
             </div>
 
@@ -1019,50 +664,16 @@ export default function GeradorEmail() {
 
             {/* ── Checklist Modal ── */}
             {showChecklist && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                    <div className="bg-surface-card rounded-card shadow-modal border border-border-subtle w-full max-w-sm mx-4 p-6">
-                        <h3 className="text-base font-semibold text-primary mb-1">Antes de exportar</h3>
-                        <p className="text-xs text-muted mb-5">Revise os itens abaixo antes de enviar para o Mailchimp.</p>
-
-                        <div className="space-y-3 mb-5">
-                            {checks.map((check, i) => (
-                                <div key={i} className="flex items-center gap-3">
-                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${check.ok ? 'bg-green-100 text-green-600' : check.blocking ? 'bg-red-100 text-red-500' : 'bg-amber-100 text-amber-600'}`}>
-                                        {check.ok ? '✓' : check.blocking ? '✗' : '!'}
-                                    </span>
-                                    <span className={`text-sm leading-snug ${check.ok ? 'text-secondary' : check.blocking ? 'text-red-600 font-medium' : 'text-amber-700'}`}>
-                                        {check.label}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-
-                        {scheduleEnabled && scheduledAt && (
-                            <div className="text-xs text-secondary mb-4 bg-surface-2 rounded-lg px-3 py-2.5">
-                                📅 Agendado para {new Date(scheduledAt).toLocaleString('pt-BR')}
-                            </div>
-                        )}
-
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setShowChecklist(false)}
-                                className="flex-1 h-9 rounded-lg border border-border-subtle text-sm text-secondary hover:bg-surface-2 transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleCreateCampaign}
-                                disabled={!canSend}
-                                className="flex-1 h-9 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 disabled:opacity-40 transition-colors"
-                            >
-                                {canSend ? 'Exportar →' : 'Corrija os erros'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <EmailChecklistModal
+                    checks={checks}
+                    canSend={canSend}
+                    scheduleEnabled={scheduleEnabled}
+                    scheduledAt={scheduledAt}
+                    onClose={() => setShowChecklist(false)}
+                    onConfirm={handleCreateCampaign}
+                />
             )}
             </div>
         </div>
     );
 }
-
