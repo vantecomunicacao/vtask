@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { toast } from 'sonner';
@@ -8,6 +8,8 @@ import { ProfilesModal } from '../components/email/ProfilesModal';
 import { EmailChecklistModal } from '../components/email/EmailChecklistModal';
 import type { EmailProfile, EmailDraft } from '../lib/emailTypes';
 import { callEmailApi } from '../lib/emailApi';
+
+export type SectionKey = 'perfil' | 'envio' | 'rascunhos' | 'design' | 'ia';
 
 export default function GeradorEmail() {
     const activeWorkspace = useWorkspaceStore(state => state.activeWorkspace);
