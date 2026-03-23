@@ -1,6 +1,6 @@
 import { Eye, EyeOff, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { Select } from '../ui/Select';
-import type { ProfileFormData, MailchimpList } from './emailTypes';
+import type { ProfileFormData, MailchimpList } from '../../lib/emailTypes';
 
 interface Props {
     form: ProfileFormData;

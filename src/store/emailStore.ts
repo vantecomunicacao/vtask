@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { EmailProfile, EmailDraft, MailchimpList } from '../lib/emailTypes';
+import type { EmailProfile, EmailDraft, MailchimpList } from '../lib/emailTypes';
 import { toast } from 'sonner';
 
 interface EmailState {

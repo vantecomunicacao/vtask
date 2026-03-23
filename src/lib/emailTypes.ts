@@ -1,3 +1,26 @@
+export type SectionKey = 'perfil' | 'ia' | 'design' | 'envio' | 'rascunhos';
+
+export interface ProfileFormData {
+    name: string;
+    mailchimp_api_key?: string;
+    mailchimp_server?: string;
+    mailchimp_list_id?: string;
+    ai_prompt?: string;
+    brand_color?: string;
+    logo_url?: string;
+    banner_url?: string;
+    default_button_text?: string;
+    default_button_link?: string;
+    test_email?: string;
+    themes_list?: string;
+    openai_api_key?: string;
+    cta_enabled?: boolean;
+    email_length?: 'short' | 'medium' | 'long';
+    button_color?: string;
+    sender_name?: string;
+    sender_email?: string;
+}
+
 export interface EmailProfile {
   id: string;
   name: string;

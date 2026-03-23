@@ -1,4 +1,4 @@
-import type { SectionKey } from './emailTypes';
+import type { SectionKey } from '../../lib/emailTypes';
 
 interface Props {
     title: string;

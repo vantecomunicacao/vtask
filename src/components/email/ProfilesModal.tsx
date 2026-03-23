@@ -65,18 +65,7 @@ const emptyProfile = (): ProfileFormData => ({
     sender_email: '',
 });
 
-const emptySchedule = (): ScheduleFormData => ({
-    name: '',
-    cron_expression: '0 9 * * 1',
-    template_id: 'newsletter',
-    prompt_override: '',
-    bg_color: '#f4f4f4',
-    button_color: '#db4035',
-    button_text: '',
-    button_link: '',
-    active: true,
-    is_dynamic_theme: false,
-});
+
 
 export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) {
     const [profiles, setProfiles] = useState<EmailProfile[]>([]);
