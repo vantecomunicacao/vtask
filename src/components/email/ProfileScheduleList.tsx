@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight, Play, Pause, Edit, Trash2 } from 'lucide-react';
-import type { EmailSchedule } from './emailTypes';
-import { TEMPLATES, describeCron } from './emailTypes';
+import type { EmailSchedule } from '../../lib/emailTypes';
+import { TEMPLATES, describeCron } from '../../lib/emailTypes';
 
 interface Props {
     schedules: EmailSchedule[];

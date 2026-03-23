@@ -1,5 +1,5 @@
-import { SectionKey } from '../../pages/GeradorEmail';
-import { EmailProfile, EmailDraft, MailchimpList } from '../../lib/emailTypes';
+import type { SectionKey } from '../../pages/GeradorEmail';
+import type { EmailProfile, EmailDraft, MailchimpList } from '../../lib/emailTypes';
 import { EmailPerfilSection } from './EmailPerfilSection';
 import { EmailEnvioSection } from './EmailEnvioSection';
 import { EmailRascunhosSection } from './EmailRascunhosSection';
@@ -12,7 +12,7 @@ interface EmailSidebarProps {
   // Perfil
   profiles: EmailProfile[];
   selectedProfile: EmailProfile | null;
-  onProfileChange: (p: EmailProfile) => void;
+  onProfileChange: (p: EmailProfile | null) => void;
   onManageProfiles: () => void;
   // Envio
   mailchimpLists: MailchimpList[];

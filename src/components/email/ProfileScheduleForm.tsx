@@ -1,6 +1,6 @@
 import { Select } from '../ui/Select';
-import type { ScheduleFormData } from './emailTypes';
-import { TEMPLATES, CRON_PRESETS } from './emailTypes';
+import type { ScheduleFormData } from '../../lib/emailTypes';
+import { TEMPLATES, CRON_PRESETS } from '../../lib/emailTypes';
 
 interface Props {
     editingScheduleId: string | null;

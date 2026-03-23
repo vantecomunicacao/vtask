@@ -1,5 +1,6 @@
 import { Select } from '../ui/Select';
-import type { MailchimpList, SectionKey } from './emailTypes';
+import type { MailchimpList } from '../../lib/emailTypes';
+import type { SectionKey } from '../../pages/GeradorEmail';
 import { EmailSectionHeader } from './EmailSectionHeader';
 
 interface Props {

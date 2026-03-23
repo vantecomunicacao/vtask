@@ -1,5 +1,6 @@
 import { Select } from '../ui/Select';
-import type { EmailProfile, SectionKey } from './emailTypes';
+import type { EmailProfile } from '../../lib/emailTypes';
+import type { SectionKey } from '../../pages/GeradorEmail';
 import { EmailSectionHeader } from './EmailSectionHeader';
 
 interface Props {

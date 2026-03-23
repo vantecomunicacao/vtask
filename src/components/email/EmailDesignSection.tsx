@@ -1,5 +1,6 @@
-import type { SectionKey } from './emailTypes';
-import { TEMPLATES } from './emailTypes';
+import type { SectionKey } from '../../pages/GeradorEmail';
+import { TEMPLATES } from '../../lib/emailTypes';
+import type { MJMLTemplate } from '../../lib/emailTypes';
 import { EmailSectionHeader } from './EmailSectionHeader';
 
 interface Props {
@@ -45,7 +46,7 @@ export function EmailDesignSection({
                     <div>
                         <label className="block text-xs font-medium text-secondary mb-2">Template</label>
                         <div className="grid grid-cols-2 gap-2">
-                            {TEMPLATES.map(t => (
+                            {TEMPLATES.map((t: MJMLTemplate) => (
                                 <button
                                     key={t.id}
                                     onClick={() => onTemplateChange(t.id)}
