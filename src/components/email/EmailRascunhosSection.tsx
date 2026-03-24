@@ -27,7 +27,7 @@ export function EmailRascunhosSection({ openSections, toggle, drafts, onLoad, on
                         >
                             <div className="min-w-0">
                                 <p className="text-sm font-medium text-primary truncate">{draft.name}</p>
-                                <p className="text-[11px] text-muted">{draft.template_id} · {formatDate(draft.created_at)}</p>
+                                <p className="text-[11px] text-muted">{draft.template_id} · {formatDate(draft.created_at || new Date().toISOString())}</p>
                             </div>
                              <button
                                  onClick={e => draft.id && onDelete(draft.id, e)}
