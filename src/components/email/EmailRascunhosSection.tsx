@@ -29,10 +29,10 @@ export function EmailRascunhosSection({ openSections, toggle, drafts, onLoad, on
                                 <p className="text-sm font-medium text-primary truncate">{draft.name}</p>
                                 <p className="text-[11px] text-muted">{draft.template_id} · {formatDate(draft.created_at)}</p>
                             </div>
-                            <button
-                                onClick={e => onDelete(draft.id, e)}
-                                className="ml-2 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 text-sm"
-                            >🗑️</button>
+                             <button
+                                 onClick={e => draft.id && onDelete(draft.id, e)}
+                                 className="ml-2 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 text-sm"
+                             >🗑️</button>
                         </div>
                     ))}
                 </div>

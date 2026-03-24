@@ -19,7 +19,7 @@ interface EmailState {
   setMailchimpLists: (lists: MailchimpList[]) => void;
 }
 
-export const useEmailStore = create<EmailState>((set, get) => ({
+export const useEmailStore = create<EmailState>((set) => ({
   profiles: [],
   selectedProfile: null,
   drafts: [],
