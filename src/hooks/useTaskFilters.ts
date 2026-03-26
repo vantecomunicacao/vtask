@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState, useRef } from 'react';
 import type { TaskWithAssignee, CustomStatus } from '../store/taskStore';
 import { isToday, isTomorrow, isPast } from 'date-fns';
+import { parseDueDate } from '../lib/dateUtils';
 
 export type GroupBy = 'status' | 'project' | 'due_date';
 export type SortField = 'title' | 'due_date' | 'priority' | 'project';
@@ -22,6 +23,7 @@ interface UseTaskFiltersParams {
     search: string;
     selectedProject: string;
     selectedAssignee: string;
+    selectedCategory: string;
     showCompleted: boolean;
     groupBy: GroupBy;
     sortConfig: SortConfig;
@@ -33,6 +35,7 @@ export function useTaskFilters({
     search,
     selectedProject,
     selectedAssignee,
+    selectedCategory,
     showCompleted,
     groupBy,
     sortConfig,
@@ -45,9 +48,10 @@ export function useTaskFilters({
             const matchesSearch = task.title.toLowerCase().includes(debouncedSearch.toLowerCase());
             const matchesProject = selectedProject === 'all' || task.project_id === selectedProject;
             const matchesAssignee = selectedAssignee === 'all' || task.assignee_id === selectedAssignee;
+            const matchesCategory = selectedCategory === 'all' || task.category?.id === selectedCategory;
             const isLastStatus = lastStatusId !== null && task.status_id === lastStatusId;
             const matchesCompleted = showCompleted || !isLastStatus;
-            return matchesSearch && matchesProject && matchesAssignee && matchesCompleted;
+            return matchesSearch && matchesProject && matchesAssignee && matchesCategory && matchesCompleted;
         }).sort((a, b) => {
             const { field, direction } = sortConfig;
             let compare = 0;
@@ -64,7 +68,7 @@ export function useTaskFilters({
             }
             return direction === 'asc' ? compare : -compare;
         });
-    }, [tasks, debouncedSearch, selectedProject, selectedAssignee, showCompleted, sortConfig, lastStatusId]);
+    }, [tasks, debouncedSearch, selectedProject, selectedAssignee, selectedCategory, showCompleted, sortConfig, lastStatusId]);
 
     const groupedTasks = useMemo(() => {
         if (groupBy === 'status') {
@@ -85,7 +89,7 @@ export function useTaskFilters({
             if (noProject.length > 0) groups.push({ id: 'none', name: 'Sem Projeto', color: '#94a3b8', tasks: noProject });
             return groups;
         } else {
-            const parseLocalDate = (d: string) => new Date(d.length === 10 ? `${d}T00:00:00` : d);
+            const parseLocalDate = parseDueDate;
             return [
                 { id: 'overdue', name: 'Atrasadas', color: '#ef4444', tasks: filteredTasks.filter(t => t.due_date && isPast(parseLocalDate(t.due_date)) && !isToday(parseLocalDate(t.due_date))) },
                 { id: 'today', name: 'Hoje', color: '#3b82f6', tasks: filteredTasks.filter(t => t.due_date && isToday(parseLocalDate(t.due_date))) },
@@ -98,7 +102,7 @@ export function useTaskFilters({
 
     const counters = useMemo(() => {
         // Append T00:00:00 so date-only strings are parsed as local time (not UTC midnight)
-        const parseLocalDate = (d: string) => new Date(d.length === 10 ? `${d}T00:00:00` : d);
+        const parseLocalDate = parseDueDate;
         const active = tasks.filter(t => !lastStatusId || t.status_id !== lastStatusId);
         return {
             total: active.length,
@@ -117,8 +121,8 @@ export function useTaskFilters({
         [tasks]
     );
 
-    const hasFilters = debouncedSearch !== '' || selectedProject !== 'all' || selectedAssignee !== 'all';
-    const activeFilterCount = (selectedProject !== 'all' ? 1 : 0) + (selectedAssignee !== 'all' ? 1 : 0);
+    const hasFilters = debouncedSearch !== '' || selectedProject !== 'all' || selectedAssignee !== 'all' || selectedCategory !== 'all';
+    const activeFilterCount = (selectedProject !== 'all' ? 1 : 0) + (selectedAssignee !== 'all' ? 1 : 0) + (selectedCategory !== 'all' ? 1 : 0);
 
     return { filteredTasks, groupedTasks, counters, uniqueProjects, uniqueAssignees, hasFilters, activeFilterCount };
 }

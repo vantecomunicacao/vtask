@@ -50,14 +50,8 @@ interface EmailSidebarProps {
   onBgColorChange: (s: string) => void;
   buttonColor: string;
   onButtonColorChange: (s: string) => void;
-  getTemplateHeaderColor: (id: string) => string;
+  getTemplateHeaderColor: () => string;
   // IA
-  openaiKey: string;
-  onOpenaiKeyChange: (s: string) => void;
-  showOpenaiKey: boolean;
-  onToggleShowKey: () => void;
-  savingOpenaiKey: boolean;
-  onSaveKey: () => void;
   prompt: string;
   onPromptChange: (s: string) => void;
   loading: boolean;
@@ -76,6 +70,37 @@ export function EmailSidebar(props: EmailSidebarProps) {
         onManageProfiles={props.onManageProfiles}
       />
       
+      <EmailIASection
+        openSections={props.openSections}
+        toggle={props.toggleSection}
+        prompt={props.prompt}
+        onPromptChange={props.onPromptChange}
+        loading={props.loading}
+        onGenerate={props.onGenerate}
+      />
+
+      <EmailDesignSection
+        openSections={props.openSections}
+        toggle={props.toggleSection}
+        internalTemplateId={props.internalTemplateId}
+        onTemplateChange={props.onTemplateChange}
+        title={props.title}
+        onTitleChange={props.onTitleChange}
+        buttonText={props.buttonText}
+        onButtonTextChange={props.onButtonTextChange}
+        buttonLink={props.buttonLink}
+        onButtonLinkChange={props.onButtonLinkChange}
+        logoUrl={props.logoUrl}
+        bannerUrl={props.bannerUrl}
+        bottomImageUrl={props.bottomImageUrl}
+        onFileUpload={props.onFileUpload}
+        bgColor={props.bgColor}
+        onBgColorChange={props.onBgColorChange}
+        buttonColor={props.buttonColor}
+        onButtonColorChange={props.onButtonColorChange}
+        getTemplateHeaderColor={props.getTemplateHeaderColor}
+      />
+
       <EmailEnvioSection
         openSections={props.openSections}
         toggle={props.toggleSection}
@@ -102,44 +127,6 @@ export function EmailSidebar(props: EmailSidebarProps) {
         onLoad={props.onLoadDraft}
         onDelete={props.onDeleteDraft}
         formatDate={props.formatDate}
-      />
-
-      <EmailDesignSection
-        openSections={props.openSections}
-        toggle={props.toggleSection}
-        internalTemplateId={props.internalTemplateId}
-        onTemplateChange={props.onTemplateChange}
-        title={props.title}
-        onTitleChange={props.onTitleChange}
-        buttonText={props.buttonText}
-        onButtonTextChange={props.onButtonTextChange}
-        buttonLink={props.buttonLink}
-        onButtonLinkChange={props.onButtonLinkChange}
-        logoUrl={props.logoUrl}
-        bannerUrl={props.bannerUrl}
-        bottomImageUrl={props.bottomImageUrl}
-        onFileUpload={props.onFileUpload}
-        bgColor={props.bgColor}
-        onBgColorChange={props.onBgColorChange}
-        buttonColor={props.buttonColor}
-        onButtonColorChange={props.onButtonColorChange}
-        getTemplateHeaderColor={props.getTemplateHeaderColor}
-      />
-
-      <EmailIASection
-        openSections={props.openSections}
-        toggle={props.toggleSection}
-        openaiKey={props.openaiKey}
-        onOpenaiKeyChange={props.onOpenaiKeyChange}
-        showOpenaiKey={props.showOpenaiKey}
-        onToggleShowKey={props.onToggleShowKey}
-        savingOpenaiKey={props.savingOpenaiKey}
-        onSaveKey={props.onSaveKey}
-        selectedProfile={props.selectedProfile}
-        prompt={props.prompt}
-        onPromptChange={props.onPromptChange}
-        loading={props.loading}
-        onGenerate={props.onGenerate}
       />
     </div>
   );

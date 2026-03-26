@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { addDays, addWeeks, addMonths, format } from 'date-fns';
+import { parseDueDate, todayLocalISO } from '../lib/dateUtils';
 
 type Task = Database['public']['Tables']['tasks']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -266,7 +267,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
         const firstStatus = statuses[0];
         const doneStatus = statuses[statuses.length - 1];
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayLocalISO();
 
         const idsToMove = tasks
             .filter(t =>
@@ -403,7 +404,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         if (isCompleted) {
             const task = tasks.find(t => t.id === taskId);
             if (task && task.recurrence && task.recurrence !== 'none' && task.due_date) {
-                const currentDate = new Date(task.due_date.length === 10 ? `${task.due_date}T00:00:00` : task.due_date);
+                const currentDate = parseDueDate(task.due_date);
                 let nextDate: Date;
 
                 switch (task.recurrence) {

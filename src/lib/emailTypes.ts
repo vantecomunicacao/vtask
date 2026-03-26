@@ -13,7 +13,6 @@ export interface ProfileFormData {
     default_button_link?: string;
     test_email?: string;
     themes_list?: string;
-    openai_api_key?: string;
     cta_enabled?: boolean;
     email_length?: 'short' | 'medium' | 'long';
     button_color?: string;
@@ -29,7 +28,6 @@ export interface EmailProfile {
   mailchimp_api_key?: string;
   mailchimp_server?: string;
   mailchimp_list_id?: string;
-  openai_api_key?: string;
   brand_color?: string;
   button_color?: string;
   logo_url?: string;
@@ -133,8 +131,9 @@ export interface MJMLTemplate {
 }
 
 export const TEMPLATES: MJMLTemplate[] = [
-  { id: 'boas-vindas', label: 'Boas-vindas (Destaque)', desc: 'Design clean com banner lateral destacado.', color: '#4F46E5' },
-  { id: 'minimalist', label: 'Minimalista', desc: 'Foco total no texto e clareza visual.', color: '#111827' },
-  { id: 'modern', label: 'Moderno', desc: 'Elementos visuais elegantes e espaçados.', color: '#0EA5E9' },
-  { id: 'corp', label: 'Corporativo', desc: 'Visual sóbrio para comunicações oficiais.', color: '#334155' },
+  { id: 'newsletter',   label: 'Minimalista',          desc: 'Foco total no texto e clareza visual.',           color: '#111827' },
+  { id: 'promocao',     label: 'Moderno',               desc: 'Elementos visuais elegantes e espaçados.',        color: '#0EA5E9' },
+  { id: 'comunicado',   label: 'Corporativo',           desc: 'Visual sóbrio para comunicações oficiais.',       color: '#334155' },
+  { id: 'boas-vindas',  label: 'Boas-vindas',           desc: 'Design clean com destaque de apresentação.',      color: '#4F46E5' },
+  { id: 'alerta',       label: 'Alerta / Urgência',     desc: 'Header vermelho para comunicados importantes.',   color: '#ef4444' },
 ];

@@ -3,13 +3,17 @@ import { supabase } from '../lib/supabase';
 import type { EmailProfile, EmailDraft, MailchimpList } from '../lib/emailTypes';
 import { toast } from 'sonner';
 
+function toMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Erro desconhecido';
+}
+
 interface EmailState {
   profiles: EmailProfile[];
   selectedProfile: EmailProfile | null;
   drafts: EmailDraft[];
   mailchimpLists: MailchimpList[];
   loading: boolean;
-  
+
   // Actions
   fetchProfiles: () => Promise<void>;
   setSelectedProfile: (profile: EmailProfile | null) => void;
@@ -33,11 +37,11 @@ export const useEmailStore = create<EmailState>((set) => ({
         .from('email_profiles')
         .select('*')
         .order('name');
-      
+
       if (error) throw error;
       set({ profiles: data as EmailProfile[] });
-    } catch (error: any) {
-      toast.error('Erro ao buscar perfis: ' + error.message);
+    } catch (err) {
+      toast.error('Erro ao buscar perfis: ' + toMessage(err));
     } finally {
       set({ loading: false });
     }
@@ -51,11 +55,11 @@ export const useEmailStore = create<EmailState>((set) => ({
         .from('email_drafts')
         .select('*')
         .order('updated_at', { ascending: false });
-      
+
       if (error) throw error;
       set({ drafts: data as EmailDraft[] });
-    } catch (error: any) {
-      toast.error('Erro ao buscar rascunhos: ' + error.message);
+    } catch (err) {
+      toast.error('Erro ao buscar rascunhos: ' + toMessage(err));
     }
   },
 
@@ -79,8 +83,8 @@ export const useEmailStore = create<EmailState>((set) => ({
       if (error) throw error;
       set(state => ({ drafts: [data as EmailDraft, ...state.drafts] }));
       toast.success('Rascunho salvo!');
-    } catch (error: any) {
-      toast.error('Erro ao salvar rascunho: ' + error.message);
+    } catch (err) {
+      toast.error('Erro ao salvar rascunho: ' + toMessage(err));
     }
   },
 
@@ -90,12 +94,12 @@ export const useEmailStore = create<EmailState>((set) => ({
         .from('email_drafts')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
       set(state => ({ drafts: state.drafts.filter(d => d.id !== id) }));
       toast.success('Rascunho removido');
-    } catch (error: any) {
-      toast.error('Erro ao remover rascunho: ' + error.message);
+    } catch (err) {
+      toast.error('Erro ao remover rascunho: ' + toMessage(err));
     }
   },
 

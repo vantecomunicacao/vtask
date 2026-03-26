@@ -30,6 +30,8 @@ export const THEMES: ThemeMeta[] = [
 interface ThemeState {
   theme: ThemeId;
   setTheme: (theme: ThemeId) => void;
+  darkMode: boolean;
+  toggleDarkMode: () => void;
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -37,6 +39,8 @@ export const useThemeStore = create<ThemeState>()(
     (set) => ({
       theme: 'default',
       setTheme: (theme) => set({ theme }),
+      darkMode: false,
+      toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
     }),
     { name: 'vflow-theme' }
   )

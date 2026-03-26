@@ -22,7 +22,7 @@ interface Props {
     onBgColorChange: (v: string) => void;
     buttonColor: string;
     onButtonColorChange: (v: string) => void;
-    getTemplateHeaderColor: (id: string) => string;
+    getTemplateHeaderColor: () => string;
 }
 
 export function EmailDesignSection({
@@ -50,25 +50,13 @@ export function EmailDesignSection({
                                 <button
                                     key={t.id}
                                     onClick={() => onTemplateChange(t.id)}
-                                    className={`flex flex-col rounded-lg border-2 overflow-hidden text-left transition-all ${internalTemplateId === t.id ? 'border-brand' : 'border-border-subtle hover:border-border-subtle'} ${t.id === 'boas-vindas' ? 'col-span-2 flex-row items-center' : ''}`}
+                                    className={`flex flex-col rounded-lg border-2 overflow-hidden text-left transition-all ${internalTemplateId === t.id ? 'border-brand' : 'border-border-subtle hover:border-border-subtle'}`}
                                 >
-                                    {t.id === 'boas-vindas' ? (
-                                        <>
-                                            <div style={{ backgroundColor: t.color }} className="w-1.5 self-stretch flex-shrink-0" />
-                                            <div className="px-3 py-2">
-                                                <p className="text-xs font-medium text-primary">{t.label}</p>
-                                                <p className="text-[10px] text-muted">{t.desc}</p>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div style={{ backgroundColor: getTemplateHeaderColor(t.id) }} className="h-4 w-full flex-shrink-0" />
-                                            <div className="px-2 py-1.5">
-                                                <p className="text-xs font-medium text-primary">{t.label}</p>
-                                                <p className="text-[10px] text-muted">{t.desc}</p>
-                                            </div>
-                                        </>
-                                    )}
+                                    <div style={{ backgroundColor: internalTemplateId === t.id ? getTemplateHeaderColor() : t.color }} className="h-4 w-full flex-shrink-0" />
+                                    <div className="px-2 py-1.5">
+                                        <p className="text-xs font-medium text-primary">{t.label}</p>
+                                        <p className="text-[10px] text-muted">{t.desc}</p>
+                                    </div>
                                 </button>
                             ))}
                         </div>

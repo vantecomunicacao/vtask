@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Layers, Trash2 } from 'lucide-react';
+import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Layers, Trash2, BookOpen } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useEffect } from 'react';
@@ -110,6 +110,10 @@ export default function AppLayout() {
                     <NavLink to="/configuracoes" className={navLinkClass}>
                         <Settings size={18} />
                         Configurações
+                    </NavLink>
+                    <NavLink to="/documentacao" className={navLinkClass}>
+                        <BookOpen size={18} />
+                        Documentação
                     </NavLink>
                     <button
                         onClick={handleSignOut}

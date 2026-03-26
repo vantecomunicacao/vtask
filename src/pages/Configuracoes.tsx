@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2, Eye, EyeOff, Paintbrush } from 'lucide-react';
+import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2, Eye, EyeOff, Paintbrush, Moon, Sun } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTaskStore, type CustomStatus } from '../store/taskStore';
 import { useThemeStore, THEMES } from '../store/themeStore';
@@ -30,7 +30,7 @@ export default function Configuracoes() {
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
     const [inviteEmail, setInviteEmail] = useState('');
     const [activeTab, setActiveTab] = useState<'geral' | 'equipe' | 'fluxo' | 'categorias' | 'aparencia'>('geral');
-    const { theme, setTheme } = useThemeStore();
+    const { theme, setTheme, darkMode, toggleDarkMode } = useThemeStore();
 
     // Status management state
     const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
@@ -604,6 +604,26 @@ export default function Configuracoes() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-6">
+                                {/* Dark Mode Toggle */}
+                                <div className="flex items-center justify-between p-4 rounded-[var(--radius-card)] border border-border-subtle bg-surface-0">
+                                    <div className="flex items-center gap-3">
+                                        {darkMode ? <Moon size={18} className="text-brand" /> : <Sun size={18} className="text-secondary" />}
+                                        <div>
+                                            <p className="text-sm font-bold text-primary">Modo Escuro</p>
+                                            <p className="text-xs text-muted">Alterna entre tema claro e escuro</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={toggleDarkMode}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none ${darkMode ? 'bg-brand' : 'bg-border-subtle'}`}
+                                        role="switch"
+                                        aria-checked={darkMode}
+                                    >
+                                        <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ${darkMode ? 'translate-x-5' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+
+                                {/* Layout Themes */}
                                 <div>
                                     <p className="text-sm text-secondary mb-4">Escolha o estilo visual da interface. A troca é instantânea e salva automaticamente.</p>
                                     <div className="grid grid-cols-1 gap-3">

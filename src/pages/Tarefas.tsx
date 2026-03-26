@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -68,15 +69,38 @@ function EmptyState({ groupName, hasFilters }: { groupName?: string; hasFilters:
 
 export default function Tarefas() {
     const { activeWorkspace } = useWorkspaceStore();
-    const { tasks, loading, error, fetchWorkspaceTasks, autoMovePastDueTasks, fetchCategories, toggleTaskCompletion, statuses, fetchStatuses, updateTask, autoMovedCount } = useTaskStore();
+    const tasks = useTaskStore(s => s.tasks);
+    const loading = useTaskStore(s => s.loading);
+    const error = useTaskStore(s => s.error);
+    const statuses = useTaskStore(s => s.statuses);
+    const taskCategories = useTaskStore(s => s.taskCategories);
+    const autoMovedCount = useTaskStore(s => s.autoMovedCount);
+    const fetchWorkspaceTasks = useTaskStore(s => s.fetchWorkspaceTasks);
+    const autoMovePastDueTasks = useTaskStore(s => s.autoMovePastDueTasks);
+    const fetchCategories = useTaskStore(s => s.fetchCategories);
+    const fetchStatuses = useTaskStore(s => s.fetchStatuses);
+    const toggleTaskCompletion = useTaskStore(s => s.toggleTaskCompletion);
+    const updateTask = useTaskStore(s => s.updateTask);
 
+    const [searchParams, setSearchParams] = useSearchParams();
     const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+    const openTask = useCallback((task: TaskWithAssignee) => {
+        setSelectedTask(task);
+        setSearchParams(prev => { prev.set('task', task.id); return prev; }, { replace: true });
+    }, [setSearchParams]);
+
+    const closeTask = useCallback(() => {
+        setSelectedTask(null);
+        setSearchParams(prev => { prev.delete('task'); return prev; }, { replace: true });
+    }, [setSearchParams]);
 
     // Filter states
     const [search, setSearch] = useState('');
     const [selectedProject, setSelectedProject] = useState<string>('all');
     const [selectedAssignee, setSelectedAssignee] = useState<string>('all');
+    const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [showCompleted, setShowCompleted] = useState(false);
     const [groupBy, setGroupBy] = useState<GroupBy>('status');
     const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'due_date', direction: 'asc' });
@@ -101,13 +125,22 @@ export default function Tarefas() {
     const searchInputRef = useRef<HTMLInputElement>(null);
     const taskListRef = useRef<HTMLDivElement>(null);
 
+    const uniqueCategories = taskCategories;
+
     const { filteredTasks, groupedTasks, counters, uniqueProjects, uniqueAssignees, hasFilters, activeFilterCount } = useTaskFilters({
-        tasks, statuses, search, selectedProject, selectedAssignee, showCompleted, groupBy, sortConfig
+        tasks, statuses, search, selectedProject, selectedAssignee, selectedCategory, showCompleted, groupBy, sortConfig
     });
 
     const doneStatusId = statuses.length > 0 ? statuses[statuses.length - 1].id : undefined;
 
     useEffect(() => { if (error) toast.error(error); }, [error]);
+
+    useEffect(() => {
+        const taskId = searchParams.get('task');
+        if (!taskId || tasks.length === 0) return;
+        const found = tasks.find(t => t.id === taskId);
+        if (found) setSelectedTask(found);
+    }, [searchParams, tasks]);
 
     useEffect(() => {
         return () => { animationTimersRef.current.forEach(clearTimeout); };
@@ -164,7 +197,7 @@ export default function Tarefas() {
                     e.preventDefault(); setFocusedTaskIndex(prev => Math.max(prev - 1, 0)); break;
                 case 'Enter':
                     if (focusedTaskIndex >= 0 && focusedTaskIndex < filteredTasks.length) {
-                        e.preventDefault(); setSelectedTask(filteredTasks[focusedTaskIndex]);
+                        e.preventDefault(); openTask(filteredTasks[focusedTaskIndex]);
                     }
                     break;
                 case ' ':
@@ -383,7 +416,9 @@ export default function Tarefas() {
                     groupBy={groupBy} onGroupByChange={setGroupBy}
                     selectedProject={selectedProject} onProjectChange={setSelectedProject}
                     selectedAssignee={selectedAssignee} onAssigneeChange={setSelectedAssignee}
+                    selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory}
                     uniqueProjects={uniqueProjects} uniqueAssignees={uniqueAssignees}
+                    uniqueCategories={uniqueCategories}
                     activeFilterCount={activeFilterCount}
                     showCompleted={showCompleted} onShowCompletedChange={setShowCompleted}
                     defaultExpanded={defaultExpanded} onDefaultExpandedChange={handleDefaultExpandedChange}
@@ -446,7 +481,7 @@ export default function Tarefas() {
                                         onToggleSection={toggleSection}
                                         onToggleSelect={toggleSelectTask}
                                         onToggleStatusPopover={toggleStatusPopover}
-                                        onOpenDetail={setSelectedTask}
+                                        onOpenDetail={openTask}
                                     />
                                 ))}
                             </DragDropContext>
@@ -501,7 +536,7 @@ export default function Tarefas() {
             </div>
 
             {selectedTask && (
-                <TaskDetailModal isOpen={!!selectedTask} onClose={() => setSelectedTask(null)} task={selectedTask} />
+                <TaskDetailModal isOpen={!!selectedTask} onClose={closeTask} task={selectedTask} />
             )}
 
             <TaskFormModal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} />

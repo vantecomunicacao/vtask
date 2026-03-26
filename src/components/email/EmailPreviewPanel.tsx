@@ -7,31 +7,52 @@ interface Props {
   setMobilePreview: (v: boolean) => void;
   isEditing: boolean;
   onToggleEditMode: () => void;
+  onSaveEdit: (html: string) => void;
   finalSubject: string;
   loading: boolean;
 }
 
-export function EmailPreviewPanel({ 
-  result, 
-  mobilePreview, 
+export function EmailPreviewPanel({
+  result,
+  mobilePreview,
   setMobilePreview,
-  isEditing, 
-  onToggleEditMode, 
-  finalSubject, 
-  loading 
+  isEditing,
+  onToggleEditMode,
+  onSaveEdit,
+  finalSubject,
+  loading
 }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // Ref síncrono para evitar condição de corrida entre os dois efeitos
+  const isEditingRef = useRef(isEditing);
+  isEditingRef.current = isEditing;
 
+  // Recarrega o iframe apenas quando result muda — usa ref para não sobrescrever edições em curso
   useEffect(() => {
-    if (result?.body && iframeRef.current) {
-      const doc = iframeRef.current.contentDocument;
-      if (doc) {
-        doc.open();
-        doc.write(result.body);
-        doc.close();
-      }
+    if (result?.body && iframeRef.current && !isEditingRef.current) {
+      iframeRef.current.srcdoc = result.body;
     }
-  }, [result]);
+  }, [result]); // isEditing via ref — não é dependência do effect
+
+  // Habilita/desabilita edição no iframe
+  useEffect(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc?.body) return;
+
+    if (isEditing) {
+      doc.body.contentEditable = 'true';
+      doc.body.style.outline = 'none';
+      doc.body.style.cursor = 'text';
+      doc.body.style.boxShadow = 'inset 0 0 0 2px rgba(219,64,53,0.25)';
+    } else {
+      // Remove atributo ANTES de capturar para não baking contenteditable no HTML salvo
+      doc.body.removeAttribute('contenteditable');
+      doc.body.style.cursor = '';
+      doc.body.style.boxShadow = '';
+      const editedHtml = doc.documentElement.outerHTML;
+      onSaveEdit(editedHtml);
+    }
+  }, [isEditing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!result) {
     return (

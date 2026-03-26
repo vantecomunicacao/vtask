@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useAuthStore } from '../store/authStore';
 import { AlertCircle, CheckCircle2, Clock, Folder, CalendarCheck, ArrowRight } from 'lucide-react';
 import { format, isToday, isPast, isFuture, startOfDay, addDays } from 'date-fns';
+import { parseDueDate } from '../lib/dateUtils';
 import { ptBR } from 'date-fns/locale';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal';
 import { useTaskStore, type TaskWithAssignee } from '../store/taskStore';
@@ -99,7 +101,7 @@ function PieChart({ data }: { data: PieSlice[] }) {
 // ─── Task Item ────────────────────────────────────────────────────────────────
 
 function TaskItem({ task, onClick }: { task: TaskWithAssignee; onClick: () => void }) {
-    const overdue = task.due_date && isPast(startOfDay(addDays(new Date(task.due_date), 1)));
+    const overdue = task.due_date && isPast(addDays(parseDueDate(task.due_date), 1));
 
     return (
         <div
@@ -116,7 +118,7 @@ function TaskItem({ task, onClick }: { task: TaskWithAssignee; onClick: () => vo
                     {task.due_date && (
                         <span className={`text-[11px] font-medium flex items-center gap-1 ${overdue ? 'text-red-500' : 'text-secondary'}`}>
                             <Clock size={10} />
-                            {format(new Date(task.due_date), "dd/MM", { locale: ptBR })}
+                            {format(parseDueDate(task.due_date), "dd/MM", { locale: ptBR })}
                         </span>
                     )}
                 </div>
@@ -187,7 +189,25 @@ export default function Dashboard() {
     const { tasks, statuses, loading, fetchWorkspaceTasks, fetchStatuses, fetchCategories } = useTaskStore();
     const { projects, fetchProjects } = useProjectStore();
 
+    const [searchParams, setSearchParams] = useSearchParams();
     const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
+
+    const openTask = useCallback((task: TaskWithAssignee) => {
+        setSelectedTask(task);
+        setSearchParams(prev => { prev.set('task', task.id); return prev; }, { replace: true });
+    }, [setSearchParams]);
+
+    const closeTask = useCallback(() => {
+        setSelectedTask(null);
+        setSearchParams(prev => { prev.delete('task'); return prev; }, { replace: true });
+    }, [setSearchParams]);
+
+    useEffect(() => {
+        const taskId = searchParams.get('task');
+        if (!taskId || tasks.length === 0) return;
+        const found = tasks.find(t => t.id === taskId);
+        if (found) setSelectedTask(found);
+    }, [searchParams, tasks]);
 
     useEffect(() => {
         if (!activeWorkspace) return;
@@ -208,20 +228,20 @@ export default function Dashboard() {
 
     const overdueTasks = useMemo(
         () => myTasks
-            .filter(t => t.due_date && new Date(t.due_date) < today)
-            .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime()),
+            .filter(t => t.due_date && parseDueDate(t.due_date) < today)
+            .sort((a, b) => parseDueDate(a.due_date!).getTime() - parseDueDate(b.due_date!).getTime()),
         [myTasks, today]
     );
 
     const todayTasks = useMemo(
-        () => myTasks.filter(t => t.due_date && isToday(new Date(t.due_date))),
+        () => myTasks.filter(t => t.due_date && isToday(parseDueDate(t.due_date))),
         [myTasks]
     );
 
     const upcomingTasks = useMemo(
         () => myTasks
-            .filter(t => t.due_date && isFuture(new Date(t.due_date)) && !isToday(new Date(t.due_date)))
-            .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
+            .filter(t => t.due_date && isFuture(parseDueDate(t.due_date)) && !isToday(parseDueDate(t.due_date)))
+            .sort((a, b) => parseDueDate(a.due_date!).getTime() - parseDueDate(b.due_date!).getTime())
             .slice(0, 10),
         [myTasks]
     );
@@ -346,7 +366,7 @@ export default function Dashboard() {
                         emptyLabel="Nenhuma tarefa atrasada. Ótimo trabalho!"
                         accent="text-red-500"
                         icon={<AlertCircle size={15} />}
-                        onSelect={setSelectedTask}
+                        onSelect={openTask}
                     />
                     <TaskSection
                         title="Tarefas para hoje"
@@ -354,7 +374,7 @@ export default function Dashboard() {
                         emptyLabel="Nenhuma tarefa para hoje."
                         accent="text-brand"
                         icon={<CalendarCheck size={15} />}
-                        onSelect={setSelectedTask}
+                        onSelect={openTask}
                     />
                     <TaskSection
                         title="Próximas tarefas"
@@ -362,7 +382,7 @@ export default function Dashboard() {
                         emptyLabel="Nenhuma tarefa futura com prazo definido."
                         accent="text-blue-500"
                         icon={<Clock size={15} />}
-                        onSelect={setSelectedTask}
+                        onSelect={openTask}
                     />
                 </div>
 
@@ -380,7 +400,7 @@ export default function Dashboard() {
             {selectedTask && (
                 <TaskDetailModal
                     isOpen={!!selectedTask}
-                    onClose={() => setSelectedTask(null)}
+                    onClose={closeTask}
                     task={selectedTask}
                 />
             )}

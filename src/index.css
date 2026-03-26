@@ -77,6 +77,58 @@
 
 
 /* ═══════════════════════════════════════ */
+/* DARK MODE                               */
+/* ═══════════════════════════════════════ */
+
+.dark {
+  color-scheme: dark;
+
+  /* Superfícies — tons quentes escuros */
+  --color-surface-0:    #111010;
+  --color-surface-1:    #171614;
+  --color-surface-2:    #1d1c19;
+  --color-surface-card: #242220;
+
+  --color-bg-main:    var(--color-surface-2);
+  --color-bg-sidebar: var(--color-surface-1);
+
+  /* Texto */
+  --color-text-primary:   #f0ede8;
+  --color-text-secondary: #9b9890;
+  --color-text-muted:     #5a5750;
+
+  /* Bordas */
+  --color-border-subtle: #2d2c28;
+  --color-border:        rgba(255,255,255,0.06);
+  --color-border-strong: rgba(255,255,255,0.11);
+
+  /* Brand light (fundo de chips/badges ativos) */
+  --color-brand-light: rgba(219, 64, 53, 0.16);
+
+  /* Sombras */
+  --shadow-card:  0 0 0 1px rgba(0,0,0,0.30), 0 2px 8px rgba(0,0,0,0.25);
+  --shadow-float: 0 0 0 1px rgba(0,0,0,0.40), 0 8px 24px rgba(0,0,0,0.35);
+  --shadow-modal: 0 0 0 1px rgba(0,0,0,0.50), 0 24px 64px rgba(0,0,0,0.55);
+}
+
+/* bg-white hardcodado em componentes → surface-card no dark */
+.dark .bg-white { background-color: var(--color-surface-card) !important; }
+
+/* Skeleton com tons escuros */
+.dark .skeleton-pulse {
+  background: linear-gradient(90deg, #252321 25%, #2e2c29 50%, #252321 75%);
+  background-size: 200% 100%;
+}
+
+/* Inputs, textareas e selects herdam corretamente */
+.dark input,
+.dark textarea,
+.dark select {
+  color-scheme: dark;
+}
+
+
+/* ═══════════════════════════════════════ */
 /* ❷ UTILITÁRIOS DE TEMA                  */
 /* ═══════════════════════════════════════ */
 

@@ -6,7 +6,7 @@ import { EmailSidebar } from '../components/email/EmailSidebar';
 import { EmailPreviewPanel } from '../components/email/EmailPreviewPanel';
 import { ProfilesModal } from '../components/email/ProfilesModal';
 import { EmailChecklistModal } from '../components/email/EmailChecklistModal';
-import type { EmailProfile, EmailDraft } from '../lib/emailTypes';
+import type { EmailProfile, EmailDraft, MailchimpList } from '../lib/emailTypes';
 import { callEmailApi } from '../lib/emailApi';
 
 export type SectionKey = 'perfil' | 'envio' | 'rascunhos' | 'design' | 'ia';
@@ -14,13 +14,16 @@ export type SectionKey = 'perfil' | 'envio' | 'rascunhos' | 'design' | 'ia';
 export default function GeradorEmail() {
     const activeWorkspace = useWorkspaceStore(state => state.activeWorkspace);
     const workspaceId = activeWorkspace?.id;
+    // A chave OpenAI é global do workspace — configurada em Configurações
+    const openaiKey = activeWorkspace?.openai_api_key ?? '';
+
     const [profiles, setProfiles] = useState<EmailProfile[]>([]);
     const [selectedProfile, setSelectedProfile] = useState<EmailProfile | null>(null);
     const [drafts, setDrafts] = useState<EmailDraft[]>([]);
-    
+
     // UI States
-    const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-        perfil: true, envio: false, rascunhos: false, design: false, ia: false
+    const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
+        perfil: true, ia: true, design: false, envio: false, rascunhos: false,
     });
     const [showProfilesModal, setShowProfilesModal] = useState(false);
     const [showChecklist, setShowChecklist] = useState(false);
@@ -44,13 +47,12 @@ export default function GeradorEmail() {
 
     // Content States
     const [prompt, setPrompt] = useState('');
-    const [openaiKey, setOpenaiKey] = useState('');
     const [subject, setSubject] = useState('');
     const [previewText, setPreviewText] = useState('');
     const [result, setResult] = useState<{ subject: string; body: string } | null>(null);
 
     // Sending States
-    const [mailchimpLists, setMailchimpLists] = useState<any[]>([]);
+    const [mailchimpLists, setMailchimpLists] = useState<MailchimpList[]>([]);
     const [selectedListId, setSelectedListId] = useState('');
     const [scheduleEnabled, setScheduleEnabled] = useState(false);
     const [scheduledAt, setScheduledAt] = useState('');
@@ -65,13 +67,12 @@ export default function GeradorEmail() {
         if (selectedProfile.ai_prompt && !prompt) setPrompt(selectedProfile.ai_prompt);
         if (selectedProfile.default_button_text) setButtonText(selectedProfile.default_button_text);
         if (selectedProfile.default_button_link) setButtonLink(selectedProfile.default_button_link);
-        setOpenaiKey(selectedProfile.openai_api_key ?? '');
-        
+
         if (selectedProfile.mailchimp_api_key && selectedProfile.mailchimp_server) {
             callEmailApi('/api/client-mailchimp-lists', {
                 apiKey: selectedProfile.mailchimp_api_key,
                 server: selectedProfile.mailchimp_server,
-            }).then(d => {
+            }).then((d: { lists?: MailchimpList[] }) => {
                 if (d.lists) {
                     setMailchimpLists(d.lists);
                     if (selectedProfile.mailchimp_list_id) setSelectedListId(selectedProfile.mailchimp_list_id);
@@ -108,8 +109,8 @@ export default function GeradorEmail() {
                 if (target === 'bottom') setBottomImageUrl(data.publicUrl);
                 toast.success('Imagem enviada!');
             }
-        } catch (err: any) {
-            toast.error('Erro no upload: ' + err.message);
+        } catch (err) {
+            toast.error('Erro no upload: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
         } finally {
             setLoading(false);
         }
@@ -117,6 +118,7 @@ export default function GeradorEmail() {
 
     const handleGenerate = async () => {
         if (!prompt) { toast.error('Digite um comando para a IA'); return; }
+        if (!openaiKey) { toast.error('Configure a chave OpenAI em Configurações → Geral'); return; }
         setLoading(true);
         setIsEditing(false);
         try {
@@ -125,7 +127,7 @@ export default function GeradorEmail() {
                 buttonText, buttonLink, title, bgColor, buttonColor, headerColor,
                 internalTemplateId, previewText,
                 clientContext: selectedProfile?.ai_prompt,
-                openaiApiKey: openaiKey || undefined,
+                openaiApiKey: openaiKey,
                 ctaEnabled: selectedProfile?.cta_enabled ?? true,
                 emailLength: selectedProfile?.email_length ?? 'medium',
             });
@@ -133,8 +135,8 @@ export default function GeradorEmail() {
             if (!subject) setSubject(data.subject);
             if (!previewText && data.preview) setPreviewText(data.preview);
             toast.success('Conteúdo gerado!');
-        } catch (error: any) {
-            toast.error(error.message);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Erro ao gerar e-mail');
         } finally {
             setLoading(false);
         }
@@ -143,10 +145,10 @@ export default function GeradorEmail() {
     const handleSuggestSubject = async () => {
         setSuggestingSubject(true);
         try {
-            const data = await callEmailApi('/api/suggest-subject', { 
-                prompt, title, 
-                clientContext: selectedProfile?.ai_prompt, 
-                openaiApiKey: openaiKey || undefined 
+            const data = await callEmailApi('/api/suggest-subject', {
+                prompt, title,
+                clientContext: selectedProfile?.ai_prompt,
+                openaiApiKey: openaiKey || undefined
             });
             if (data.subject) setSubject(data.subject);
             toast.success('Sugestão aplicada!');
@@ -178,7 +180,7 @@ export default function GeradorEmail() {
         setLoading(false);
     };
 
-    const handleLoadDraft = (draft: any) => {
+    const handleLoadDraft = (draft: EmailDraft) => {
         setInternalTemplateId(draft.template_id);
         setTitle(draft.title || '');
         setPrompt(draft.prompt || '');
@@ -207,56 +209,55 @@ export default function GeradorEmail() {
                 serverPrefix: selectedProfile?.mailchimp_server,
             });
             toast.success('Campanha enviada para o Mailchimp!');
-        } catch (error: any) {
-            toast.error(error.message);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Erro ao criar campanha');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="h-full flex flex-col bg-bg-main overflow-hidden p-4">
-            <div className="flex-1 flex flex-col min-h-0 rounded-3xl border border-border-subtle shadow-2xl bg-surface-card overflow-hidden">
-                <div className="h-16 border-b border-border-subtle flex items-center px-6 gap-4 bg-surface-card sticky top-0 z-20">
-                    <button onClick={() => setIsEditingName(true)} className="text-lg font-black text-primary hover:text-brand transition-colors truncate max-w-sm tracking-tight uppercase">
-                        {isEditingName ? (
-                            <input autoFocus value={emailName} onChange={e => setEmailName(e.target.value)} onBlur={() => setIsEditingName(false)} className="bg-transparent border-b-2 border-brand outline-none" />
-                        ) : emailName}
-                    </button>
-                    <div className="flex-1" />
-                    <button onClick={handleSaveDraft} disabled={loading} className="h-10 px-6 rounded-xl text-[10px] font-black border border-border-subtle hover:bg-surface-2 transition-all uppercase tracking-widest">
-                        SALVAR RASCUNHO
-                    </button>
-                    <button onClick={() => setShowChecklist(true)} disabled={!result || loading} className="h-10 px-6 rounded-xl text-[10px] font-black bg-brand text-white shadow-lg shadow-brand/20 hover:scale-105 transition-all disabled:opacity-50 uppercase tracking-widest">
-                        EXPORTAR CAMPANHA →
-                    </button>
-                </div>
+        <div className="flex flex-col h-full fade-in">
+            {/* Page header — fora do card, igual ao padrão do ProjetoDetalhe */}
+            <div className="flex items-center gap-4 shrink-0 mb-4">
+                <button onClick={() => setIsEditingName(true)} className="text-xl font-black text-primary hover:text-brand transition-colors truncate max-w-sm tracking-tight uppercase">
+                    {isEditingName ? (
+                        <input autoFocus value={emailName} onChange={e => setEmailName(e.target.value)} onBlur={() => setIsEditingName(false)} className="bg-transparent border-b-2 border-brand outline-none text-xl" />
+                    ) : emailName}
+                </button>
+                <div className="flex-1" />
+                <button onClick={handleSaveDraft} disabled={loading} className="h-9 px-5 rounded-[var(--radius-md)] text-[10px] font-black border border-border-subtle hover:bg-surface-card transition-all uppercase tracking-widest">
+                    SALVAR RASCUNHO
+                </button>
+                <button onClick={() => setShowChecklist(true)} disabled={!result || loading} className="h-9 px-5 rounded-[var(--radius-md)] text-[10px] font-black bg-brand text-white shadow-sm shadow-brand/20 hover:scale-105 transition-all disabled:opacity-50 uppercase tracking-widest">
+                    EXPORTAR CAMPANHA →
+                </button>
+            </div>
 
-                <div className="flex-1 flex overflow-hidden">
-                    <EmailSidebar
-                        openSections={openSections} toggleSection={k => setOpenSections(p => ({ ...p, [k]: !p[k] }))}
-                        profiles={profiles} selectedProfile={selectedProfile} onProfileChange={setSelectedProfile} onManageProfiles={() => setShowProfilesModal(true)}
-                        mailchimpLists={mailchimpLists} selectedListId={selectedListId} onListChange={setSelectedListId}
-                        subject={subject} onSubjectChange={setSubject} previewText={previewText} onPreviewTextChange={setPreviewText}
-                        scheduleEnabled={scheduleEnabled} onScheduleToggle={() => setScheduleEnabled(!scheduleEnabled)} scheduledAt={scheduledAt} onScheduledAtChange={setScheduledAt}
-                        suggestingSubject={suggestingSubject} onSuggestSubject={handleSuggestSubject}
-                        drafts={drafts} onLoadDraft={handleLoadDraft} onDeleteDraft={async (id) => { await supabase.from('email_drafts').delete().eq('id', id); loadDrafts(); }} formatDate={d => new Date(d).toLocaleDateString()}
-                        internalTemplateId={internalTemplateId} onTemplateChange={setInternalTemplateId} title={title} onTitleChange={setTitle}
-                        buttonText={buttonText} onButtonTextChange={setButtonText} buttonLink={buttonLink} onButtonLinkChange={setButtonLink}
-                        logoUrl={logoUrl} bannerUrl={bannerUrl} bottomImageUrl={bottomImageUrl} onFileUpload={handleFileUpload}
-                        bgColor={bgColor} onBgColorChange={setBgColor} buttonColor={buttonColor} onButtonColorChange={setButtonColor}
-                        getTemplateHeaderColor={() => headerColor}
-                        openaiKey={openaiKey} onOpenaiKeyChange={setOpenaiKey} showOpenaiKey={false} onToggleShowKey={() => {}}
-                        savingOpenaiKey={false} onSaveKey={async () => {}}
-                        prompt={prompt} onPromptChange={setPrompt} loading={loading} onGenerate={handleGenerate}
-                    />
+            {/* Card principal — rounded-card igual ao ProjetoDetalhe */}
+            <div className="flex-1 overflow-hidden bg-surface-card border border-border-subtle rounded-card flex">
+                <EmailSidebar
+                    openSections={openSections} toggleSection={k => setOpenSections(p => ({ ...p, [k]: !p[k] }))}
+                    profiles={profiles} selectedProfile={selectedProfile} onProfileChange={setSelectedProfile} onManageProfiles={() => setShowProfilesModal(true)}
+                    mailchimpLists={mailchimpLists} selectedListId={selectedListId} onListChange={setSelectedListId}
+                    subject={subject} onSubjectChange={setSubject} previewText={previewText} onPreviewTextChange={setPreviewText}
+                    scheduleEnabled={scheduleEnabled} onScheduleToggle={() => setScheduleEnabled(!scheduleEnabled)} scheduledAt={scheduledAt} onScheduledAtChange={setScheduledAt}
+                    suggestingSubject={suggestingSubject} onSuggestSubject={handleSuggestSubject}
+                    drafts={drafts} onLoadDraft={handleLoadDraft} onDeleteDraft={async (id, e) => { e.stopPropagation(); await supabase.from('email_drafts').delete().eq('id', id); loadDrafts(); }} formatDate={d => new Date(d).toLocaleDateString()}
+                    internalTemplateId={internalTemplateId} onTemplateChange={setInternalTemplateId} title={title} onTitleChange={setTitle}
+                    buttonText={buttonText} onButtonTextChange={setButtonText} buttonLink={buttonLink} onButtonLinkChange={setButtonLink}
+                    logoUrl={logoUrl} bannerUrl={bannerUrl} bottomImageUrl={bottomImageUrl} onFileUpload={handleFileUpload}
+                    bgColor={bgColor} onBgColorChange={setBgColor} buttonColor={buttonColor} onButtonColorChange={setButtonColor}
+                    getTemplateHeaderColor={() => headerColor}
+                    prompt={prompt} onPromptChange={setPrompt} loading={loading} onGenerate={handleGenerate}
+                />
 
-                    <EmailPreviewPanel
-                        result={result} mobilePreview={mobilePreview} setMobilePreview={setMobilePreview}
-                        isEditing={isEditing} onToggleEditMode={() => setIsEditing(!isEditing)}
-                        finalSubject={subject || result?.subject || ''} loading={loading}
-                    />
-                </div>
+                <EmailPreviewPanel
+                    result={result} mobilePreview={mobilePreview} setMobilePreview={setMobilePreview}
+                    isEditing={isEditing} onToggleEditMode={() => setIsEditing(!isEditing)}
+                    onSaveEdit={html => setResult(prev => prev ? { ...prev, body: html } : prev)}
+                    finalSubject={subject || result?.subject || ''} loading={loading}
+                />
             </div>
 
             {showProfilesModal && <ProfilesModal onClose={() => { setShowProfilesModal(false); loadDrafts(); }} onSelectProfile={p => { setSelectedProfile(p); setShowProfilesModal(false); }} />}

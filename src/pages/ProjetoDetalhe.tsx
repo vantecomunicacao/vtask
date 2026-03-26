@@ -1,5 +1,5 @@
-﻿import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+﻿import { useEffect, useState, useCallback } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useProjectStore } from '../store/projectStore';
 import { useTaskStore } from '../store/taskStore';
 import { useDocumentStore } from '../store/documentStore';
@@ -40,7 +40,18 @@ export default function ProjetoDetalhe() {
     const [view, setView] = useState<'list' | 'kanban' | 'docs'>('kanban');
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
     const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
+
+    const openTask = useCallback((task: TaskWithAssignee) => {
+        setSelectedTask(task);
+        setSearchParams(prev => { prev.set('task', task.id); return prev; }, { replace: true });
+    }, [setSearchParams]);
+
+    const closeTask = useCallback(() => {
+        setSelectedTask(null);
+        setSearchParams(prev => { prev.delete('task'); return prev; }, { replace: true });
+    }, [setSearchParams]);
     const { deleteProject } = useProjectStore();
     const { documents, fetchDocuments, createDocument } = useDocumentStore();
     const navigate = useNavigate();
@@ -48,6 +59,13 @@ export default function ProjetoDetalhe() {
     const project = projects.find(p => p.id === id);
 
     useEffect(() => { if (error) toast.error(error); }, [error]);
+
+    useEffect(() => {
+        const taskId = searchParams.get('task');
+        if (!taskId || tasks.length === 0) return;
+        const found = tasks.find(t => t.id === taskId);
+        if (found) setSelectedTask(found);
+    }, [searchParams, tasks]);
 
     useEffect(() => {
         if (id) {
@@ -183,7 +201,7 @@ export default function ProjetoDetalhe() {
                     <KanbanBoard
                         tasks={tasks}
                         statuses={statuses}
-                        onTaskClick={(task) => setSelectedTask(task as TaskWithAssignee)}
+                        onTaskClick={(task) => openTask(task as TaskWithAssignee)}
                     />
                 ) : view === 'docs' ? (
                     <div className="bg-white border border-border-subtle rounded-card overflow-hidden flex flex-col h-full">
@@ -264,7 +282,7 @@ export default function ProjetoDetalhe() {
                                         <div
                                             key={task.id}
                                             className="px-4 py-3 grid grid-cols-12 gap-4 items-center group hover:bg-surface-2 transition-colors cursor-pointer"
-                                            onClick={() => setSelectedTask(task)}
+                                            onClick={() => openTask(task)}
                                         >
                                             <div className="col-span-5 flex items-center gap-3">
                                                 <div className="w-4 h-4 rounded-full border-2 border-border-subtle shrink-0" />
@@ -345,7 +363,7 @@ export default function ProjetoDetalhe() {
 
             <TaskDetailModal
                 isOpen={!!selectedTask}
-                onClose={() => setSelectedTask(null)}
+                onClose={closeTask}
                 task={selectedTask}
             />
 

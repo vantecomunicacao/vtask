@@ -114,7 +114,7 @@ const KanbanCard = React.memo(function KanbanCard({ task, index, onTaskClick }: 
 
 // ─── KanbanBoard ──────────────────────────────
 export function KanbanBoard({ tasks, statuses, onTaskClick }: KanbanBoardProps) {
-    const { moveTask } = useTaskStore();
+    const moveTask = useTaskStore(s => s.moveTask);
 
     const activeStatuses = useMemo(() => statuses.length > 0 ? statuses : [
         { id: 'todo', name: 'A fazer', color: '#db4035', position: 1, workspace_id: '' },

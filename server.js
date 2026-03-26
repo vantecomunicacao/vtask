@@ -6,7 +6,6 @@ import mailchimp from '@mailchimp/mailchimp_marketing';
 import mjml2html from 'mjml';
 import cron from 'node-cron';
 import { createClient } from '@supabase/supabase-js';
-import { supabase } from './supabaseClient.js'; // New import
 
 const app = express();
 const port = process.env.PORT || 3001; // New port definition

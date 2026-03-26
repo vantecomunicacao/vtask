@@ -8,10 +8,9 @@ import type { TaskWithAssignee, CustomStatus } from '../../store/taskStore';
 import { useTaskStore } from '../../store/taskStore';
 import type { GroupBy } from '../../hooks/useTaskFilters';
 import { DatePickerPopover } from '../ui/DatePicker';
+import { parseDueDate } from '../../lib/dateUtils';
 
-// Strings date-only (YYYY-MM-DD) são parseadas como UTC midnight por new Date().
-// Adicionar T00:00:00 força parsing como horário local, evitando bug de fuso horário.
-const parseLocalDate = (d: string) => new Date(d.length === 10 ? `${d}T00:00:00` : d);
+const parseLocalDate = parseDueDate;
 
 function formatDueDate(due: string) {
     const date = parseLocalDate(due);
@@ -48,7 +47,7 @@ export const TaskRow = React.memo(function TaskRow({
     onToggleStatusPopover,
     onOpenDetail,
 }: TaskRowProps) {
-    const { updateTask } = useTaskStore();
+    const updateTask = useTaskStore(s => s.updateTask);
     const [isEditingDate, setIsEditingDate] = useState(false);
     const dateBtnRef = useRef<HTMLButtonElement>(null);
 

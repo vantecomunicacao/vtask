@@ -7,6 +7,7 @@ import type { GroupBy } from '../../hooks/useTaskFilters';
 
 interface Project { id: string; name: string; color?: string | null; }
 interface Assignee { id: string; email: string; full_name?: string | null; }
+interface Category { id: string; name: string; color?: string | null; }
 
 interface TaskFiltersBarProps {
     search: string;
@@ -18,8 +19,11 @@ interface TaskFiltersBarProps {
     onProjectChange: (v: string) => void;
     selectedAssignee: string;
     onAssigneeChange: (v: string) => void;
+    selectedCategory: string;
+    onCategoryChange: (v: string) => void;
     uniqueProjects: Project[];
     uniqueAssignees: Assignee[];
+    uniqueCategories: Category[];
     activeFilterCount: number;
     showCompleted: boolean;
     onShowCompletedChange: (v: boolean) => void;
@@ -34,7 +38,8 @@ export function TaskFiltersBar({
     groupBy, onGroupByChange,
     selectedProject, onProjectChange,
     selectedAssignee, onAssigneeChange,
-    uniqueProjects, uniqueAssignees, activeFilterCount,
+    selectedCategory, onCategoryChange,
+    uniqueProjects, uniqueAssignees, uniqueCategories, activeFilterCount,
     showCompleted, onShowCompletedChange,
     defaultExpanded, onDefaultExpandedChange,
     onExpandAll, onCollapseAll,
@@ -131,9 +136,20 @@ export function TaskFiltersBar({
                                     ))}
                                 </Select>
                             </div>
+                            {uniqueCategories.length > 0 && (
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Tipo de Tarefa</label>
+                                    <Select value={selectedCategory} onChange={(e) => onCategoryChange(e.target.value)}>
+                                        <option value="all">Todos os Tipos</option>
+                                        {uniqueCategories.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </Select>
+                                </div>
+                            )}
                             {activeFilterCount > 0 && (
                                 <button
-                                    onClick={() => { onProjectChange('all'); onAssigneeChange('all'); }}
+                                    onClick={() => { onProjectChange('all'); onAssigneeChange('all'); onCategoryChange('all'); }}
                                     className="text-xs text-red-500 hover:text-red-600 font-medium text-left transition-colors"
                                 >
                                     Limpar filtros
@@ -185,6 +201,14 @@ export function TaskFiltersBar({
                     <span className="flex items-center gap-1 px-2 py-0.5 bg-brand/10 text-brand text-xs rounded-full font-medium">
                         {(() => { const a = uniqueAssignees.find(a => a.id === selectedAssignee); return a?.full_name || a?.email.split('@')[0]; })()}
                         <button onClick={() => onAssigneeChange('all')} className="hover:text-brand/60 transition-colors">
+                            <X size={10} />
+                        </button>
+                    </span>
+                )}
+                {selectedCategory !== 'all' && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-brand/10 text-brand text-xs rounded-full font-medium">
+                        {uniqueCategories.find(c => c.id === selectedCategory)?.name}
+                        <button onClick={() => onCategoryChange('all')} className="hover:text-brand/60 transition-colors">
                             <X size={10} />
                         </button>
                     </span>

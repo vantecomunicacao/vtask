@@ -381,6 +381,177 @@ export interface Database {
                     document_id?: string
                 }
             }
+            email_profiles: {
+                Row: {
+                    id: string
+                    created_by: string
+                    name: string
+                    sender_name: string | null
+                    sender_email: string | null
+                    mailchimp_api_key: string | null
+                    mailchimp_server: string | null
+                    mailchimp_list_id: string | null
+                    ai_prompt: string | null
+                    brand_color: string | null
+                    button_color: string | null
+                    logo_url: string | null
+                    banner_url: string | null
+                    cta_enabled: boolean
+                    email_length: 'short' | 'medium' | 'long'
+                    default_button_text: string | null
+                    default_button_link: string | null
+                    test_email: string | null
+                    themes_list: string | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    created_by: string
+                    name: string
+                    sender_name?: string | null
+                    sender_email?: string | null
+                    mailchimp_api_key?: string | null
+                    mailchimp_server?: string | null
+                    mailchimp_list_id?: string | null
+                    ai_prompt?: string | null
+                    brand_color?: string | null
+                    button_color?: string | null
+                    logo_url?: string | null
+                    banner_url?: string | null
+                    cta_enabled?: boolean
+                    email_length?: 'short' | 'medium' | 'long'
+                    default_button_text?: string | null
+                    default_button_link?: string | null
+                    test_email?: string | null
+                    themes_list?: string | null
+                }
+                Update: {
+                    name?: string
+                    sender_name?: string | null
+                    sender_email?: string | null
+                    mailchimp_api_key?: string | null
+                    mailchimp_server?: string | null
+                    mailchimp_list_id?: string | null
+                    ai_prompt?: string | null
+                    brand_color?: string | null
+                    button_color?: string | null
+                    logo_url?: string | null
+                    banner_url?: string | null
+                    cta_enabled?: boolean
+                    email_length?: 'short' | 'medium' | 'long'
+                    default_button_text?: string | null
+                    default_button_link?: string | null
+                    test_email?: string | null
+                    themes_list?: string | null
+                    updated_at?: string
+                }
+            }
+            email_schedules: {
+                Row: {
+                    id: string
+                    profile_id: string
+                    name: string
+                    cron_expression: string
+                    template_id: string
+                    prompt_override: string | null
+                    bg_color: string
+                    button_color: string
+                    button_text: string | null
+                    button_link: string | null
+                    active: boolean
+                    is_dynamic_theme: boolean
+                    last_run_at: string | null
+                    next_run_at: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    profile_id: string
+                    name: string
+                    cron_expression: string
+                    template_id?: string
+                    prompt_override?: string | null
+                    bg_color?: string
+                    button_color?: string
+                    button_text?: string | null
+                    button_link?: string | null
+                    active?: boolean
+                    is_dynamic_theme?: boolean
+                    last_run_at?: string | null
+                    next_run_at?: string | null
+                }
+                Update: {
+                    name?: string
+                    cron_expression?: string
+                    template_id?: string
+                    prompt_override?: string | null
+                    bg_color?: string
+                    button_color?: string
+                    button_text?: string | null
+                    button_link?: string | null
+                    active?: boolean
+                    is_dynamic_theme?: boolean
+                    last_run_at?: string | null
+                    next_run_at?: string | null
+                }
+            }
+            email_drafts: {
+                Row: {
+                    id: string
+                    workspace_id: string | null
+                    created_by: string | null
+                    name: string
+                    template_id: string
+                    title: string | null
+                    prompt: string | null
+                    logo_url: string | null
+                    banner_url: string | null
+                    bottom_image_url: string | null
+                    button_text: string | null
+                    button_link: string | null
+                    bg_color: string | null
+                    button_color: string | null
+                    generated_html: string | null
+                    generated_subject: string | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    workspace_id?: string | null
+                    created_by?: string | null
+                    name: string
+                    template_id?: string
+                    title?: string | null
+                    prompt?: string | null
+                    logo_url?: string | null
+                    banner_url?: string | null
+                    bottom_image_url?: string | null
+                    button_text?: string | null
+                    button_link?: string | null
+                    bg_color?: string | null
+                    button_color?: string | null
+                    generated_html?: string | null
+                    generated_subject?: string | null
+                }
+                Update: {
+                    name?: string
+                    template_id?: string
+                    title?: string | null
+                    prompt?: string | null
+                    logo_url?: string | null
+                    banner_url?: string | null
+                    bottom_image_url?: string | null
+                    button_text?: string | null
+                    button_link?: string | null
+                    bg_color?: string | null
+                    button_color?: string | null
+                    generated_html?: string | null
+                    generated_subject?: string | null
+                    updated_at?: string
+                }
+            }
         }
     }
 }
