@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { addDays, addWeeks, addMonths, format } from 'date-fns';
 import { parseDueDate, todayLocalISO } from '../lib/dateUtils';
+import { createNotification } from './notificationStore';
+import { useWorkspaceStore } from './workspaceStore';
 
 type Task = Database['public']['Tables']['tasks']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -321,8 +323,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     },
 
     updateTask: async (taskId: string, updates: Partial<Task>) => {
-        // Optimistic update
         const previousTasks = [...get().tasks];
+        const previousTask = get().tasks.find(t => t.id === taskId);
+
+        // Optimistic update
         set({
             tasks: get().tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
         });
@@ -335,6 +339,26 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         if (error) {
             set({ tasks: previousTasks, error: error.message });
             throw error;
+        }
+
+        // Notificar quando o responsável muda
+        if (
+            updates.assignee_id !== undefined &&
+            updates.assignee_id !== null &&
+            updates.assignee_id !== previousTask?.assignee_id
+        ) {
+            const workspaceId = useWorkspaceStore.getState().activeWorkspace?.id;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (workspaceId && user) {
+                await createNotification({
+                    workspace_id: workspaceId,
+                    user_id: updates.assignee_id,
+                    actor_id: user.id,
+                    type: 'task_assigned',
+                    task_id: taskId,
+                    task_title: previousTask?.title ?? '',
+                });
+            }
         }
     },
 

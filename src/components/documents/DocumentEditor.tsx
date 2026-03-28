@@ -23,6 +23,8 @@ import { useProjectStore } from '../../store/projectStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Callout } from './extensions/Callout';
 import { Details } from './extensions/Details';
+import { DocMention } from './extensions/DocMention';
+import { renderDocItems } from './DocMentionSuggestion';
 import { Button } from '../ui/Button';
 import { SlashCommands, suggestionItems, renderItems } from './SlashCommands';
 import {
@@ -31,7 +33,10 @@ import {
     AlignLeft, AlignCenter, AlignRight, Table as TableIcon,
     CheckSquare, Code, Image as ImageIcon, Trash2, Minus,
     FileText, Plus, Undo, Redo, Palette, Highlighter, FolderOpen,
+    History, Download,
 } from 'lucide-react';
+import { VersionHistoryPanel } from './VersionHistoryPanel';
+import type { DocumentVersion } from '../../store/documentStore';
 
 const lowlight = createLowlight(common);
 
@@ -68,7 +73,7 @@ interface DocumentEditorProps {
 
 export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEditorProps) {
     const navigate = useNavigate();
-    const { documents, updateDocument, deleteDocument, uploadImage } = useDocumentStore();
+    const { documents, updateDocument, deleteDocument, uploadImage, saveVersion, restoreVersion } = useDocumentStore();
     const { projects, fetchProjects } = useProjectStore();
     const { activeWorkspace } = useWorkspaceStore();
     const doc = documents.find(d => d.id === documentId);
@@ -77,9 +82,12 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
     const [title, setTitle] = useState(doc?.title || '');
     const [saving, setSaving] = useState(false);
     const [wordCount, setWordCount] = useState(0);
+    const [showVersionPanel, setShowVersionPanel] = useState(false);
 
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const handleSaveRef = useRef<() => void>(() => {});
+    const documentsRef = useRef(documents);
+    useEffect(() => { documentsRef.current = documents; }, [documents]);
 
     // Carrega projetos se necessário
     useEffect(() => {
@@ -119,6 +127,22 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
             CodeBlockLowlight.configure({ lowlight }),
             Callout,
             Details,
+            DocMention.configure({
+                HTMLAttributes: {
+                    class: 'doc-mention-node',
+                },
+                suggestion: {
+                    char: '[[',
+                    items: ({ query }: { query: string }) =>
+                        documentsRef.current
+                            .filter(d =>
+                                d.id !== documentId &&
+                                (d.title || '').toLowerCase().includes(query.toLowerCase())
+                            )
+                            .slice(0, 10),
+                    render: renderDocItems,
+                },
+            }),
             SlashCommands.configure({
                 suggestion: {
                     items: ({ query }: { query: string }) =>
@@ -178,27 +202,86 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
     }, [handleFileUpload]);
 
     // ─── Salvar ───────────────────────────────────────────────────
-    const handleSave = useCallback(async () => {
+    const handleSave = useCallback(async (isManual = false) => {
         if (!editor || saving) return;
         setSaving(true);
         try {
-            await updateDocument(documentId, { title, content: editor.getJSON() as any });
+            const content = editor.getJSON() as any;
+            await updateDocument(documentId, { title, content });
+            if (isManual) {
+                await saveVersion(documentId, title, content);
+            }
         } finally {
             setSaving(false);
         }
-    }, [editor, title, documentId, updateDocument, saving]);
+    }, [editor, title, documentId, updateDocument, saving, saveVersion]);
 
     // Mantém ref atualizada para o autosave usar sem re-registrar listeners
     useEffect(() => { handleSaveRef.current = handleSave; }, [handleSave]);
 
-    // Ctrl+S
+    // Ctrl+S → save manual (cria versão)
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSave(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSave(true); }
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
     }, [handleSave]);
+
+    // ─── Exportar PDF ─────────────────────────────────────────────
+    const handleExportPdf = useCallback(() => {
+        if (!editor) return;
+        const docTitle = title || 'Documento';
+        const html = editor.getHTML();
+
+        const printStyles = `
+            body { font-family: "Figtree", ui-sans-serif, system-ui, sans-serif;
+                   max-width: 800px; margin: 40px auto; padding: 0 40px;
+                   color: #1c1a18; font-size: 16px; line-height: 1.6; }
+            h1 { font-size: 2.25rem; font-weight: 800; margin: 1.5rem 0 0.5rem; color: #1c1a18; }
+            h2 { font-size: 1.6rem; font-weight: 700; margin: 1.25rem 0 0.4rem; color: #1c1a18; }
+            h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.35rem; color: #1c1a18; }
+            p  { margin-bottom: 0.5rem; }
+            ul { list-style-type: disc; padding-left: 1.5rem; margin: 0.75rem 0; }
+            ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.75rem 0; }
+            li { margin-bottom: 0.25rem; }
+            table { border-collapse: collapse; width: 100%; margin: 1.5rem 0; }
+            td, th { border: 1px solid #e8e5e0; padding: 8px 12px; text-align: left; }
+            th { background: #f5f3ef; font-weight: 600; font-size: 0.875rem; }
+            pre { background: #1c1a18; color: #f5f3ef; padding: 1rem 1.25rem;
+                  border-radius: 8px; overflow-x: auto; font-size: 0.875rem;
+                  font-family: monospace; line-height: 1.6; }
+            code:not(pre code) { background: #ece9e4; color: #db4035; padding: 0.1em 0.35em;
+                                 border-radius: 4px; font-size: 0.875em; }
+            blockquote { border-left: 3px solid #db4035; padding: 0.75rem 1rem;
+                         background: #fdf3f2; margin: 1.5rem 0; font-style: italic; color: #6b6860; }
+            img { max-width: 100%; height: auto; border-radius: 6px; }
+            hr { border: none; border-top: 1px solid #e8e5e0; margin: 1.5rem 0; }
+            @media print { body { margin: 0; padding: 20px; } }
+        `;
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Permita popups neste site para exportar o PDF.');
+            return;
+        }
+
+        printWindow.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>${docTitle}</title>
+  <style>${printStyles}</style>
+</head>
+<body>
+  <h1 style="border-bottom:2px solid #e8e5e0;padding-bottom:0.5rem;margin-bottom:1.5rem;">${docTitle}</h1>
+  ${html}
+</body>
+</html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 350);
+    }, [editor, title]);
 
     // Limpa timer ao desmontar
     useEffect(() => () => clearTimeout(saveTimerRef.current), []);
@@ -229,7 +312,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                     type="text"
                     value={title}
                     onChange={e => setTitle(e.target.value)}
-                    onBlur={handleSave}
+                    onBlur={() => handleSave()}
                     placeholder="Título da página"
                     className="text-lg font-bold text-primary outline-none flex-1 bg-transparent mr-4 placeholder:text-muted placeholder:font-normal"
                 />
@@ -254,7 +337,23 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                     <span className="text-[10px] text-muted font-medium uppercase tracking-wider hidden sm:block">
                         {saving ? 'Salvando...' : 'Salvo'}
                     </span>
-                    <Button variant="ghost" onClick={handleSave} disabled={saving} className="gap-1.5">
+                    {/* Histórico de versões */}
+                    <button
+                        onClick={() => setShowVersionPanel(v => !v)}
+                        title="Histórico de versões"
+                        className={`p-2 rounded-[var(--radius-md)] transition-colors ${showVersionPanel ? 'bg-brand/10 text-brand' : 'text-muted hover:bg-surface-0 hover:text-secondary'}`}
+                    >
+                        <History size={17} />
+                    </button>
+                    {/* Exportar PDF */}
+                    <button
+                        onClick={handleExportPdf}
+                        title="Exportar como PDF"
+                        className="p-2 text-muted hover:bg-surface-0 hover:text-secondary rounded-[var(--radius-md)] transition-colors"
+                    >
+                        <Download size={17} />
+                    </button>
+                    <Button variant="ghost" onClick={() => handleSave(true)} disabled={saving} className="gap-1.5">
                         <Save size={15} /> Salvar
                     </Button>
                     <div className="w-px h-5 bg-border-subtle" />
@@ -450,7 +549,8 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                 </TB>
             </div>
 
-            {/* ── Área do editor ── */}
+            {/* ── Área do editor + painel de versões ── */}
+            <div className="flex-1 flex overflow-hidden">
             <div className="flex-1 overflow-y-auto bg-surface-card custom-scrollbar">
                 <div className="max-w-3xl mx-auto py-10 px-8">
                     <EditorContent editor={editor} className="tiptap-editor-container" />
@@ -503,6 +603,22 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                 </div>
             </div>
 
+            {/* ── Painel de versões ── */}
+            {showVersionPanel && (
+                <VersionHistoryPanel
+                    documentId={documentId}
+                    currentTitle={title}
+                    onRestore={(version: DocumentVersion) => {
+                        editor?.commands.setContent(version.content as any);
+                        setTitle(version.title);
+                        restoreVersion(documentId, version);
+                        setShowVersionPanel(false);
+                    }}
+                    onClose={() => setShowVersionPanel(false)}
+                />
+            )}
+            </div>
+
             {/* ── Status bar ── */}
             <div className="h-7 border-t border-border-subtle bg-surface-0/60 px-6 flex items-center justify-end gap-4 shrink-0">
                 <span className="text-[10px] text-muted">
@@ -524,7 +640,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                 /* Tipografia — tokens do design system */
                 .tiptap-editor-container .ProseMirror h1 { font-size: 2.25rem; font-weight: 800; margin: 1.5rem 0 0.5rem; color: #1c1a18; line-height: 1.2; }
                 .tiptap-editor-container .ProseMirror h2 { font-size: 1.6rem; font-weight: 700; margin: 1.25rem 0 0.4rem; color: #1c1a18; line-height: 1.3; }
-                .tiptap-editor-container .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.35rem; color: #6b6860; line-height: 1.4; }
+                .tiptap-editor-container .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.35rem; color: #1c1a18; line-height: 1.4; }
                 .tiptap-editor-container .ProseMirror p { margin-bottom: 0.5rem; line-height: 1.55; color: #1c1a18; font-size: 1rem; }
                 .tiptap-editor-container .ProseMirror s { text-decoration: line-through; color: #a09d98; }
 
@@ -568,6 +684,26 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
 
                 /* Highlight */
                 .tiptap-editor-container mark { border-radius: 3px; padding: 0.1em 0.15em; }
+
+                /* Doc Mention chip */
+                .doc-mention-chip {
+                    display: inline-flex; align-items: center; gap: 0.25em;
+                    background: color-mix(in srgb, #db4035 8%, transparent);
+                    border: 1px solid color-mix(in srgb, #db4035 25%, transparent);
+                    color: #b83228; font-size: 0.82em; font-weight: 500;
+                    padding: 0.15em 0.5em 0.15em 0.35em; border-radius: 5px;
+                    cursor: pointer; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+                    vertical-align: middle; white-space: nowrap; user-select: none;
+                    line-height: 1.6;
+                }
+                .doc-mention-chip:hover {
+                    background: color-mix(in srgb, #db4035 15%, transparent);
+                    border-color: color-mix(in srgb, #db4035 40%, transparent);
+                    box-shadow: 0 1px 4px color-mix(in srgb, #db4035 15%, transparent);
+                }
+                .doc-mention-icon { display: inline; flex-shrink: 0; opacity: 0.75; }
+                .doc-mention-ext { display: inline; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; margin-left: 0.1em; }
+                .doc-mention-chip:hover .doc-mention-ext { opacity: 0.55; }
 
                 /* Toggle / Details block */
                 .tiptap-details { margin: 0.75rem 0; }

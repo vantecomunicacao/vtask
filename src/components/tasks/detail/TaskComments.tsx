@@ -6,6 +6,9 @@ import { ptBR } from 'date-fns/locale';
 import { Button } from '../../ui/Button';
 import { MessageSquare } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
+import { createNotification } from '../../../store/notificationStore';
+import { useTaskStore } from '../../../store/taskStore';
+import { useWorkspaceStore } from '../../../store/workspaceStore';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type Comment = Database['public']['Tables']['comments']['Row'] & { user?: Profile | null };
@@ -52,6 +55,20 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
             if (!error) {
                 setNewComment('');
                 reload();
+
+                // Notificar o responsável da tarefa (se diferente do comentarista)
+                const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
+                const workspaceId = useWorkspaceStore.getState().activeWorkspace?.id;
+                if (task?.assignee_id && workspaceId) {
+                    await createNotification({
+                        workspace_id: workspaceId,
+                        user_id: task.assignee_id,
+                        actor_id: session.user.id,
+                        type: 'comment',
+                        task_id: taskId,
+                        task_title: task.title,
+                    });
+                }
             }
         };
 

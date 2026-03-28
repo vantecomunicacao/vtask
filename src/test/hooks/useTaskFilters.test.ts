@@ -36,6 +36,7 @@ const defaultParams = {
     search: '',
     selectedProject: 'all',
     selectedAssignee: 'all',
+    selectedCategory: 'all',
     showCompleted: false,
     groupBy: 'status' as const,
     sortConfig: { field: 'due_date' as const, direction: 'asc' as const },

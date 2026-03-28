@@ -10,7 +10,7 @@ import {
     Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare,
     Table, Image, Code, Quote, Type, Minus,
     Info, AlertTriangle, CheckCircle, AlertCircle, StickyNote,
-    ChevronRight,
+    ChevronRight, FileText,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -137,6 +137,16 @@ export const suggestionItems: SlashCommandItem[] = [
         },
     },
     // Blocos
+    {
+        title: 'Mencionar documento',
+        description: 'Inserir link para outro documento.',
+        searchTerms: ['doc', 'mention', 'link', 'documento', 'pagina', 'mencionar'],
+        icon: FileText,
+        category: 'Blocos',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertContent('[[').run();
+        },
+    },
     {
         title: 'Toggle',
         description: 'Seção expansível/colapsável.',

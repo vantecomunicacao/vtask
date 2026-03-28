@@ -1,11 +1,15 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Layers, Trash2, BookOpen } from 'lucide-react';
+import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Layers, Trash2, BookOpen, Shield, Search } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useTaskStore } from '../../store/taskStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { supabase } from '../../lib/supabase';
+import { useNotificationStore } from '../../store/notificationStore';
+import { NotificationPanel } from '../ui/NotificationPanel';
+import { OnboardingModal } from '../onboarding/OnboardingModal';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-[var(--radius-md)] transition-colors ${isActive
@@ -15,12 +19,33 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function AppLayout() {
     const { user, signOut } = useAuthStore();
-    const { activeWorkspace, fetchWorkspaces } = useWorkspaceStore();
+    const { activeWorkspace, fetchWorkspaces, showOnboarding } = useWorkspaceStore();
     const { projects, fetchProjects } = useProjectStore();
     const { fetchCategories } = useTaskStore();
+    const { subscribeToNotifications, unsubscribe } = useNotificationStore();
     const navigate = useNavigate();
+    const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
+    useEffect(() => {
+        if (!user) return;
+        (async () => {
+            const { data } = await supabase
+                .from('profiles')
+                .select('is_platform_admin')
+                .eq('id', user.id)
+                .single();
+            setIsPlatformAdmin(data?.is_platform_admin ?? false);
+        })();
+    }, [user]);
 
     useKeyboardShortcuts();
+
+    useEffect(() => {
+        if (user) {
+            subscribeToNotifications(user.id);
+            return () => unsubscribe();
+        }
+    }, [user, subscribeToNotifications, unsubscribe]);
 
     useEffect(() => {
         fetchWorkspaces();
@@ -107,6 +132,12 @@ export default function AppLayout() {
                         <Trash2 size={18} />
                         Lixeira
                     </NavLink>
+                    {isPlatformAdmin && (
+                        <NavLink to="/admin" className={navLinkClass}>
+                            <Shield size={18} />
+                            Admin
+                        </NavLink>
+                    )}
                     <NavLink to="/configuracoes" className={navLinkClass}>
                         <Settings size={18} />
                         Configurações
@@ -130,6 +161,15 @@ export default function AppLayout() {
                 <header className="h-16 shrink-0 border-b border-border-subtle bg-surface-card/60 backdrop-blur-sm z-10 flex items-center px-8">
                     <div className="flex-1" />
                     <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
+                            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface-0 text-muted text-sm hover:border-brand/40 hover:text-secondary transition-colors"
+                        >
+                            <Search size={13} />
+                            <span className="text-xs">Buscar...</span>
+                            <kbd className="text-[10px] font-mono bg-surface-1 border border-border-subtle px-1 rounded ml-1">⌘K</kbd>
+                        </button>
+                        <NotificationPanel />
                         <span className="text-sm text-muted hidden sm:block">{user?.email}</span>
                         <div className="w-8 h-8 rounded-full border border-border-subtle overflow-hidden">
                             <img src={avatarUrl} alt="Avatar" />
@@ -141,6 +181,8 @@ export default function AppLayout() {
                     <Outlet />
                 </div>
             </main>
+
+        {showOnboarding && <OnboardingModal />}
         </div>
     );
 }

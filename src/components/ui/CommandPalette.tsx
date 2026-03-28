@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useTaskStore, type TaskWithAssignee } from '../../store/taskStore';
 import { useProjectStore } from '../../store/projectStore';
+import { useDocumentStore } from '../../store/documentStore';
 import { TaskFormModal } from '../tasks/TaskFormModal';
 import { TaskDetailModal } from '../tasks/TaskDetailModal';
 import { cn } from '../../lib/utils';
@@ -30,6 +31,7 @@ export function CommandPalette() {
     const navigate = useNavigate();
     const { tasks, statuses } = useTaskStore();
     const { projects } = useProjectStore();
+    const { documents } = useDocumentStore();
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -153,6 +155,29 @@ export function CommandPalette() {
                                                 {project.client && (
                                                     <span className="text-[10px] font-bold text-muted shrink-0">{project.client.name}</span>
                                                 )}
+                                                <ChevronRight size={12} className="text-muted shrink-0 opacity-0 group-aria-selected:opacity-100 transition-opacity" />
+                                            </Command.Item>
+                                        ))}
+                                    </Command.Group>
+                                )}
+
+                                {/* Documents */}
+                                {documents.length > 0 && (
+                                    <Command.Group>
+                                        <div className="px-2 pt-3 pb-1 text-[10px] font-black text-muted uppercase tracking-widest">
+                                            Documentos
+                                        </div>
+                                        {documents.slice(0, 50).map(doc => (
+                                            <Command.Item
+                                                key={doc.id}
+                                                value={`documento ${doc.title}`}
+                                                onSelect={() => { close(); navigate(`/documentos/${doc.id}`); }}
+                                                className="flex items-center gap-3 px-3 py-2.5 mt-0.5 rounded-lg cursor-pointer aria-selected:bg-surface-0 text-sm transition-colors group"
+                                            >
+                                                <FileText className="w-3.5 h-3.5 shrink-0 text-muted" />
+                                                <span className="flex-1 font-medium text-primary truncate">
+                                                    {doc.title || 'Sem título'}
+                                                </span>
                                                 <ChevronRight size={12} className="text-muted shrink-0 opacity-0 group-aria-selected:opacity-100 transition-opacity" />
                                             </Command.Item>
                                         ))}

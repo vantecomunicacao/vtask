@@ -10,8 +10,10 @@ interface WorkspaceState {
     activeWorkspace: Workspace | null;
     loading: boolean;
     error: string | null;
+    showOnboarding: boolean;
     fetchWorkspaces: () => Promise<void>;
     setActiveWorkspace: (workspace: Workspace) => void;
+    setShowOnboarding: (v: boolean) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
@@ -19,6 +21,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     activeWorkspace: null,
     loading: false,
     error: null,
+    showOnboarding: false,
+    setShowOnboarding: (v) => set({ showOnboarding: v }),
 
     fetchWorkspaces: async () => {
         set({ loading: true, error: null });
@@ -100,6 +104,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
             }
 
             currentWorkspaceIds = [newWorkspace.id];
+            set({ showOnboarding: true });
             if (import.meta.env.DEV) console.log('Workspace auto-created successfully:', newWorkspace.id);
         }
 
@@ -124,4 +129,5 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     },
 
     setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),
+
 }));
