@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Plus, UserX, UserCheck, KeyRound, Loader2, X } from 'lucide-react';
+import { Shield, Plus, UserX, UserCheck, KeyRound, Loader2, X, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/ui/Button';
@@ -110,6 +110,20 @@ export default function Admin() {
             await loadUsers();
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : 'Erro');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleDelete = async (u: PlatformUser) => {
+        if (!confirm(`Tem certeza que deseja deletar a conta de ${u.email}? Esta ação não pode ser desfeita.`)) return;
+        setActionLoading(`delete-${u.id}`);
+        try {
+            await callAdmin('delete', { user_id: u.id });
+            toast.success(`Conta de ${u.email} deletada`);
+            await loadUsers();
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Erro ao deletar conta');
         } finally {
             setActionLoading(null);
         }
@@ -263,6 +277,17 @@ export default function Admin() {
                                                     {actionLoading === `reset-${u.email}`
                                                         ? <Loader2 size={16} className="animate-spin" />
                                                         : <KeyRound size={16} />
+                                                    }
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(u)}
+                                                    disabled={actionLoading === `delete-${u.id}`}
+                                                    title="Deletar conta permanentemente"
+                                                    className="p-1.5 rounded-lg text-secondary hover:bg-surface-2 transition-colors disabled:opacity-50"
+                                                >
+                                                    {actionLoading === `delete-${u.id}`
+                                                        ? <Loader2 size={16} className="animate-spin" />
+                                                        : <Trash2 size={16} className="text-red-500" />
                                                     }
                                                 </button>
                                             </>

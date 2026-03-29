@@ -37,7 +37,7 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      theme: 'default',
+      theme: 'minimal',
       setTheme: (theme) => set({ theme }),
       darkMode: false,
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),

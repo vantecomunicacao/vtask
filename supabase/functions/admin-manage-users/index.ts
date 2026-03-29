@@ -25,24 +25,26 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  // Cliente com o JWT do usuário (respeita RLS)
-  const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
+  // Cliente admin (service_role — bypassa RLS)
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data: profile, error: profileError } = await userClient
+  // Verifica o usuário a partir do JWT
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user: callerUser }, error: userError } = await adminClient.auth.getUser(token);
+  if (userError || !callerUser) return json({ error: "Não autorizado" }, 401);
+
+  // Verifica se é platform admin usando adminClient (bypassa RLS)
+  const { data: profile, error: profileError } = await adminClient
     .from("profiles")
     .select("id, is_platform_admin")
+    .eq("id", callerUser.id)
     .single();
 
   if (profileError || !profile?.is_platform_admin) {
     return json({ error: "Acesso negado. Somente administradores da plataforma." }, 403);
   }
-
-  // Cliente admin (service_role — bypassa RLS, usado apenas aqui)
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
 
   // --- Roteamento por action ---
   const { action, ...payload } = await req.json();
@@ -123,6 +125,17 @@ Deno.serve(async (req) => {
     const { error } = await adminClient.auth.admin.updateUserById(user_id, {
       ban_duration: "none",
     });
+    if (error) return json({ error: error.message }, 500);
+    return json({ success: true });
+  }
+
+  // DELETE — remove o usuário permanentemente
+  if (action === "delete") {
+    const { user_id } = payload as { user_id: string };
+    if (!user_id) return json({ error: "user_id obrigatório" }, 400);
+    if (user_id === profile.id) return json({ error: "Você não pode deletar a si mesmo" }, 400);
+
+    const { error } = await adminClient.auth.admin.deleteUser(user_id);
     if (error) return json({ error: error.message }, 500);
     return json({ success: true });
   }
