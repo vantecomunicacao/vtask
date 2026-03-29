@@ -45,6 +45,7 @@ export function TaskFiltersBar({
     onExpandAll, onCollapseAll,
 }: TaskFiltersBarProps) {
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+    const [filtersAlign, setFiltersAlign] = useState<'left' | 'right'>('left');
     const filtersRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -98,7 +99,13 @@ export function TaskFiltersBar({
                 {/* Filters dropdown */}
                 <div className="relative" ref={filtersRef}>
                     <button
-                        onClick={() => setIsFiltersOpen(v => !v)}
+                        onClick={() => {
+                            if (!isFiltersOpen && filtersRef.current) {
+                                const rect = filtersRef.current.getBoundingClientRect();
+                                setFiltersAlign(rect.left + 256 > window.innerWidth - 8 ? 'right' : 'left');
+                            }
+                            setIsFiltersOpen(v => !v);
+                        }}
                         className={cn(
                             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200",
                             activeFilterCount > 0
@@ -117,7 +124,7 @@ export function TaskFiltersBar({
                     </button>
 
                     {isFiltersOpen && (
-                        <div className="absolute top-full left-0 mt-1 w-64 bg-surface-card border border-border-subtle rounded-lg shadow-float z-20 p-3 flex flex-col gap-3">
+                        <div className={cn("absolute top-full mt-1 w-64 bg-surface-card border border-border-subtle rounded-lg shadow-float z-20 p-3 flex flex-col gap-3", filtersAlign === 'right' ? 'right-0' : 'left-0')}>
                             <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-black text-muted uppercase tracking-widest">Projeto</label>
                                 <Select value={selectedProject} onChange={(e) => onProjectChange(e.target.value)}>

@@ -62,6 +62,18 @@ export const StatusPopover: React.FC<StatusPopoverProps> = ({
         handleClose();
     };
 
+    const safeStyle = (() => {
+        if (!position) return {};
+        const POPOVER_W = 240; // w-60
+        const POPOVER_H = 320; // approximate max height
+        const MARGIN = 8;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const left = Math.min(position.left, vw - POPOVER_W - MARGIN);
+        const top = Math.min(position.top, vh - POPOVER_H - MARGIN);
+        return { top: Math.max(MARGIN, top), left: Math.max(MARGIN, left) };
+    })();
+
     return (
         <div
             ref={popoverRef}
@@ -70,7 +82,7 @@ export const StatusPopover: React.FC<StatusPopoverProps> = ({
                 isClosing ? "popover-exit" : "popover-enter",
                 !mounted && "opacity-0"
             )}
-            style={position ? { top: position.top, left: position.left } : {}}
+            style={safeStyle}
         >
             {/* Header */}
             <div className="px-3.5 py-2.5 bg-gradient-to-r from-surface-2 to-surface-0/50 border-b border-border-subtle">

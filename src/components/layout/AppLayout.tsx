@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Layers, Trash2, BookOpen, Shield, Search } from 'lucide-react';
+import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Layers, Trash2, BookOpen, Shield, Search, Archive, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useEffect, useState } from 'react';
@@ -25,6 +25,7 @@ export default function AppLayout() {
     const { subscribeToNotifications, unsubscribe } = useNotificationStore();
     const navigate = useNavigate();
     const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+    const [projectsExpanded, setProjectsExpanded] = useState(true);
 
     useEffect(() => {
         if (!user) return;
@@ -112,22 +113,46 @@ export default function AppLayout() {
                         </NavLink>
                     </nav>
 
-                    {projects.length > 0 && (
-                        <div className="mt-8">
-                            <h4 className="px-3 text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Seus Projetos</h4>
-                            <div className="space-y-1">
-                                {projects.map(p => (
-                                    <NavLink key={p.id} to={`/projetos/${p.id}`} className={({ isActive }) => `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-[var(--radius-md)] transition-colors ${isActive ? 'text-brand' : 'text-secondary hover:bg-surface-0'}`}>
-                                        <span className={p.color ? '' : 'text-gray-400 font-bold'} style={p.color ? { color: p.color } : {}}>#</span>
-                                        <span className="truncate">{p.name}</span>
-                                    </NavLink>
-                                ))}
+                    {(() => {
+                        const activeProjects = projects.filter(p => p.status === 'active');
+                        const archivedCount = projects.filter(p => p.status === 'archived' || p.status === 'completed').length;
+                        return (
+                            <div className="mt-6">
+                                <button
+                                    onClick={() => setProjectsExpanded(v => !v)}
+                                    className="w-full flex items-center gap-1 px-3 mb-1 group"
+                                >
+                                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex-1 text-left">Projetos Ativos</span>
+                                    {projectsExpanded ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
+                                </button>
+                                {projectsExpanded && (
+                                    <div className="space-y-0.5">
+                                        {activeProjects.length === 0 ? (
+                                            <p className="px-3 py-2 text-xs text-muted">Nenhum projeto ativo.</p>
+                                        ) : activeProjects.map(p => (
+                                            <NavLink key={p.id} to={`/projetos/${p.id}`} className={({ isActive }) => `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-[var(--radius-md)] transition-colors ${isActive ? 'text-brand bg-brand-light' : 'text-secondary hover:bg-surface-0'}`}>
+                                                <span style={p.color ? { color: p.color } : { color: '#9ca3af' }} className="font-bold">#</span>
+                                                <span className="truncate">{p.name}</span>
+                                            </NavLink>
+                                        ))}
+                                        {archivedCount > 0 && (
+                                            <NavLink to="/arquivados" className={({ isActive }) => `flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] transition-colors mt-1 ${isActive ? 'text-brand bg-brand-light' : 'text-muted hover:bg-surface-0 hover:text-secondary'}`}>
+                                                <Archive size={12} />
+                                                <span>{archivedCount} arquivado{archivedCount !== 1 ? 's' : ''}</span>
+                                            </NavLink>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
 
                 <div className="p-4 border-t border-border-subtle space-y-1">
+                    <NavLink to="/arquivados" className={navLinkClass}>
+                        <Archive size={18} />
+                        Arquivados
+                    </NavLink>
                     <NavLink to="/lixeira" className={navLinkClass}>
                         <Trash2 size={18} />
                         Lixeira
@@ -162,7 +187,7 @@ export default function AppLayout() {
                     <div className="flex-1" />
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
+                            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
                             className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface-0 text-muted text-sm hover:border-brand/40 hover:text-secondary transition-colors"
                         >
                             <Search size={13} />

@@ -14,6 +14,9 @@ interface ProjectState {
     fetchProjects: (workspaceId: string) => Promise<void>;
     updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
     deleteProject: (id: string) => Promise<void>;
+    archiveProject: (id: string) => Promise<void>;
+    completeProject: (id: string) => Promise<void>;
+    reactivateProject: (id: string) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set) => ({
@@ -60,6 +63,21 @@ export const useProjectStore = create<ProjectState>((set) => ({
             projects: state.projects.map(p => p.id === id ? { ...p, ...updates } : p),
             loading: false
         }));
+    },
+
+    archiveProject: async (id) => {
+        const store = useProjectStore.getState();
+        await store.updateProject(id, { status: 'archived' });
+    },
+
+    completeProject: async (id) => {
+        const store = useProjectStore.getState();
+        await store.updateProject(id, { status: 'completed' });
+    },
+
+    reactivateProject: async (id) => {
+        const store = useProjectStore.getState();
+        await store.updateProject(id, { status: 'active' });
     },
 
     deleteProject: async (id) => {

@@ -60,7 +60,16 @@ export function DatePickerPopover({ open, onClose, value, onChange, anchorRef }:
         const anchor = anchorRef.current;
         if (anchor) {
             const rect = anchor.getBoundingClientRect();
-            setPos({ top: rect.bottom + 6, left: rect.left });
+            const POPOVER_W = 256; // w-64
+            const POPOVER_H = 320; // approximate
+            const MARGIN = 8;
+            const left = rect.left + POPOVER_W > window.innerWidth - MARGIN
+                ? Math.max(MARGIN, rect.right - POPOVER_W)
+                : rect.left;
+            const top = rect.bottom + 6 + POPOVER_H > window.innerHeight - MARGIN
+                ? Math.max(MARGIN, rect.top - POPOVER_H - 6)
+                : rect.bottom + 6;
+            setPos({ top, left });
         }
         const handler = (e: MouseEvent) => {
             if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) onClose();

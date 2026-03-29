@@ -124,8 +124,8 @@ export const TaskRow = React.memo(function TaskRow({
                             className={cn(
                                 "text-sm font-medium transition-colors duration-150 cursor-pointer truncate flex items-center gap-2 min-w-0",
                                 isCompleted && 'line-through text-muted',
-                                !isCompleted && task.due_date && isPast(parseLocalDate(task.due_date)) && !isToday(parseLocalDate(task.due_date)) && 'text-red-700 font-bold',
-                                !isCompleted && !(task.due_date && isPast(parseLocalDate(task.due_date)) && !isToday(parseLocalDate(task.due_date))) && 'text-primary group-hover:text-brand'
+                                !isCompleted && task.due_date && isPast(parseLocalDate(task.due_date)) && !isToday(parseLocalDate(task.due_date)) && 'font-bold',
+                                !isCompleted && 'text-primary group-hover:text-brand'
                             )}
                         >
                             {task.category && task.category.color && (

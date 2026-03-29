@@ -7,6 +7,7 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { DatePicker } from '../ui/DatePicker';
+import { MiniRichEditor } from '../ui/MiniRichEditor';
 import { supabase } from '../../lib/supabase';
 import { useTaskStore } from '../../store/taskStore';
 import { useProjectStore } from '../../store/projectStore';
@@ -43,6 +44,7 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
     const { projects } = useProjectStore();
     const [loading, setLoading] = useState(false);
     const [users, setUsers] = useState<Profile[]>([]);
+    const [editorKey, setEditorKey] = useState(0);
 
     const { control, register, handleSubmit, formState: { errors }, reset, setValue } = useForm<TaskFormData>({
         resolver: zodResolver(taskSchema),
@@ -107,6 +109,7 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
             onTaskCreated?.();
 
             reset();
+            setEditorKey(k => k + 1);
             onClose();
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : 'Erro ao criar tarefa';
@@ -127,14 +130,17 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
                     className="text-lg font-bold border-transparent px-0 hover:border-gray-200 focus:border-brand shadow-none"
                 />
 
-                <div className="space-y-1">
-                    <textarea
-                        {...register('description')}
-                        rows={4}
-                        placeholder="Adicione uma descrição detalhada..."
-                        className="w-full px-3 py-2 border border-border-subtle rounded-[var(--radius-md)] shadow-none placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 sm:text-sm text-primary resize-none bg-surface-card"
-                    />
-                </div>
+                <Controller
+                    name="description"
+                    control={control}
+                    render={({ field }) => (
+                        <MiniRichEditor
+                            key={editorKey}
+                            value={field.value ?? ''}
+                            onChange={field.onChange}
+                        />
+                    )}
+                />
 
                 <div className="grid grid-cols-2 gap-4">
                     {/* Seletor de projeto — só aparece quando não foi passado via prop */}

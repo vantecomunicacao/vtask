@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button';
 import { useProjectStore } from '../store/projectStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { Link } from 'react-router-dom';
-import { Folder, Users, Calendar, Edit2, Trash2 } from 'lucide-react';
+import { Folder, Users, Calendar, Edit2, Trash2, Archive, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ProjectFormModal } from '../components/projects/ProjectFormModal';
@@ -13,7 +13,7 @@ import type { ProjectWithClient } from '../store/projectStore';
 
 export default function Projetos() {
     const { activeWorkspace } = useWorkspaceStore();
-    const { projects, loading, error, fetchProjects, deleteProject } = useProjectStore();
+    const { projects, loading, error, fetchProjects, deleteProject, archiveProject, completeProject } = useProjectStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [projectToEdit, setProjectToEdit] = useState<ProjectWithClient | null>(null);
 
@@ -47,6 +47,26 @@ export default function Projetos() {
         }
     };
 
+    const handleArchive = async (id: string) => {
+        try {
+            await archiveProject(id);
+            toast.success('Projeto arquivado.');
+        } catch {
+            toast.error('Erro ao arquivar projeto.');
+        }
+    };
+
+    const handleComplete = async (id: string) => {
+        try {
+            await completeProject(id);
+            toast.success('Projeto marcado como concluído!');
+        } catch {
+            toast.error('Erro ao concluir projeto.');
+        }
+    };
+
+    const activeProjects = projects.filter(p => p.status === 'active');
+
     return (
         <div className="space-y-6 fade-in h-full flex flex-col">
             <div className="flex items-center justify-between">
@@ -60,16 +80,16 @@ export default function Projetos() {
                 <div className="flex-1 flex items-center justify-center">
                     <div className="w-8 h-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
                 </div>
-            ) : projects.length === 0 ? (
+            ) : activeProjects.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border-subtle rounded-[var(--radius-card)] bg-surface-card/50">
                     <Folder className="w-12 h-12 text-muted mb-4" />
-                    <h3 className="text-lg font-bold text-primary">Nenhum projeto encontrado</h3>
+                    <h3 className="text-lg font-bold text-primary">Nenhum projeto ativo</h3>
                     <p className="text-sm text-secondary mb-6">Crie seu primeiro projeto para começar a gerenciar tarefas.</p>
                     <Button onClick={handleOpenCreate}>Criar Projeto</Button>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {projects.map(project => (
+                    {activeProjects.map(project => (
                         <Card key={project.id} className="group hover:border-gray-300 transition-colors flex flex-col">
                             <CardHeader className="pb-4">
                                 <div className="flex items-start justify-between">
@@ -96,6 +116,20 @@ export default function Projetos() {
                                             <Edit2 size={16} />
                                         </button>
                                         <button
+                                            onClick={() => handleComplete(project.id)}
+                                            className="p-1.5 text-muted hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                                            title="Marcar como Concluído"
+                                        >
+                                            <CheckCircle2 size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleArchive(project.id)}
+                                            className="p-1.5 text-muted hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
+                                            title="Arquivar Projeto"
+                                        >
+                                            <Archive size={16} />
+                                        </button>
+                                        <button
                                             onClick={() => handleDelete(project.id)}
                                             className="p-1.5 text-muted hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                             title="Excluir Projeto"
@@ -116,8 +150,8 @@ export default function Projetos() {
                                     <div className="flex items-center gap-2 text-xs text-muted font-medium">
                                         <Users size={14} /> Equipe
                                     </div>
-                                    <span className="text-xs font-bold px-2 py-1 rounded-[var(--radius-xs)] bg-surface-0 text-secondary uppercase tracking-wider">
-                                        {project.status}
+                                    <span className="text-xs font-bold px-2 py-1 rounded-[var(--radius-xs)] bg-green-50 text-green-700 border border-green-200 uppercase tracking-wider">
+                                        Ativo
                                     </span>
                                 </div>
                             </CardContent>

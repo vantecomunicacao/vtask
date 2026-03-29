@@ -57,7 +57,15 @@
       "Bash(npx vite:*)",
       "Bash(grep -o \"slide-in-from-top\\\\|animate-in\\\\|zoom-in-95\" dist/assets/*.css)",
       "Bash(grep \"popover-enter\" dist/assets/*.css)",
-      "Bash(ls c:UsersleofbOneDriveDocumentosProjetos Antigravityvflow-tarefas/*.sql)"
+      "Bash(ls c:UsersleofbOneDriveDocumentosProjetos Antigravityvflow-tarefas/*.sql)",
+      "Bash(del \"c:\\\\Users\\\\leofb\\\\OneDrive\\\\Documentos\\\\Projetos Antigravity\\\\vflow-tarefas\\\\src\\\\components\\\\documents\\\\extensions\\\\DocMention.ts\")",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(grep '\"\"date-fns\"\"' package.json)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -l \"color\\\\|openai\" *.sql)",
+      "Bash(ls -la *.sql)",
+      "Bash(find /c/Users/leofb/OneDrive/Documentos/Projetos Antigravity/vflow-tarefas/src -type f -name *.tsx -o -name *.ts)",
+      "Bash(grep -r \"projectId\\\\|SelectProject\\\\|project.*selector\" /c/Users/leofb/OneDrive/Documentos/Projetos Antigravity/vflow-tarefas/src/components/documents --include=*.tsx --include=*.ts)"
     ]
   }
 }

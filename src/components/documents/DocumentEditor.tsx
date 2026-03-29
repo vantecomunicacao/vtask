@@ -33,8 +33,9 @@ import {
     AlignLeft, AlignCenter, AlignRight, Table as TableIcon,
     CheckSquare, Code, Image as ImageIcon, Trash2, Minus,
     FileText, Plus, Undo, Redo, Palette, Highlighter, FolderOpen,
-    History, Download,
+    History, Download, ChevronDown, Check,
 } from 'lucide-react';
+import { cn } from '../../lib/utils';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import type { DocumentVersion } from '../../store/documentStore';
 
@@ -83,6 +84,18 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
     const [saving, setSaving] = useState(false);
     const [wordCount, setWordCount] = useState(0);
     const [showVersionPanel, setShowVersionPanel] = useState(false);
+    const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+    const projectDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node)) {
+                setProjectDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const handleSaveRef = useRef<() => void>(() => {});
@@ -319,18 +332,51 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                 <div className="flex items-center gap-2">
                     {/* Project link */}
                     {projects.length > 0 && (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                            <FolderOpen size={13} className="text-muted shrink-0" />
-                            <select
-                                value={doc.project_id || ''}
-                                onChange={e => updateDocument(documentId, { project_id: e.target.value || null })}
-                                className="text-xs text-secondary bg-transparent border border-border-subtle rounded px-1.5 py-0.5 outline-none hover:border-brand/40 focus:ring-1 focus:ring-brand/20 max-w-[130px] cursor-pointer"
+                        <div className="relative shrink-0" ref={projectDropdownRef}>
+                            <button
+                                onClick={() => setProjectDropdownOpen(v => !v)}
+                                className={cn(
+                                    'flex items-center gap-1.5 px-2 py-1 text-xs rounded-[var(--radius-md)] border transition-colors cursor-pointer outline-none',
+                                    doc.project_id
+                                        ? 'border-brand/30 text-brand bg-brand/5 hover:bg-brand/10'
+                                        : 'border-border-subtle text-secondary bg-transparent hover:border-brand/40 hover:text-primary'
+                                )}
                             >
-                                <option value="">Sem projeto</option>
-                                {projects.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
+                                <FolderOpen size={13} className="shrink-0" />
+                                <span className="max-w-[110px] truncate">
+                                    {projects.find(p => p.id === doc.project_id)?.name ?? 'Sem projeto'}
+                                </span>
+                                <ChevronDown size={12} className={cn('transition-transform duration-200 shrink-0', projectDropdownOpen && 'rotate-180')} />
+                            </button>
+                            {projectDropdownOpen && (
+                                <div className="absolute top-full right-0 mt-1 z-50 bg-surface-card border border-border-subtle rounded-card shadow-float overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 min-w-[160px]">
+                                    <div className="max-h-52 overflow-y-auto py-1">
+                                        <div
+                                            className={cn(
+                                                'flex items-center justify-between px-3 py-1.5 text-xs cursor-pointer transition-colors',
+                                                !doc.project_id ? 'bg-brand/5 text-brand font-medium' : 'text-secondary hover:bg-surface-2 hover:text-primary'
+                                            )}
+                                            onClick={() => { updateDocument(documentId, { project_id: null }); setProjectDropdownOpen(false); }}
+                                        >
+                                            <span>Sem projeto</span>
+                                            {!doc.project_id && <Check size={12} className="text-brand shrink-0" />}
+                                        </div>
+                                        {projects.map(p => (
+                                            <div
+                                                key={p.id}
+                                                className={cn(
+                                                    'flex items-center justify-between px-3 py-1.5 text-xs cursor-pointer transition-colors',
+                                                    doc.project_id === p.id ? 'bg-brand/5 text-brand font-medium' : 'text-secondary hover:bg-surface-2 hover:text-primary'
+                                                )}
+                                                onClick={() => { updateDocument(documentId, { project_id: p.id }); setProjectDropdownOpen(false); }}
+                                            >
+                                                <span className="truncate">{p.name}</span>
+                                                {doc.project_id === p.id && <Check size={12} className="text-brand shrink-0" />}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                     <div className="w-px h-5 bg-border-subtle" />
