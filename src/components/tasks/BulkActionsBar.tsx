@@ -10,7 +10,7 @@ interface BulkActionsBarProps {
 export function BulkActionsBar({ selectedCount, onCompleteAll, onDeleteAll, onCancel }: BulkActionsBarProps) {
     if (selectedCount === 0) return null;
     return (
-        <div className="fixed bottom-8 left-1/2 floating-bar-enter bg-gray-900/95 backdrop-blur-xl text-white px-6 py-3 rounded-card shadow-modal z-50 flex items-center gap-6 border border-white/10">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 floating-bar-enter bg-gray-900/95 backdrop-blur-xl text-white px-6 py-3 rounded-card shadow-modal z-50 flex items-center gap-6 border border-white/10">
             <div className="flex items-center gap-2 border-r border-gray-700 pr-6">
                 <CheckCircle size={18} className="text-brand" />
                 <span className="text-sm font-black tracking-widest">{selectedCount} SELECIONADAS</span>

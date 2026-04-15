@@ -9,6 +9,28 @@ export type Json =
 export interface Database {
     public: {
         Tables: {
+            project_folders: {
+                Row: {
+                    id: string
+                    workspace_id: string
+                    name: string
+                    position: number
+                    created_by: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    workspace_id: string
+                    name: string
+                    position?: number
+                    created_by?: string | null
+                    created_at?: string
+                }
+                Update: {
+                    name?: string
+                    position?: number
+                }
+            }
             document_folders: {
                 Row: {
                     id: string
@@ -142,6 +164,7 @@ export interface Database {
                     id: string
                     workspace_id: string
                     client_id: string | null
+                    folder_id: string | null
                     name: string
                     description: string | null
                     color: string | null
@@ -155,6 +178,7 @@ export interface Database {
                     id?: string
                     workspace_id: string
                     client_id?: string | null
+                    folder_id?: string | null
                     name: string
                     description?: string | null
                     color?: string | null
@@ -165,6 +189,7 @@ export interface Database {
                 }
                 Update: {
                     client_id?: string | null
+                    folder_id?: string | null
                     name?: string
                     description?: string | null
                     color?: string | null

@@ -53,6 +53,54 @@ function requireApiKey(req, res, next) {
   next();
 }
 
+// ── Helpers de chave ──────────────────────────────────────────────────────────
+// Resolve as chaves de API a partir de IDs — as chaves NUNCA saem do servidor
+async function resolveKeys(workspaceId, profileId) {
+  let aiKey = process.env.OPENAI_API_KEY || '';
+  let mcKey = process.env.MAILCHIMP_API_KEY || '';
+  let mcServer = process.env.MAILCHIMP_PREFIX || 'us5';
+  let testEmail = null;
+
+  if (!supabaseAdmin) return { aiKey, mcKey, mcServer, testEmail };
+
+  if (workspaceId) {
+    const { data: ws } = await supabaseAdmin
+      .from('workspaces')
+      .select('openai_api_key')
+      .eq('id', workspaceId)
+      .single();
+    if (ws?.openai_api_key) aiKey = ws.openai_api_key;
+  }
+
+  if (profileId) {
+    const { data: prof } = await supabaseAdmin
+      .from('email_profiles')
+      .select('mailchimp_api_key, mailchimp_server, test_email')
+      .eq('id', profileId)
+      .single();
+    if (prof?.mailchimp_api_key) mcKey = prof.mailchimp_api_key;
+    if (prof?.mailchimp_server) mcServer = prof.mailchimp_server;
+    if (prof?.test_email) testEmail = prof.test_email;
+  }
+
+  return { aiKey, mcKey, mcServer, testEmail };
+}
+
+// Retry simples para rate limit da OpenAI (429)
+async function callOpenAIWithRetry(ai, params, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await ai.chat.completions.create(params);
+    } catch (err) {
+      if (err.status === 429 && i < retries) {
+        await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 // Calcula a próxima execução com base na expressão cron (min hour dom month dow)
 function calcNextRun(cronExpr) {
   const parts = (cronExpr || '').split(' ');
@@ -105,156 +153,229 @@ const supabaseAdmin = (SUPABASE_URL && SUPABASE_SERVICE_KEY)
 const openai = new OpenAI({ apiKey: OPENAI_KEY });
 mailchimp.setConfig({ apiKey: MAILCHIMP_KEY, server: MAILCHIMP_PREFIX });
 
+// Fontes Google disponíveis (nome para URL do Google Fonts)
+const GOOGLE_FONT_MAP = {
+  'Montserrat': 'Montserrat:wght@400;600;700;900',
+  'Open+Sans': 'Open+Sans:wght@400;600;700',
+  'Playfair+Display': 'Playfair+Display:wght@400;700',
+};
+
+function googleFontTag(fontFamily) {
+  for (const [key, weights] of Object.entries(GOOGLE_FONT_MAP)) {
+    const name = key.replace('+', ' ');
+    if (fontFamily && fontFamily.startsWith(name)) {
+      return `<mj-font name="${name}" href="https://fonts.googleapis.com/css2?family=${weights}&display=swap" />`;
+    }
+  }
+  return '';
+}
+
 // --- Lógica de MJML Completa ---
 const INTERNAL_TEMPLATES = {
+  // MINIMALISTA: sem header cheio — só borda top colorida, logo e texto limpo
   'newsletter': `
 <mjml>
   <mj-head>
+    {{GOOGLE_FONT_TAG}}
     <mj-attributes>
-      <mj-all font-family="Helvetica Neue, Helvetica, Arial, sans-serif" />
-      <mj-text color="#333333" line-height="1.6" />
+      <mj-all font-family="{{FONT_FAMILY}}" />
+      <mj-text color="#374151" line-height="1.7" />
     </mj-attributes>
   </mj-head>
-  <mj-body background-color="{{BG_COLOR}}" padding="24px 0">
-    <mj-wrapper border-radius="16px" padding="0">
-      <mj-section background-color="{{HEADER_COLOR}}" padding="32px 30px">
+  <mj-body background-color="{{BG_COLOR}}" padding="32px 0">
+    <mj-wrapper padding="0">
+      <mj-section background-color="#ffffff" padding="40px 48px 24px" border-top="4px solid {{HEADER_COLOR}}">
         <mj-column>
           {{LOGO_HTML}}
-          <mj-text align="center" color="{{TITLE_COLOR}}" font-size="24px" font-weight="bold">{{TITLE}}</mj-text>
         </mj-column>
       </mj-section>
       {{BANNER_HTML}}
-      <mj-section background-color="#ffffff" padding="40px">
+      <mj-section background-color="#ffffff" padding="8px 48px 0">
         <mj-column>
-          <mj-text font-size="16px">{{BODY_HTML}}</mj-text>
+          <mj-text font-size="26px" font-weight="700" color="#111827" line-height="1.3" padding-bottom="16px">{{TITLE}}</mj-text>
+        </mj-column>
+      </mj-section>
+      <mj-section background-color="#ffffff" padding="0 48px 40px">
+        <mj-column>
+          <mj-text font-size="16px" line-height="1.8">{{BODY_HTML}}</mj-text>
+          <mj-spacer height="28px" />
           {{BUTTON_HTML}}
         </mj-column>
       </mj-section>
       {{BOTTOM_IMAGE_HTML}}
-      <mj-section background-color="#f9fafb" padding="24px">
+      <mj-section background-color="#f9fafb" padding="28px 48px" border-top="1px solid #e5e7eb">
         <mj-column>
-          <mj-text align="center" color="#9ca3af" font-size="12px">{{FOOTER_HTML}}</mj-text>
+          <mj-text align="center" color="#9ca3af" font-size="12px" line-height="1.6">{{FOOTER_HTML}}</mj-text>
         </mj-column>
       </mj-section>
     </mj-wrapper>
   </mj-body>
 </mjml>`,
+
+  // CORPORATIVO: faixa colorida lateral esquerda, logo à esquerda, texto formal
   'comunicado': `
 <mjml>
   <mj-head>
+    {{GOOGLE_FONT_TAG}}
     <mj-attributes>
-      <mj-all font-family="Helvetica Neue, Helvetica, Arial, sans-serif" />
-      <mj-text color="#333333" line-height="1.6" />
+      <mj-all font-family="{{FONT_FAMILY}}" />
+      <mj-text color="#374151" line-height="1.8" />
     </mj-attributes>
   </mj-head>
-  <mj-body background-color="{{BG_COLOR}}" padding="24px 0">
-    <mj-wrapper border-radius="16px" padding="0">
-      <mj-section background-color="#ffffff" padding="40px" border-top="5px solid {{HEADER_COLOR}}">
-        <mj-column>
+  <mj-body background-color="{{BG_COLOR}}" padding="32px 0">
+    <mj-wrapper padding="0">
+      <mj-section background-color="#ffffff" padding="32px 48px 20px" border-top="6px solid {{HEADER_COLOR}}">
+        <mj-column width="60%">
           {{LOGO_HTML}}
-          <mj-text font-size="22px" font-weight="bold" color="#111827" align="center" padding-bottom="20px">Comunicado Oficial</mj-text>
-          <mj-text font-size="16px" color="#374151" line-height="1.8">{{BODY_HTML}}</mj-text>
-          <mj-divider border-color="#e5e7eb" border-width="1px" padding-top="30px" padding-bottom="20px" />
+        </mj-column>
+        <mj-column width="40%">
+          <mj-text align="right" font-size="11px" color="#9ca3af" font-weight="600" text-transform="uppercase" letter-spacing="2px">Comunicado</mj-text>
+        </mj-column>
+      </mj-section>
+      <mj-section background-color="#ffffff" padding="0 48px 16px">
+        <mj-column>
+          <mj-divider border-color="#e5e7eb" border-width="1px" />
+        </mj-column>
+      </mj-section>
+      <mj-section background-color="#ffffff" padding="0 48px 8px">
+        <mj-column>
+          <mj-text font-size="22px" font-weight="700" color="#111827" line-height="1.3">{{TITLE}}</mj-text>
+        </mj-column>
+      </mj-section>
+      <mj-section background-color="#ffffff" padding="0 48px 40px">
+        <mj-column>
+          <mj-text font-size="16px" color="#374151" line-height="1.9">{{BODY_HTML}}</mj-text>
+          <mj-spacer height="24px" />
           {{BUTTON_HTML}}
         </mj-column>
       </mj-section>
-      <mj-section background-color="#f9fafb" padding="24px">
+      {{BANNER_HTML}}
+      {{BOTTOM_IMAGE_HTML}}
+      <mj-section background-color="#f1f5f9" padding="24px 48px" border-top="1px solid #e2e8f0">
         <mj-column>
-          <mj-text align="center" color="#9ca3af" font-size="12px">{{FOOTER_HTML}}</mj-text>
+          <mj-text align="center" color="#94a3b8" font-size="12px" line-height="1.6">{{FOOTER_HTML}}</mj-text>
         </mj-column>
       </mj-section>
     </mj-wrapper>
   </mj-body>
 </mjml>`,
+
+  // MODERNO: header escuro com logo + título colorido em destaque + banner grande
   'promocao': `
 <mjml>
   <mj-head>
+    {{GOOGLE_FONT_TAG}}
     <mj-attributes>
-      <mj-all font-family="Helvetica Neue, Helvetica, Arial, sans-serif" />
-      <mj-text color="#333333" line-height="1.6" />
+      <mj-all font-family="{{FONT_FAMILY}}" />
+      <mj-text color="#374151" line-height="1.7" />
     </mj-attributes>
   </mj-head>
-  <mj-body background-color="{{BG_COLOR}}" padding="24px 0">
-    <mj-wrapper border-radius="16px" padding="0">
-      <mj-section background-color="#111827" padding="30px">
-        <mj-column>
+  <mj-body background-color="{{BG_COLOR}}" padding="0">
+    <mj-wrapper padding="0">
+      <mj-section background-color="#0f172a" padding="28px 48px">
+        <mj-column width="50%">
           {{LOGO_HTML}}
-          <mj-text align="center" color="{{HEADER_COLOR}}" font-size="28px" font-weight="900" text-transform="uppercase">Oferta Especial</mj-text>
+        </mj-column>
+        <mj-column width="50%">
+          <mj-text align="right" font-size="11px" color="#64748b" font-weight="700" text-transform="uppercase" letter-spacing="2px">Newsletter</mj-text>
+        </mj-column>
+      </mj-section>
+      <mj-section background-color="#0f172a" padding="0 48px 40px">
+        <mj-column>
+          <mj-text font-size="36px" font-weight="900" color="{{HEADER_COLOR}}" line-height="1.15" text-transform="uppercase" letter-spacing="-1px">{{TITLE}}</mj-text>
         </mj-column>
       </mj-section>
       {{BANNER_HTML}}
-      <mj-section background-color="#ffffff" padding="40px">
+      <mj-section background-color="#ffffff" padding="48px">
         <mj-column>
-          <mj-text font-size="20px" font-weight="bold" color="#111827" align="center">{{TITLE}}</mj-text>
-          <mj-text font-size="16px" color="#4b5563" line-height="1.6" align="center" padding-top="15px">{{BODY_HTML}}</mj-text>
-          <mj-spacer height="20px" />
+          <mj-text font-size="16px" line-height="1.8" color="#374151">{{BODY_HTML}}</mj-text>
+          <mj-spacer height="32px" />
           {{BUTTON_HTML}}
         </mj-column>
       </mj-section>
       {{BOTTOM_IMAGE_HTML}}
-      <mj-section background-color="#f9fafb" padding="24px">
+      <mj-section background-color="#0f172a" padding="24px 48px">
         <mj-column>
-          <mj-text align="center" color="#9ca3af" font-size="12px">{{FOOTER_HTML}}</mj-text>
+          <mj-text align="center" color="#475569" font-size="12px" line-height="1.6">{{FOOTER_HTML}}</mj-text>
         </mj-column>
       </mj-section>
     </mj-wrapper>
   </mj-body>
 </mjml>`,
+
+  // ALERTA: barra vermelha + ícone de urgência + conteúdo em card com sombra
   'alerta': `
 <mjml>
   <mj-head>
+    {{GOOGLE_FONT_TAG}}
     <mj-attributes>
-      <mj-all font-family="Helvetica Neue, Helvetica, Arial, sans-serif" />
-      <mj-text color="#333333" line-height="1.6" />
+      <mj-all font-family="{{FONT_FAMILY}}" />
+      <mj-text color="#374151" line-height="1.7" />
     </mj-attributes>
   </mj-head>
-  <mj-body background-color="{{BG_COLOR}}" padding="24px 0">
-    <mj-wrapper border-radius="16px" padding="0">
-      <mj-section background-color="#ef4444" padding="20px">
+  <mj-body background-color="#fef2f2" padding="32px 0">
+    <mj-wrapper padding="0">
+      <mj-section background-color="#ef4444" padding="16px 48px">
         <mj-column>
-          <mj-text align="center" color="#ffffff" font-size="14px" font-weight="bold">⚠️ Aviso Importante</mj-text>
+          <mj-text align="center" color="#ffffff" font-size="13px" font-weight="700" letter-spacing="2px" text-transform="uppercase">⚠️ Aviso Importante</mj-text>
         </mj-column>
       </mj-section>
-      <mj-section background-color="#ffffff" padding="40px">
+      <mj-section background-color="#ffffff" padding="36px 48px 20px">
         <mj-column>
           {{LOGO_HTML}}
-          <mj-text align="center" color="#111827" font-size="24px" font-weight="bold" padding-bottom="20px">{{TITLE}}</mj-text>
-          {{BANNER_HTML}}
-          <mj-text font-size="16px" color="#374151" line-height="1.6" padding-top="20px">{{BODY_HTML}}</mj-text>
+          <mj-text font-size="24px" font-weight="700" color="#111827" line-height="1.3" padding-top="20px">{{TITLE}}</mj-text>
+        </mj-column>
+      </mj-section>
+      {{BANNER_HTML}}
+      <mj-section background-color="#ffffff" padding="0 48px 40px">
+        <mj-column>
+          <mj-text font-size="16px" color="#374151" line-height="1.8">{{BODY_HTML}}</mj-text>
+          <mj-spacer height="28px" />
           {{BUTTON_HTML}}
         </mj-column>
       </mj-section>
-      <mj-section background-color="#f9fafb" padding="24px">
+      {{BOTTOM_IMAGE_HTML}}
+      <mj-section background-color="#fff7f7" padding="24px 48px" border-top="1px solid #fecaca">
         <mj-column>
-          <mj-text align="center" color="#9ca3af" font-size="12px">{{FOOTER_HTML}}</mj-text>
+          <mj-text align="center" color="#9ca3af" font-size="12px" line-height="1.6">{{FOOTER_HTML}}</mj-text>
         </mj-column>
       </mj-section>
     </mj-wrapper>
   </mj-body>
 </mjml>`,
+
+  // BOAS-VINDAS: hero colorido grande com logo + saudação + conteúdo branco
   'boas-vindas': `
 <mjml>
   <mj-head>
+    {{GOOGLE_FONT_TAG}}
     <mj-attributes>
-      <mj-all font-family="Helvetica Neue, Helvetica, Arial, sans-serif" />
-      <mj-text color="#333333" line-height="1.6" />
+      <mj-all font-family="{{FONT_FAMILY}}" />
+      <mj-text color="#374151" line-height="1.7" />
     </mj-attributes>
   </mj-head>
-  <mj-body background-color="{{BG_COLOR}}" padding="24px 0">
-    <mj-wrapper border-radius="16px" padding="0">
-      <mj-section background-color="#ffffff" padding="40px">
+  <mj-body background-color="{{BG_COLOR}}" padding="32px 0">
+    <mj-wrapper padding="0">
+      <mj-section background-color="{{HEADER_COLOR}}" padding="48px 48px 32px">
         <mj-column>
           {{LOGO_HTML}}
-          <mj-text align="center" font-size="26px" font-weight="bold" color="{{HEADER_COLOR}}">Bem-vindo(a)! 🎉</mj-text>
-          {{BANNER_HTML}}
-          <mj-text font-size="16px" color="#374151" line-height="1.7" padding-top="20px">{{BODY_HTML}}</mj-text>
-          <mj-spacer height="20px" />
+          <mj-spacer height="16px" />
+          <mj-text align="center" font-size="30px" font-weight="800" color="{{TITLE_COLOR}}" line-height="1.2">Bem-vindo(a)! 🎉</mj-text>
+          <mj-text align="center" font-size="16px" color="{{TITLE_COLOR}}" opacity="0.8" padding-top="8px">{{TITLE}}</mj-text>
+        </mj-column>
+      </mj-section>
+      {{BANNER_HTML}}
+      <mj-section background-color="#ffffff" padding="48px">
+        <mj-column>
+          <mj-text font-size="16px" color="#374151" line-height="1.8">{{BODY_HTML}}</mj-text>
+          <mj-spacer height="28px" />
           {{BUTTON_HTML}}
         </mj-column>
       </mj-section>
-      <mj-section background-color="#f9fafb" padding="24px">
+      {{BOTTOM_IMAGE_HTML}}
+      <mj-section background-color="#f9fafb" padding="28px 48px" border-top="1px solid #e5e7eb">
         <mj-column>
-          <mj-text align="center" color="#9ca3af" font-size="12px">{{FOOTER_HTML}}</mj-text>
+          <mj-text align="center" color="#9ca3af" font-size="12px" line-height="1.6">{{FOOTER_HTML}}</mj-text>
         </mj-column>
       </mj-section>
     </mj-wrapper>
@@ -278,6 +399,7 @@ function renderMjml(mjmlString, data) {
   const btnColor = data.buttonColor || '#db4035';
   const headerColor = data.headerColor || btnColor;
   const titleColor = contrastColor(headerColor);
+  const fontFamily = data.fontFamily || 'Helvetica Neue, Helvetica, Arial, sans-serif';
   const year = new Date().getFullYear().toString();
   const companyName = data.companyName || 'Sua Empresa';
 
@@ -292,6 +414,8 @@ function renderMjml(mjmlString, data) {
     .replace(/{{BUTTON_COLOR}}/g, btnColor)
     .replace(/{{HEADER_COLOR}}/g, headerColor)
     .replace(/{{TITLE_COLOR}}/g, titleColor)
+    .replace(/{{FONT_FAMILY}}/g, fontFamily)
+    .replace(/{{GOOGLE_FONT_TAG}}/g, googleFontTag(fontFamily))
     .replace(/{{TITLE}}/g, data.title || '')
     .replace(/{{BODY_HTML}}/g, data.body || '')
     .replace(/{{LOGO_HTML}}/g, logoHtml)
@@ -316,31 +440,45 @@ function renderMjml(mjmlString, data) {
 
 app.post('/api/generate-email', requireAuth, async (req, res) => {
   try {
-    const { prompt, internalTemplateId, title, bgColor, buttonColor, headerColor, logoUrl, bannerUrl, bottomImageUrl, buttonText, buttonLink, previewText, clientContext, profileName, openaiApiKey, ctaEnabled = true, emailLength = 'medium' } = req.body;
-    const ai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : openai;
+    const {
+      prompt, internalTemplateId, title, bgColor, buttonColor, headerColor,
+      logoUrl, bannerUrl, bottomImageUrl, buttonText, buttonLink, previewText,
+      clientContext, profileName, ctaEnabled = true, emailLength = 'medium', fontFamily,
+      tone = 'persuasivo',
+      // IDs seguros — chaves NÃO devem ser passadas pelo frontend
+      workspace_id, profile_id,
+      // Fallback legado (chaves diretas ainda aceitas por compatibilidade, com aviso)
+      openaiApiKey,
+    } = req.body;
+
+    const { aiKey } = await resolveKeys(workspace_id, profile_id);
+    const finalAiKey = aiKey || openaiApiKey || '';
+    if (!finalAiKey) return res.status(400).json({ error: 'Chave OpenAI não configurada. Acesse Configurações → Geral.' });
+
+    const ai = new OpenAI({ apiKey: finalAiKey });
 
     const lengthGuide = { short: '~150 palavras, objetivo e direto', medium: '~300 palavras, equilibrado', long: '~500 palavras, detalhado e aprofundado' }[emailLength] || '~300 palavras';
+    const toneGuide = { persuasivo: 'Persuasivo e focado em conversão', urgente: 'Urgente, com senso de escassez', amigavel: 'Amigável e próximo do leitor', formal: 'Formal e institucional', criativo: 'Criativo e surpreendente' }[tone] || 'Persuasivo';
     const ctaRule = ctaEnabled
       ? '6. Ao final do body, escreva um parágrafo de texto persuasivo que incentive o clique no botão. NUNCA inclua elementos HTML de botão, link (<a href>), ou qualquer outro elemento clicável no body — o botão será adicionado automaticamente pelo template.'
       : '6. NÃO inclua chamada para ação (CTA), links, botões nem elementos <a> no corpo do email.';
 
-    const response = await ai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await callOpenAIWithRetry(ai, {
+      model: 'gpt-4o',
       messages: [
         {
-          role: "system",
-          content: `Você é um Copywriter e Especialista em E-mail Marketing de alto nível. O seu objetivo é escrever e-mails altamente criativos, engajadores e que convertem. Você receberá 'Instruções da Empresa' (contexto fixo) e o 'Tema do E-mail' (conteúdo atual).\n\nSiga estas regras:\n1. Use as Instruções da Empresa para manter o tom de voz e informações institucionais (Nome, E-mail, CTA, etc).\n2. Desenvolva o conteúdo focado integralmente no Tema do E-mail fornecido.\n3. Use storytelling, gatilhos mentais e empatia.\n4. Estruture o texto com ritmo fluido usando HTML básico (<br><br> para parágrafos, <strong> para destaque, <h2>/<h3> para subtítulos).\n5. Tamanho do corpo: ${lengthGuide}.\n${ctaRule}\n7. Retorne SEMPRE um JSON estrito com 3 campos: 'subject' (assunto irresistível, máx 60 chars), 'preview' (texto de prévia para inbox, máx 130 chars — complementa o assunto sem repetir), e 'body' (corpo persuasivo em HTML).`
+          role: 'system',
+          content: `Você é um Copywriter e Especialista em E-mail Marketing de alto nível. Tom de voz: ${toneGuide}. O seu objetivo é escrever e-mails altamente criativos, engajadores e que convertem. Você receberá 'Instruções da Empresa' (contexto fixo) e o 'Tema do E-mail' (conteúdo atual).\n\nSiga estas regras:\n1. Use as Instruções da Empresa para manter o tom de voz e informações institucionais.\n2. Desenvolva o conteúdo focado integralmente no Tema do E-mail fornecido.\n3. Use storytelling, gatilhos mentais e empatia.\n4. Estruture o texto com ritmo fluido usando HTML básico (<br><br> para parágrafos, <strong> para destaque, <h2>/<h3> para subtítulos).\n5. Tamanho do corpo: ${lengthGuide}.\n${ctaRule}\n7. Retorne SEMPRE um JSON estrito com 3 campos: 'subject' (assunto irresistível, máx 60 chars), 'preview' (texto de prévia para inbox, máx 130 chars — complementa o assunto sem repetir), e 'body' (corpo persuasivo em HTML).`,
         },
         {
-          role: "user",
-          content: `INSTRUÇÕES DA EMPRESA:\n${clientContext || "Nenhuma instrução adicional."}\n\nTEMA DO E-MAIL PARA ESCREVER AGORA:\n${prompt}`
-        }
+          role: 'user',
+          content: `INSTRUÇÕES DA EMPRESA:\n${clientContext || 'Nenhuma instrução adicional.'}\n\nTEMA DO E-MAIL PARA ESCREVER AGORA:\n${prompt}`,
+        },
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' },
     });
 
     const emailData = JSON.parse(response.choices[0].message.content);
-    // Remove any <a> tags the AI may have included in the body (button is rendered by template)
     emailData.body = (emailData.body || '').replace(/<a\b[^>]*>(.*?)<\/a>/gi, '$1');
     const finalPreview = previewText || emailData.preview || '';
 
@@ -348,12 +486,8 @@ app.post('/api/generate-email', requireAuth, async (req, res) => {
     const fullHtml = renderMjml(rawTemplate, {
       title: title || emailData.subject,
       body: emailData.body,
-      bgColor,
-      buttonColor,
-      headerColor,
-      logoUrl,
-      bannerUrl,
-      bottomImageUrl,
+      bgColor, buttonColor, headerColor, fontFamily,
+      logoUrl, bannerUrl, bottomImageUrl,
       buttonText: ctaEnabled ? buttonText : null,
       buttonLink: ctaEnabled ? buttonLink : null,
       previewText: finalPreview,
@@ -368,18 +502,27 @@ app.post('/api/generate-email', requireAuth, async (req, res) => {
 
 app.post('/api/create-campaign', requireAuth, async (req, res) => {
   try {
-    const { subject, htmlContent, listId, previewText, scheduleTime, apiKey, serverPrefix, fromName, replyTo } = req.body;
-    if (apiKey && serverPrefix) {
-      mailchimp.setConfig({ apiKey, server: serverPrefix });
-    }
+    const { subject, htmlContent, listId, previewText, scheduleTime, fromName, replyTo,
+      profile_id,
+      // Legado: aceitos por compatibilidade
+      apiKey, serverPrefix,
+    } = req.body;
+
+    const { mcKey, mcServer } = await resolveKeys(null, profile_id);
+    const finalKey = mcKey || apiKey || '';
+    const finalServer = mcServer || serverPrefix || 'us5';
+
+    if (!finalKey) return res.status(400).json({ error: 'Chave Mailchimp não configurada no perfil.' });
+
+    mailchimp.setConfig({ apiKey: finalKey, server: finalServer });
     const campaign = await mailchimp.campaigns.create({
       type: 'regular',
       recipients: listId ? { list_id: listId } : undefined,
       settings: {
         subject_line: subject,
         preview_text: previewText || '',
-        reply_to: replyTo || 'teste@teste.com',
-        from_name: fromName || 'Vflow Local',
+        reply_to: replyTo || 'noreply@example.com',
+        from_name: fromName || 'Sua Empresa',
       },
     });
     await mailchimp.campaigns.setContent(campaign.id, { html: htmlContent });
@@ -405,9 +548,11 @@ app.get('/api/mailchimp-lists', requireAuth, async (_req, res) => {
 
 app.post('/api/suggest-subject', requireAuth, async (req, res) => {
   try {
-    const { prompt, title, clientContext, openaiApiKey } = req.body;
-    const ai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : openai;
-    const response = await ai.chat.completions.create({
+    const { prompt, title, clientContext, workspace_id, profile_id, openaiApiKey } = req.body;
+    const { aiKey } = await resolveKeys(workspace_id, profile_id);
+    const finalKey = aiKey || openaiApiKey || '';
+    const ai = new OpenAI({ apiKey: finalKey || process.env.OPENAI_API_KEY || '' });
+    const response = await callOpenAIWithRetry(ai, {
       model: 'gpt-4o-mini',
       messages: [
         {
@@ -416,7 +561,7 @@ app.post('/api/suggest-subject', requireAuth, async (req, res) => {
         },
         {
           role: 'user',
-          content: `Contexto da Empresa: ${clientContext || "N/A"}\nTema do E-mail/Ideia: ${prompt || title}`
+          content: `Contexto da Empresa: ${clientContext || 'N/A'}\nTema do E-mail/Ideia: ${prompt || title}`,
         },
       ],
       response_format: { type: 'json_object' },
@@ -428,22 +573,56 @@ app.post('/api/suggest-subject', requireAuth, async (req, res) => {
   }
 });
 
-// Listas Mailchimp de um cliente específico
+// Listas Mailchimp — aceita profile_id (seguro) ou chaves diretas (legado)
 app.post('/api/client-mailchimp-lists', requireAuth, async (req, res) => {
   try {
-    const { apiKey, server } = req.body;
-    if (!apiKey || !server) return res.status(400).json({ error: 'apiKey e server são obrigatórios' });
+    const { profile_id, apiKey, server } = req.body;
+    let finalKey = apiKey;
+    let finalServer = server;
 
-    mailchimp.setConfig({ apiKey, server });
+    if (profile_id && supabaseAdmin) {
+      const { mcKey, mcServer } = await resolveKeys(null, profile_id);
+      if (mcKey) finalKey = mcKey;
+      if (mcServer) finalServer = mcServer;
+    }
+
+    if (!finalKey || !finalServer) return res.status(400).json({ error: 'Chave Mailchimp não encontrada.' });
+
+    mailchimp.setConfig({ apiKey: finalKey, server: finalServer });
     const data = await mailchimp.lists.getAllLists({ count: 50 });
-
-    // Retornar as chaves padrão
     mailchimp.setConfig({ apiKey: MAILCHIMP_KEY, server: MAILCHIMP_PREFIX });
-
     res.json({ lists: data.lists.map(l => ({ id: l.id, name: l.name, count: l.stats.member_count })) });
   } catch (error) {
     mailchimp.setConfig({ apiKey: MAILCHIMP_KEY, server: MAILCHIMP_PREFIX });
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Envio de e-mail de teste (cria campanha temporária, envia e deleta)
+app.post('/api/send-test-email', requireAuth, async (req, res) => {
+  try {
+    const { htmlContent, subject, profile_id } = req.body;
+    if (!profile_id || !supabaseAdmin) return res.status(400).json({ error: 'profile_id obrigatório.' });
+
+    const { mcKey, mcServer, testEmail } = await resolveKeys(null, profile_id);
+    if (!mcKey) return res.status(400).json({ error: 'Chave Mailchimp não configurada no perfil.' });
+    if (!testEmail) return res.status(400).json({ error: 'E-mail de teste não configurado no perfil.' });
+
+    mailchimp.setConfig({ apiKey: mcKey, server: mcServer });
+    const campaign = await mailchimp.campaigns.create({
+      type: 'regular',
+      settings: { subject_line: `[TESTE] ${subject || 'Preview'}`, reply_to: testEmail, from_name: 'Teste Vflow' },
+    });
+    await mailchimp.campaigns.setContent(campaign.id, { html: htmlContent });
+    await mailchimp.campaigns.sendTestEmail(campaign.id, { test_emails: [testEmail], send_type: 'html' });
+    // Deleta a campanha temporária após o envio
+    await mailchimp.campaigns.remove(campaign.id);
+
+    res.json({ success: true, sentTo: testEmail });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    mailchimp.setConfig({ apiKey: MAILCHIMP_KEY, server: MAILCHIMP_PREFIX });
   }
 });
 

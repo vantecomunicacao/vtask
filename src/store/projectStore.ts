@@ -17,6 +17,7 @@ interface ProjectState {
     archiveProject: (id: string) => Promise<void>;
     completeProject: (id: string) => Promise<void>;
     reactivateProject: (id: string) => Promise<void>;
+    moveToFolder: (projectId: string, folderId: string | null) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set) => ({
@@ -78,6 +79,11 @@ export const useProjectStore = create<ProjectState>((set) => ({
     reactivateProject: async (id) => {
         const store = useProjectStore.getState();
         await store.updateProject(id, { status: 'active' });
+    },
+
+    moveToFolder: async (projectId, folderId) => {
+        const store = useProjectStore.getState();
+        await store.updateProject(projectId, { folder_id: folderId });
     },
 
     deleteProject: async (id) => {

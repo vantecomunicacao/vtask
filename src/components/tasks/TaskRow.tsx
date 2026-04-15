@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Draggable } from '@hello-pangea/dnd';
-import { MoreHorizontal, Calendar as CalendarIcon, CheckCircle2 } from 'lucide-react';
+import { MoreHorizontal, Calendar as CalendarIcon, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
 import { isToday, isTomorrow, isPast, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '../../lib/utils';
@@ -14,7 +14,7 @@ const parseLocalDate = parseDueDate;
 
 function formatDueDate(due: string) {
     const date = parseLocalDate(due);
-    if (isToday(date)) return { label: 'Hoje', className: 'text-red-600 font-semibold' };
+    if (isToday(date)) return { label: 'Hoje', className: 'text-amber-600 font-semibold' };
     if (isTomorrow(date)) return { label: 'Amanhã', className: 'text-orange-500' };
     if (isPast(date)) return { label: format(date, "dd/MM", { locale: ptBR }), className: 'text-red-600 font-bold underline' };
     return { label: format(date, "dd/MM", { locale: ptBR }), className: 'text-secondary' };
@@ -27,6 +27,7 @@ interface TaskRowProps {
     isSelected: boolean;
     anySelected: boolean;
     groupBy: GroupBy;
+    gridTemplate: string;
     doneStatusId: string | undefined;
     statuses: CustomStatus[];
     onToggleSelect: (id: string) => void;
@@ -41,6 +42,7 @@ export const TaskRow = React.memo(function TaskRow({
     isSelected,
     anySelected,
     groupBy,
+    gridTemplate,
     doneStatusId,
     statuses,
     onToggleSelect,
@@ -48,8 +50,22 @@ export const TaskRow = React.memo(function TaskRow({
     onOpenDetail,
 }: TaskRowProps) {
     const updateTask = useTaskStore(s => s.updateTask);
+    const deleteTask = useTaskStore(s => s.deleteTask);
     const [isEditingDate, setIsEditingDate] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const dateBtnRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!isMenuOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [isMenuOpen]);
 
     // Keyboard shortcut: D opens date picker when this row is focused
     React.useEffect(() => {
@@ -78,7 +94,7 @@ export const TaskRow = React.memo(function TaskRow({
                     {...provided.dragHandleProps}
                     data-task-id={task.id}
                     className={cn(
-                        "task-row px-4 py-3 grid grid-cols-12 gap-4 items-center group",
+                        "task-row px-4 py-3 grid gap-3 items-center group",
                         snapshot.isDragging && "bg-surface-card shadow-card border border-brand/10 z-50 rounded-lg",
                         !snapshot.isDragging && isSelected && "bg-brand/5",
                         !snapshot.isDragging && isFocused && "bg-brand/[0.08] ring-1 ring-brand/20",
@@ -87,10 +103,11 @@ export const TaskRow = React.memo(function TaskRow({
                     )}
                     style={{
                         ...provided.draggableProps.style,
+                        gridTemplateColumns: gridTemplate,
                         borderLeft: !snapshot.isDragging ? `3px solid ${statusBorderColor}` : undefined
                     }}
                 >
-                    <div className="col-span-6 flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0 overflow-hidden">
                         <input
                             type="checkbox"
                             checked={isSelected}
@@ -98,7 +115,7 @@ export const TaskRow = React.memo(function TaskRow({
                             aria-label={`Selecionar tarefa: ${task.title}`}
                             className={cn(
                                 "w-4 h-4 rounded border-border-subtle text-brand focus:ring-brand cursor-pointer shrink-0 transition-opacity",
-                                !isSelected && !anySelected && "opacity-0 group-hover:opacity-100"
+                                !isSelected && !anySelected && "opacity-30 group-hover:opacity-100"
                             )}
                         />
                         <div className="relative flex items-center justify-center shrink-0">
@@ -140,57 +157,83 @@ export const TaskRow = React.memo(function TaskRow({
                         </span>
                     </div>
 
-                    <div className="col-span-4 grid grid-cols-4 gap-3 h-full items-center">
-                        <div
-                            onClick={() => onOpenDetail(task)}
-                            className="col-span-2 flex items-center cursor-pointer"
-                        >
-                            {task.project ? (
-                                <span
-                                    className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border truncate max-w-full"
-                                    style={{
-                                        backgroundColor: `${task.project.color || '#888'}18`,
-                                        color: task.project.color || '#888',
-                                        borderColor: `${task.project.color || '#888'}35`
-                                    }}
-                                >
-                                    {task.project.name}
-                                </span>
-                            ) : <span className="text-xs text-muted">—</span>}
-                        </div>
-
-                        <div className="col-span-2 flex items-center gap-1.5 text-[11px] font-bold relative">
-                            {due ? (
-                                <button
-                                    ref={dateBtnRef}
-                                    onClick={(e) => { e.stopPropagation(); setIsEditingDate(v => !v); }}
-                                    className={cn("flex items-center gap-1 hover:underline", due.className)}
-                                    title="Editar prazo (D)"
-                                >
-                                    <CalendarIcon size={11} /> {due.label}
-                                </button>
-                            ) : (
-                                <button
-                                    ref={dateBtnRef}
-                                    onClick={(e) => { e.stopPropagation(); setIsEditingDate(v => !v); }}
-                                    className="flex items-center gap-1 text-muted opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-brand transition-all"
-                                    title="Adicionar prazo (D)"
-                                >
-                                    <CalendarIcon size={11} />
-                                    <span className="text-[10px]">Data</span>
-                                </button>
-                            )}
-                            <DatePickerPopover
-                                open={isEditingDate}
-                                onClose={() => setIsEditingDate(false)}
-                                value={task.due_date}
-                                onChange={async (val) => { await updateTask(task.id, { due_date: val }); }}
-                                anchorRef={dateBtnRef}
-                            />
-                        </div>
+                    {/* Projeto */}
+                    <div
+                        onClick={() => onOpenDetail(task)}
+                        className="flex items-center cursor-pointer overflow-hidden"
+                    >
+                        {task.project ? (
+                            <span
+                                className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border truncate max-w-full"
+                                style={{
+                                    backgroundColor: `${task.project.color || '#888'}18`,
+                                    color: task.project.color || '#888',
+                                    borderColor: `${task.project.color || '#888'}35`
+                                }}
+                            >
+                                {task.project.name}
+                            </span>
+                        ) : <span className="text-xs text-muted">—</span>}
                     </div>
 
-                    <div className="col-span-1 flex items-center">
+                    {/* Prazo */}
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold relative overflow-hidden">
+                        {due ? (
+                            <button
+                                ref={dateBtnRef}
+                                onClick={(e) => { e.stopPropagation(); setIsEditingDate(v => !v); }}
+                                className={cn("flex items-center gap-1 hover:underline", due.className)}
+                                title="Editar prazo (D)"
+                            >
+                                <CalendarIcon size={11} /> {due.label}
+                            </button>
+                        ) : (
+                            <button
+                                ref={dateBtnRef}
+                                onClick={(e) => { e.stopPropagation(); setIsEditingDate(v => !v); }}
+                                className="flex items-center gap-1 text-muted opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-brand transition-all"
+                                title="Adicionar prazo (D)"
+                            >
+                                <CalendarIcon size={11} />
+                                <span className="text-[10px]">Data</span>
+                            </button>
+                        )}
+                        <DatePickerPopover
+                            open={isEditingDate}
+                            onClose={() => setIsEditingDate(false)}
+                            value={task.due_date}
+                            onChange={async (val) => { await updateTask(task.id, { due_date: val }); }}
+                            anchorRef={dateBtnRef}
+                        />
+                    </div>
+
+                    {/* Criação */}
+                    <div className="flex items-center text-[11px] text-muted overflow-hidden">
+                        {task.created_at
+                            ? format(new Date(task.created_at), "dd/MM/yy", { locale: ptBR })
+                            : '—'}
+                    </div>
+
+                    {/* Responsável */}
+                    <div className="flex items-center overflow-hidden">
+                        {task.assignee ? (
+                            <div
+                                className="w-6 h-6 rounded-full border-2 border-surface-card overflow-hidden shrink-0"
+                                title={task.assignee.full_name || task.assignee.email || ''}
+                            >
+                                <img
+                                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(task.assignee.full_name || task.assignee.email || 'U')}&background=fdf3f2&color=db4035&size=48`}
+                                    alt={task.assignee.full_name || task.assignee.email || ''}
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                        ) : (
+                            <span className="text-xs text-muted opacity-0 group-hover:opacity-60">—</span>
+                        )}
+                    </div>
+
+                    {/* Prioridade */}
+                    <div className="flex items-center overflow-hidden">
                         {task.priority ? (
                             <span className="flex items-center gap-1.5 text-[11px] font-medium text-secondary">
                                 <span className={cn(
@@ -199,7 +242,7 @@ export const TaskRow = React.memo(function TaskRow({
                                     task.priority === 'high' ? 'bg-orange-500' :
                                     task.priority === 'medium' ? 'bg-blue-400' : 'bg-slate-300'
                                 )} />
-                                <span className="truncate hidden xl:block">
+                                <span className="truncate">
                                     {task.priority === 'low' ? 'Baixa' :
                                      task.priority === 'medium' ? 'Média' :
                                      task.priority === 'high' ? 'Alta' : 'Urgente'}
@@ -208,23 +251,48 @@ export const TaskRow = React.memo(function TaskRow({
                         ) : <span className="text-xs text-muted">—</span>}
                     </div>
 
-                    <div className="col-span-1 flex justify-end items-center gap-0.5">
+                    {/* Ações */}
+                    <div className="flex justify-end items-center relative" ref={menuRef}>
                         <button
-                            onClick={(e) => { e.stopPropagation(); onToggleStatusPopover(e, task.id); }}
-                            className="p-1.5 text-muted hover:text-brand hover:bg-brand/5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200"
-                            aria-label="Mudar status"
-                            title="Mudar status"
-                        >
-                            <CheckCircle2 size={14} />
-                        </button>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onOpenDetail(task); }}
-                            className="p-1.5 text-muted hover:text-brand hover:bg-brand/5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200"
-                            aria-label="Abrir detalhes da tarefa"
-                            title="Abrir detalhes"
+                            onClick={(e) => { e.stopPropagation(); setIsMenuOpen(v => !v); }}
+                            className={cn(
+                                "p-1.5 rounded-lg transition-all duration-200",
+                                isMenuOpen
+                                    ? "text-brand bg-brand/10 opacity-100"
+                                    : "text-muted hover:text-brand hover:bg-brand/5 opacity-0 group-hover:opacity-100"
+                            )}
+                            aria-label="Mais opções"
+                            title="Mais opções"
                         >
                             <MoreHorizontal size={14} />
                         </button>
+
+                        {isMenuOpen && (
+                            <div className="absolute right-0 top-full mt-1 w-44 bg-surface-card border border-border-subtle rounded-lg shadow-float z-50 py-1 popup-spring">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onOpenDetail(task); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
+                                >
+                                    <ExternalLink size={13} className="text-muted" />
+                                    Abrir detalhes
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsEditingDate(true); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
+                                >
+                                    <CalendarIcon size={13} className="text-muted" />
+                                    Editar prazo
+                                </button>
+                                <div className="my-1 border-t border-border-subtle" />
+                                <button
+                                    onClick={async (e) => { e.stopPropagation(); setIsMenuOpen(false); await deleteTask(task.id); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors"
+                                >
+                                    <Trash2 size={13} />
+                                    Mover para lixeira
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

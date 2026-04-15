@@ -56,6 +56,11 @@ interface EmailSidebarProps {
   onPromptChange: (s: string) => void;
   loading: boolean;
   onGenerate: () => void;
+  tone: string;
+  onToneChange: (t: string) => void;
+  // Envio de teste
+  onSendTestEmail: () => void;
+  sendingTest: boolean;
 }
 
 export function EmailSidebar(props: EmailSidebarProps) {
@@ -77,6 +82,8 @@ export function EmailSidebar(props: EmailSidebarProps) {
         onPromptChange={props.onPromptChange}
         loading={props.loading}
         onGenerate={props.onGenerate}
+        tone={props.tone}
+        onToneChange={props.onToneChange}
       />
 
       <EmailDesignSection
@@ -118,6 +125,9 @@ export function EmailSidebar(props: EmailSidebarProps) {
         suggestingSubject={props.suggestingSubject}
         onSuggestSubject={props.onSuggestSubject}
         canSuggest={!!(props.prompt || props.title)}
+        onSendTestEmail={props.onSendTestEmail}
+        sendingTest={props.sendingTest}
+        testEmail={props.selectedProfile?.test_email}
       />
 
       <EmailRascunhosSection

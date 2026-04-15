@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { Smartphone, Monitor, Check, Edit3 } from 'lucide-react';
+import { Smartphone, Monitor, Check, Edit3, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 
 interface Props {
   result: { subject: string; body: string } | null;
@@ -23,9 +23,15 @@ export function EmailPreviewPanel({
   loading
 }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  // Ref síncrono para evitar condição de corrida entre os dois efeitos
   const isEditingRef = useRef(isEditing);
   isEditingRef.current = isEditing;
+
+  const execCmd = (cmd: string, value?: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    doc.execCommand(cmd, false, value ?? undefined);
+    iframeRef.current?.contentWindow?.focus();
+  };
 
   // Recarrega o iframe apenas quando result muda — usa ref para não sobrescrever edições em curso
   useEffect(() => {
@@ -108,6 +114,95 @@ export function EmailPreviewPanel({
           {isEditing ? <><Check size={16} strokeWidth={3} /> SALVAR</> : <><Edit3 size={16} strokeWidth={2.5} /> EDITAR</>}
         </button>
       </div>
+
+      {/* Formatting Toolbar — visível apenas em modo edição */}
+      {isEditing && (
+        <div className="flex-shrink-0 h-11 bg-surface-card border-b border-border-subtle flex items-center px-4 gap-1">
+          {/* Bold / Italic / Underline */}
+          {[
+            { cmd: 'bold',      icon: <Bold size={14} strokeWidth={2.5} />,      title: 'Negrito' },
+            { cmd: 'italic',    icon: <Italic size={14} strokeWidth={2.5} />,    title: 'Itálico' },
+            { cmd: 'underline', icon: <Underline size={14} strokeWidth={2.5} />, title: 'Sublinhado' },
+          ].map(({ cmd, icon, title }) => (
+            <button
+              key={cmd}
+              title={title}
+              onMouseDown={e => { e.preventDefault(); execCmd(cmd); }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
+            >
+              {icon}
+            </button>
+          ))}
+
+          <div className="w-px h-5 bg-border-subtle mx-1" />
+
+          {/* Cor do texto */}
+          <label title="Cor do texto" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-2 cursor-pointer transition-colors relative">
+            <span className="text-xs font-black text-secondary select-none leading-none">A</span>
+            <input
+              type="color"
+              defaultValue="#111827"
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              onInput={e => execCmd('foreColor', (e.target as HTMLInputElement).value)}
+              title="Cor do texto"
+            />
+            <span className="absolute bottom-1 left-1.5 right-1.5 h-1 rounded-full bg-brand pointer-events-none" />
+          </label>
+
+          {/* Cor de fundo do texto */}
+          <label title="Cor de fundo do texto" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-2 cursor-pointer transition-colors relative">
+            <span className="text-xs font-black text-secondary select-none leading-none">A</span>
+            <input
+              type="color"
+              defaultValue="#ffffff"
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              onInput={e => execCmd('hiliteColor', (e.target as HTMLInputElement).value)}
+              title="Cor de fundo do texto"
+            />
+            <span className="absolute bottom-1 left-1.5 right-1.5 h-1 rounded-full bg-yellow-300 pointer-events-none" />
+          </label>
+
+          <div className="w-px h-5 bg-border-subtle mx-1" />
+
+          {/* Alinhamento */}
+          {[
+            { cmd: 'justifyLeft',   icon: <AlignLeft size={14} />,   title: 'Alinhar à esquerda' },
+            { cmd: 'justifyCenter', icon: <AlignCenter size={14} />, title: 'Centralizar' },
+            { cmd: 'justifyRight',  icon: <AlignRight size={14} />,  title: 'Alinhar à direita' },
+          ].map(({ cmd, icon, title }) => (
+            <button
+              key={cmd}
+              title={title}
+              onMouseDown={e => { e.preventDefault(); execCmd(cmd); }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
+            >
+              {icon}
+            </button>
+          ))}
+
+          <div className="w-px h-5 bg-border-subtle mx-1" />
+
+          {/* Tamanho da fonte */}
+          <select
+            title="Tamanho da fonte"
+            className="h-7 px-2 rounded-lg border border-border-subtle text-xs text-secondary bg-surface-card focus:outline-none hover:border-brand/40 transition-colors"
+            defaultValue=""
+            onChange={e => { if (e.target.value) execCmd('fontSize', e.target.value); e.target.value = ''; }}
+          >
+            <option value="" disabled>Tamanho</option>
+            {[
+              { label: 'Pequeno',    value: '2' },
+              { label: 'Normal',     value: '3' },
+              { label: 'Médio',      value: '4' },
+              { label: 'Grande',     value: '5' },
+              { label: 'Muito grande', value: '6' },
+            ].map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+
+          <div className="flex-1" />
+          <span className="text-[10px] text-muted">Selecione o texto para formatar</span>
+        </div>
+      )}
 
       {/* Viewport Area */}
       <div className="flex-1 overflow-auto flex justify-center p-8 custom-scrollbar bg-gradient-to-b from-transparent to-surface-2/20">

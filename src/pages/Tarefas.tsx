@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { ArrowUp, ArrowDown, ArrowUpDown, Calendar as CalendarIcon, Clock, Inbox, List, Zap } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowUpDown, Calendar as CalendarIcon, Clock, Inbox, List, Keyboard } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useTaskStore, type TaskWithAssignee } from '../store/taskStore';
@@ -20,21 +20,42 @@ import { BulkActionsBar } from '../components/tasks/BulkActionsBar';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useTaskFilters, type GroupBy, type SortField, type SortConfig } from '../hooks/useTaskFilters';
 
+// ─── Column resize handle ──────────────────────
+function ColResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
+    return (
+        <div
+            onMouseDown={onMouseDown}
+            className="absolute right-0 top-0 h-full w-3 cursor-col-resize z-10 flex items-center justify-center group/rh"
+        >
+            <div className="h-3/4 w-px bg-transparent group-hover/rh:bg-brand/40 transition-colors" />
+        </div>
+    );
+}
+
+// ─── Column resize config ──────────────────────
+const COL_IDS = ['title', 'project', 'due', 'created', 'assignee', 'priority', 'actions'] as const;
+type ColId = typeof COL_IDS[number];
+const DEFAULT_COL_W: Record<ColId, number> = { title: 280, project: 130, due: 110, created: 100, assignee: 48, priority: 90, actions: 44 };
+const MIN_COL_W: Record<ColId, number> = { title: 150, project: 80, due: 80, created: 80, assignee: 48, priority: 60, actions: 44 };
+const RESIZABLE_COLS = new Set<ColId>(['title', 'project', 'due', 'created', 'priority']);
+
 // ─── Skeleton Component ────────────────────────
-function TaskSkeleton() {
+function TaskSkeleton({ gridTemplate }: { gridTemplate: string }) {
     return (
         <div className="px-4 flex flex-col divide-y divide-border-subtle">
             {[...Array(6)].map((_, i) => (
-                <div key={i} className="py-3 grid grid-cols-12 gap-4 items-center stagger-item" style={{ animationDelay: `${i * 60}ms` }}>
-                    <div className="col-span-6 flex items-center gap-3">
-                        <div className="skeleton-pulse w-4 h-4 rounded" />
-                        <div className="skeleton-pulse w-5 h-5 rounded-full" />
-                        <div className="skeleton-pulse h-4 rounded flex-1" style={{ maxWidth: `${180 + Math.random() * 120}px` }} />
+                <div key={i} className="py-3 grid gap-3 items-center stagger-item" style={{ gridTemplateColumns: gridTemplate, animationDelay: `${i * 60}ms` }}>
+                    <div className="flex items-center gap-3">
+                        <div className="skeleton-pulse w-4 h-4 rounded shrink-0" />
+                        <div className="skeleton-pulse w-5 h-5 rounded-full shrink-0" />
+                        <div className="skeleton-pulse h-4 rounded flex-1" />
                     </div>
-                    <div className="col-span-2"><div className="skeleton-pulse h-3 w-20 rounded" /></div>
-                    <div className="col-span-2"><div className="skeleton-pulse h-3 w-16 rounded" /></div>
-                    <div className="col-span-1"><div className="skeleton-pulse h-3 w-12 rounded" /></div>
-                    <div className="col-span-1" />
+                    <div><div className="skeleton-pulse h-3 w-20 rounded" /></div>
+                    <div><div className="skeleton-pulse h-3 w-16 rounded" /></div>
+                    <div><div className="skeleton-pulse h-3 w-14 rounded" /></div>
+                    <div />
+                    <div><div className="skeleton-pulse h-3 w-12 rounded" /></div>
+                    <div />
                 </div>
             ))}
         </div>
@@ -81,6 +102,36 @@ export default function Tarefas() {
     const fetchStatuses = useTaskStore(s => s.fetchStatuses);
     const toggleTaskCompletion = useTaskStore(s => s.toggleTaskCompletion);
     const updateTask = useTaskStore(s => s.updateTask);
+
+    // Column widths — resizable, persisted in localStorage
+    const [colWidths, setColWidths] = useState<Record<ColId, number>>(() => {
+        try {
+            const saved = localStorage.getItem('fd_task_col_widths');
+            return saved ? { ...DEFAULT_COL_W, ...JSON.parse(saved) } : { ...DEFAULT_COL_W };
+        } catch { return { ...DEFAULT_COL_W }; }
+    });
+    const gridTemplate = COL_IDS.map(id => `${colWidths[id]}px`).join(' ');
+
+    const onColResizeStart = useCallback((colId: ColId) => (e: React.MouseEvent) => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startWidth = colWidths[colId];
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        const onMove = (ev: MouseEvent) => {
+            const next = Math.max(MIN_COL_W[colId], startWidth + (ev.clientX - startX));
+            setColWidths(prev => ({ ...prev, [colId]: next }));
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            setColWidths(prev => { localStorage.setItem('fd_task_col_widths', JSON.stringify(prev)); return prev; });
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }, [colWidths]);
 
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
@@ -374,9 +425,6 @@ export default function Tarefas() {
         }
     };
 
-    const allTasksPerGroup = (groupId: string) =>
-        tasks.filter(t => t.status_id === groupId || (!t.status_id && groupId === 'todo')).length;
-
     return (
         <div className="space-y-3 fade-in h-full flex flex-col">
             {/* Page Header */}
@@ -426,41 +474,61 @@ export default function Tarefas() {
                 />
 
                 {/* Table header */}
-                <div className="px-4 py-2 grid grid-cols-12 gap-4 bg-surface-0/80 border-b border-border-subtle sticky top-0 z-10 shrink-0 group/hrow">
-                    <div className="col-span-6 flex items-center gap-3">
+                <div
+                    className="px-4 py-2 grid gap-3 bg-surface-0/80 border-b border-border-subtle sticky top-0 z-10 shrink-0 group/hrow"
+                    style={{ gridTemplateColumns: gridTemplate }}
+                >
+                    {/* Tarefa */}
+                    <div className="flex items-center gap-3 relative overflow-hidden">
                         <input
                             type="checkbox"
                             checked={selectedTaskIds.size === filteredTasks.length && filteredTasks.length > 0}
                             onChange={toggleSelectAll}
-                            className={cn("w-4 h-4 rounded border-border-subtle text-brand focus:ring-brand cursor-pointer transition-opacity shrink-0", selectedTaskIds.size === 0 && "opacity-0 group-hover/hrow:opacity-100")}
+                            className={cn("w-4 h-4 rounded border-border-subtle text-brand focus:ring-brand cursor-pointer transition-opacity shrink-0", selectedTaskIds.size === 0 && "opacity-30 group-hover/hrow:opacity-100")}
                         />
-                        <button onClick={() => handleSort('title')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors", sortConfig.field === 'title' ? 'text-brand' : 'text-muted')}>
+                        <button onClick={() => handleSort('title')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors truncate", sortConfig.field === 'title' ? 'text-brand' : 'text-muted')}>
                             Tarefa <SortIcon field="title" />
                         </button>
+                        {RESIZABLE_COLS.has('title') && <ColResizeHandle onMouseDown={onColResizeStart('title')} />}
                     </div>
-                    <div className="col-span-2">
-                        <button onClick={() => handleSort('project')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors", sortConfig.field === 'project' ? 'text-brand' : 'text-muted')}>
+                    {/* Projeto */}
+                    <div className="relative overflow-hidden">
+                        <button onClick={() => handleSort('project')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors truncate", sortConfig.field === 'project' ? 'text-brand' : 'text-muted')}>
                             Projeto <SortIcon field="project" />
                         </button>
+                        <ColResizeHandle onMouseDown={onColResizeStart('project')} />
                     </div>
-                    <div className="col-span-2">
-                        <button onClick={() => handleSort('due_date')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors", sortConfig.field === 'due_date' ? 'text-brand' : 'text-muted')}>
+                    {/* Prazo */}
+                    <div className="relative overflow-hidden">
+                        <button onClick={() => handleSort('due_date')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors truncate", sortConfig.field === 'due_date' ? 'text-brand' : 'text-muted')}>
                             Prazo <SortIcon field="due_date" />
                         </button>
+                        <ColResizeHandle onMouseDown={onColResizeStart('due')} />
                     </div>
-                    <div className="col-span-1">
-                        <button onClick={() => handleSort('priority')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors", sortConfig.field === 'priority' ? 'text-brand' : 'text-muted')}>
-                            Prioridade <SortIcon field="priority" />
+                    {/* Criação */}
+                    <div className="relative overflow-hidden">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted truncate">Criação</span>
+                        <ColResizeHandle onMouseDown={onColResizeStart('created')} />
+                    </div>
+                    {/* Resp. */}
+                    <div className="overflow-hidden">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted">Resp.</span>
+                    </div>
+                    {/* Prioridade */}
+                    <div className="relative overflow-hidden">
+                        <button onClick={() => handleSort('priority')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors truncate", sortConfig.field === 'priority' ? 'text-brand' : 'text-muted')}>
+                            Prior. <SortIcon field="priority" />
                         </button>
+                        <ColResizeHandle onMouseDown={onColResizeStart('priority')} />
                     </div>
-                    <div className="col-span-1" />
+                    <div />
                 </div>
 
                 {/* Task list */}
                 <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col" ref={taskListRef}>
                     <div className="flex-1">
                         {loading ? (
-                            <TaskSkeleton />
+                            <TaskSkeleton gridTemplate={gridTemplate} />
                         ) : filteredTasks.length === 0 ? (
                             <EmptyState hasFilters={hasFilters} />
                         ) : (
@@ -472,7 +540,7 @@ export default function Tarefas() {
                                         isExpanded={expandedSections.has(group.id as string)}
                                         animating={animatingGroups.get(group.id as string)}
                                         groupBy={groupBy}
-                                        totalTasksInGroup={allTasksPerGroup(group.id as string)}
+                                        gridTemplate={gridTemplate}
                                         doneStatusId={doneStatusId}
                                         filteredTasks={filteredTasks}
                                         focusedTaskIndex={focusedTaskIndex}
@@ -502,8 +570,10 @@ export default function Tarefas() {
                 {shortcutsOpen && (
                     <>
                         <div className="fixed inset-0" onClick={() => setShortcutsOpen(false)} />
-                        <div className="absolute bottom-10 right-0 bg-gray-900/95 backdrop-blur-sm text-white px-4 py-3 rounded-card shadow-float text-[10px] space-y-1.5 w-44 popup-spring">
-                            <p className="font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Zap size={10} /> Atalhos</p>
+                        <div className="absolute bottom-11 right-0 bg-surface-card border border-border-subtle px-4 py-3 rounded-card shadow-float text-[10px] space-y-1.5 w-48 popup-spring">
+                            <p className="font-black text-muted uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                <Keyboard size={10} /> Atalhos
+                            </p>
                             {[
                                 ['N', 'Nova tarefa'],
                                 ['/', 'Buscar'],
@@ -514,8 +584,8 @@ export default function Tarefas() {
                                 ['1-9', 'Mover para status'],
                             ].map(([key, label]) => (
                                 <p key={key} className="flex items-center justify-between gap-2">
-                                    <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[9px] font-mono shrink-0">{key}</kbd>
-                                    <span className="text-gray-300">{label}</span>
+                                    <kbd className="px-1.5 py-0.5 bg-surface-0 border border-border-subtle rounded text-[9px] font-mono shrink-0 text-secondary">{key}</kbd>
+                                    <span className="text-secondary">{label}</span>
                                 </p>
                             ))}
                         </div>
@@ -524,14 +594,15 @@ export default function Tarefas() {
                 <button
                     onClick={() => setShortcutsOpen(v => !v)}
                     aria-label="Atalhos de teclado"
+                    title="Atalhos de teclado"
                     className={cn(
-                        "w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shadow-float transition-all duration-200",
+                        "w-8 h-8 rounded-lg flex items-center justify-center shadow-float border transition-all duration-200",
                         shortcutsOpen
-                            ? "bg-brand text-white scale-110"
-                            : "bg-gray-900/80 text-gray-400 hover:bg-gray-900 hover:text-white hover:scale-110"
+                            ? "bg-brand border-brand text-white"
+                            : "bg-surface-card border-border-subtle text-muted hover:text-brand hover:border-brand/30"
                     )}
                 >
-                    ?
+                    <Keyboard size={14} />
                 </button>
             </div>
 

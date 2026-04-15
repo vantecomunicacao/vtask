@@ -18,7 +18,24 @@ export interface ProfileFormData {
     button_color?: string;
     sender_name?: string;
     sender_email?: string;
+    font_family?: string;
 }
+
+export interface EmailFont {
+    label: string;
+    value: string;
+    google?: string; // nome para a URL do Google Fonts
+    preview: string; // font-family CSS para preview no seletor
+}
+
+export const EMAIL_FONTS: EmailFont[] = [
+    { label: 'Helvetica (Padrão)',   value: 'Helvetica Neue, Helvetica, Arial, sans-serif', preview: 'Helvetica Neue, Helvetica, Arial, sans-serif' },
+    { label: 'Montserrat',           value: 'Montserrat, Arial, sans-serif',                  google: 'Montserrat',        preview: 'Montserrat, sans-serif' },
+    { label: 'Open Sans',            value: 'Open Sans, Arial, sans-serif',                   google: 'Open+Sans',         preview: 'Open Sans, sans-serif' },
+    { label: 'Georgia (Serif)',      value: "Georgia, 'Times New Roman', serif",              preview: 'Georgia, serif' },
+    { label: 'Playfair Display',     value: 'Playfair Display, Georgia, serif',               google: 'Playfair+Display',  preview: 'Playfair Display, Georgia, serif' },
+    { label: 'Verdana',              value: 'Verdana, Geneva, sans-serif',                    preview: 'Verdana, sans-serif' },
+];
 
 export interface EmailProfile {
   id: string;
@@ -37,6 +54,7 @@ export interface EmailProfile {
   email_length?: 'short' | 'medium' | 'long';
   default_button_text?: string;
   default_button_link?: string;
+  font_family?: string;
   created_at?: string;
   workspace_id?: string;
 }

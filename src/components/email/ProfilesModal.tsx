@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Upload, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { callEmailApi } from '../../lib/emailApi';
 import type { EmailProfile, EmailSchedule, MailchimpList, ProfileFormData, ScheduleFormData } from '../../lib/emailTypes';
-import { CRON_PRESETS } from '../../lib/emailTypes';
+import { CRON_PRESETS, EMAIL_FONTS } from '../../lib/emailTypes';
 import { ProfileScheduleForm } from './ProfileScheduleForm';
 import { ProfileScheduleList } from './ProfileScheduleList';
 
@@ -56,6 +56,23 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
     const [loadingLists, setLoadingLists] = useState(false);
     const [lists, setLists] = useState<MailchimpList[]>([]);
     const [suggestingThemes, setSuggestingThemes] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState<'logo' | 'banner' | null>(null);
+
+    async function handleImageUpload(type: 'logo' | 'banner', file: File) {
+        setUploadingImage(type);
+        try {
+            const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${file.name.split('.').pop()}`;
+            const { error: uploadError } = await supabase.storage.from('email_images').upload(`public/${fileName}`, file);
+            if (uploadError) throw uploadError;
+            const { data } = supabase.storage.from('email_images').getPublicUrl(`public/${fileName}`);
+            if (data.publicUrl) setForm(f => ({ ...f, [type === 'logo' ? 'logo_url' : 'banner_url']: data.publicUrl }));
+            toast.success('Imagem enviada!');
+        } catch (err) {
+            toast.error('Erro no upload: ' + toMessage(err));
+        } finally {
+            setUploadingImage(null);
+        }
+    }
 
     // Automações
     const [schedules, setSchedules] = useState<EmailSchedule[]>([]);
@@ -86,13 +103,15 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
 
     async function handleSaveProfile() {
         if (!form.name) { toast.error('Nome é obrigatório'); return; }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { toast.error('Usuário não autenticado'); return; }
         const dataToSave = { ...form };
         if (selectedId && !isNew) {
             const { error } = await supabase.from('email_profiles').update(dataToSave).eq('id', selectedId);
             if (error) toast.error(error.message);
             else toast.success('Perfil atualizado');
         } else {
-            const { data, error } = await supabase.from('email_profiles').insert(dataToSave).select().single();
+            const { data, error } = await supabase.from('email_profiles').insert({ ...dataToSave, created_by: user.id }).select().single();
             if (error) toast.error(error.message);
             else { toast.success('Perfil criado'); setSelectedId(data.id); }
         }
@@ -264,20 +283,18 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                                 {/* Identificação */}
                                 <section>
                                     <h3 className="text-sm font-black text-muted tracking-widest uppercase mb-4">Identificação</h3>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-3 gap-4">
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-muted ml-1 uppercase">Nome do Cliente *</label>
-                                            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full h-12 px-4 rounded-xl border border-border-subtle bg-surface-1 focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-all font-medium text-sm" placeholder="Ex: Vante Comunicação" />
+                                            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-all font-medium text-sm" placeholder="Ex: Vante Comunicação" />
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-muted ml-1 uppercase">Remetente (Nome)</label>
-                                                <input value={form.sender_name ?? ''} onChange={e => setForm({ ...form, sender_name: e.target.value })} className="w-full h-12 px-4 rounded-xl border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="Ex: João da Vante" />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-muted ml-1 uppercase">Remetente (E-mail)</label>
-                                                <input type="email" value={form.sender_email ?? ''} onChange={e => setForm({ ...form, sender_email: e.target.value })} className="w-full h-12 px-4 rounded-xl border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="Ex: contato@vante.com" />
-                                            </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-muted ml-1 uppercase">Remetente (Nome)</label>
+                                            <input value={form.sender_name ?? ''} onChange={e => setForm({ ...form, sender_name: e.target.value })} className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="Ex: João da Vante" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-muted ml-1 uppercase">Remetente (E-mail)</label>
+                                            <input type="email" value={form.sender_email ?? ''} onChange={e => setForm({ ...form, sender_email: e.target.value })} className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="Ex: contato@vante.com" />
                                         </div>
                                     </div>
                                 </section>
@@ -291,12 +308,12 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                                                 <label className="text-[10px] font-black text-muted ml-1 uppercase">Prompt de Contexto do Cliente</label>
                                                 <button onClick={handleSuggestThemes} disabled={suggestingThemes} className="text-[10px] font-black text-brand italic hover:underline disabled:opacity-50">✨ Sugerir Temas</button>
                                             </div>
-                                            <textarea value={form.ai_prompt ?? ''} onChange={e => setForm({ ...form, ai_prompt: e.target.value })} className="w-full h-32 p-4 rounded-xl border border-border-subtle bg-surface-1 outline-none text-sm resize-none" placeholder="Descreva o tom de voz, público-alvo e regras de escrita..." />
+                                            <textarea value={form.ai_prompt ?? ''} onChange={e => setForm({ ...form, ai_prompt: e.target.value })} className="w-full h-32 p-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm resize-y" placeholder="Descreva o tom de voz, público-alvo e regras de escrita..." />
                                         </div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="space-y-1.5">
                                                 <label className="text-[10px] font-black text-muted ml-1 uppercase">Tamanho Padrão</label>
-                                                <select value={form.email_length ?? 'medium'} onChange={e => setForm({ ...form, email_length: e.target.value as 'short' | 'medium' | 'long' })} className="w-full h-12 px-4 rounded-xl border border-border-subtle bg-surface-1 outline-none text-sm">
+                                                <select value={form.email_length ?? 'medium'} onChange={e => setForm({ ...form, email_length: e.target.value as 'short' | 'medium' | 'long' })} className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm">
                                                     <option value="short">Curto</option>
                                                     <option value="medium">Médio</option>
                                                     <option value="long">Longo</option>
@@ -304,16 +321,93 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[10px] font-black text-muted ml-1 uppercase">Cor Principal</label>
-                                                <input type="color" value={form.brand_color ?? '#db4035'} onChange={e => setForm({ ...form, brand_color: e.target.value })} className="w-full h-12 rounded-xl border border-border-subtle cursor-pointer" />
+                                                <div className="flex items-center gap-2 h-12 px-3 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1">
+                                                    <input type="color" value={form.brand_color ?? '#db4035'} onChange={e => setForm({ ...form, brand_color: e.target.value })} className="h-7 w-7 rounded-lg cursor-pointer border-0 bg-transparent p-0 flex-shrink-0" />
+                                                    <input type="text" value={form.brand_color ?? '#db4035'} onChange={e => setForm({ ...form, brand_color: e.target.value })} className="flex-1 bg-transparent outline-none text-sm font-mono text-primary min-w-0" />
+                                                </div>
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[10px] font-black text-muted ml-1 uppercase">Cor do Botão</label>
-                                                <input type="color" value={form.button_color ?? '#db4035'} onChange={e => setForm({ ...form, button_color: e.target.value })} className="w-full h-12 rounded-xl border border-border-subtle cursor-pointer" />
+                                                <div className="flex items-center gap-2 h-12 px-3 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1">
+                                                    <input type="color" value={form.button_color ?? '#db4035'} onChange={e => setForm({ ...form, button_color: e.target.value })} className="h-7 w-7 rounded-lg cursor-pointer border-0 bg-transparent p-0 flex-shrink-0" />
+                                                    <input type="text" value={form.button_color ?? '#db4035'} onChange={e => setForm({ ...form, button_color: e.target.value })} className="flex-1 bg-transparent outline-none text-sm font-mono text-primary min-w-0" />
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-muted ml-1 uppercase">Fonte dos E-mails</label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {EMAIL_FONTS.map(f => (
+                                                    <button
+                                                        key={f.value}
+                                                        type="button"
+                                                        onClick={() => setForm({ ...form, font_family: f.value })}
+                                                        className={`px-3 py-2.5 rounded-[var(--radius-md)] border text-left transition-all ${(form.font_family ?? EMAIL_FONTS[0].value) === f.value ? 'border-brand bg-brand/5' : 'border-border-subtle hover:border-brand/40 bg-surface-1'}`}
+                                                    >
+                                                        <span className={`block text-xs font-semibold truncate ${(form.font_family ?? EMAIL_FONTS[0].value) === f.value ? 'text-brand' : 'text-primary'}`} style={{ fontFamily: f.preview }}>{f.label}</span>
+                                                        <span className="block text-[10px] text-muted mt-0.5" style={{ fontFamily: f.preview }}>Aa 123</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-muted ml-1 uppercase">Lista de Temas</label>
-                                            <textarea value={form.themes_list ?? ''} onChange={e => setForm({ ...form, themes_list: e.target.value })} className="w-full h-24 p-4 rounded-xl border border-border-subtle bg-surface-1 outline-none text-sm resize-none" placeholder="Anote ideias de temas para os próximos e-mails (um por linha)..." />
+                                            <textarea value={form.themes_list ?? ''} onChange={e => setForm({ ...form, themes_list: e.target.value })} className="w-full h-24 p-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm resize-y" placeholder="Anote ideias de temas para os próximos e-mails (um por linha)..." />
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* Design */}
+                                <section className="pt-8 border-t border-border-subtle">
+                                    <h3 className="text-sm font-black text-muted tracking-widest uppercase mb-4">Design</h3>
+                                    <div className="space-y-4">
+
+                                        {/* Logo e Banner */}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {(['logo', 'banner'] as const).map(type => {
+                                                const url = type === 'logo' ? form.logo_url : form.banner_url;
+                                                const label = type === 'logo' ? 'Logotipo' : 'Banner Principal';
+                                                return (
+                                                    <div key={type} className="space-y-1.5">
+                                                        <label className="text-[10px] font-black text-muted ml-1 uppercase">{label}</label>
+                                                        <div className="rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 overflow-hidden">
+                                                            {url ? (
+                                                                <div className="relative">
+                                                                    <img src={url} alt={label} className={`w-full object-cover ${type === 'logo' ? 'h-16 object-contain p-2' : 'h-20'}`} />
+                                                                    <button onClick={() => setForm(f => ({ ...f, [type === 'logo' ? 'logo_url' : 'banner_url']: '' }))} className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                                                                        <Trash2 size={10} />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <label className={`flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-surface-2 transition-colors ${uploadingImage === type ? 'opacity-50 pointer-events-none' : ''} ${type === 'logo' ? 'h-16' : 'h-20'}`}>
+                                                                    <Upload size={14} className="text-muted" />
+                                                                    <span className="text-[10px] text-muted">{uploadingImage === type ? 'Enviando...' : 'Clique para enviar'}</span>
+                                                                    <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(type, f); e.target.value = ''; }} />
+                                                                </label>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Botão padrão */}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-muted ml-1 uppercase">Texto do Botão Padrão</label>
+                                                <input value={form.default_button_text ?? ''} onChange={e => setForm({ ...form, default_button_text: e.target.value })} className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="Ex: Saiba Mais" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-muted ml-1 uppercase">Link do Botão Padrão</label>
+                                                <input type="url" value={form.default_button_link ?? ''} onChange={e => setForm({ ...form, default_button_link: e.target.value })} className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="https://..." />
+                                            </div>
+                                        </div>
+
+                                        {/* Email de teste */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-muted ml-1 uppercase">E-mail para Testes Agendados</label>
+                                            <input type="email" value={form.test_email ?? ''} onChange={e => setForm({ ...form, test_email: e.target.value })} className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="seu@email.com" />
                                         </div>
                                     </div>
                                 </section>
@@ -327,17 +421,17 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="col-span-2 space-y-1.5">
                                             <label className="text-[10px] font-black text-muted ml-1 uppercase">API Key</label>
-                                            <input type="password" value={form.mailchimp_api_key ?? ''} onChange={e => setForm({ ...form, mailchimp_api_key: e.target.value })} className="w-full h-12 px-4 rounded-xl border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="Ex: 827..." />
+                                            <input type="password" value={form.mailchimp_api_key ?? ''} onChange={e => setForm({ ...form, mailchimp_api_key: e.target.value })} className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="Ex: 827..." />
                                         </div>
                                         <div className="space-y-1.5">
                                             <label className="text-[10px] font-black text-muted ml-1 uppercase">Servidor (ex: us5)</label>
-                                            <input value={form.mailchimp_server ?? ''} onChange={e => setForm({ ...form, mailchimp_server: e.target.value })} className="w-full h-12 px-4 rounded-xl border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="Ex: us1, us5" />
+                                            <input value={form.mailchimp_server ?? ''} onChange={e => setForm({ ...form, mailchimp_server: e.target.value })} className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm" placeholder="Ex: us1, us5" />
                                         </div>
                                     </div>
                                     {lists.length > 0 && (
                                         <div className="mt-3 space-y-1.5">
                                             <label className="text-[10px] font-black text-muted ml-1 uppercase">Lista Padrão</label>
-                                            <select value={form.mailchimp_list_id ?? ''} onChange={e => setForm({ ...form, mailchimp_list_id: e.target.value })} className="w-full h-12 px-4 rounded-xl border border-border-subtle bg-surface-1 outline-none text-sm">
+                                            <select value={form.mailchimp_list_id ?? ''} onChange={e => setForm({ ...form, mailchimp_list_id: e.target.value })} className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-border-subtle bg-surface-1 outline-none text-sm">
                                                 <option value="">Selecionar lista...</option>
                                                 {lists.map(l => (
                                                     <option key={l.id} value={l.id}>{l.name} ({l.count.toLocaleString()})</option>

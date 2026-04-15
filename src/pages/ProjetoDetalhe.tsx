@@ -16,6 +16,67 @@ import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { type TaskWithAssignee } from '../store/taskStore';
+import { type Document } from '../store/documentStore';
+
+function DocTreeNode({
+    doc,
+    allDocs,
+    depth,
+    onNavigate,
+}: {
+    doc: Document;
+    allDocs: Document[];
+    depth: number;
+    onNavigate: (id: string) => void;
+}) {
+    const [expanded, setExpanded] = useState(true);
+    const children = allDocs.filter(d => d.parent_id === doc.id);
+    const hasChildren = children.length > 0;
+
+    return (
+        <div>
+            <div
+                className="flex items-center gap-2 pr-5 py-2.5 hover:bg-surface-2 cursor-pointer group transition-colors"
+                style={{ paddingLeft: `${20 + depth * 20}px` }}
+            >
+                <button
+                    className="w-4 h-4 flex items-center justify-center text-muted shrink-0"
+                    onClick={(e) => { e.stopPropagation(); if (hasChildren) setExpanded(v => !v); }}
+                >
+                    {hasChildren ? (
+                        <svg
+                            className={`w-3 h-3 transition-transform ${expanded ? 'rotate-90' : ''}`}
+                            viewBox="0 0 12 12" fill="currentColor"
+                        >
+                            <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    ) : null}
+                </button>
+                <div
+                    className="flex items-center gap-2.5 flex-1 min-w-0"
+                    onClick={() => onNavigate(doc.id)}
+                >
+                    <FileText size={14} className="text-muted group-hover:text-brand transition-colors shrink-0" />
+                    <span className="text-sm font-medium text-primary group-hover:text-brand transition-colors truncate">
+                        {doc.title || 'Sem título'}
+                    </span>
+                    <span className="text-xs text-muted ml-auto shrink-0">
+                        {new Date(doc.updated_at).toLocaleDateString('pt-BR')}
+                    </span>
+                </div>
+            </div>
+            {hasChildren && expanded && children.map(child => (
+                <DocTreeNode
+                    key={child.id}
+                    doc={child}
+                    allDocs={allDocs}
+                    depth={depth + 1}
+                    onNavigate={onNavigate}
+                />
+            ))}
+        </div>
+    );
+}
 
 const PRIORITY_LABELS: Record<string, { label: string; className: string }> = {
     urgent: { label: 'Urgente', className: 'text-red-600' },
@@ -230,26 +291,19 @@ export default function ProjetoDetalhe() {
                                 </button>
                             </div>
                         ) : (
-                            <div className="flex-1 overflow-y-auto divide-y divide-border-subtle">
-                                {projectDocs.map(doc => (
-                                    <div
-                                        key={doc.id}
-                                        className="flex items-center gap-3 px-5 py-3 hover:bg-surface-2 cursor-pointer group transition-colors"
-                                        onClick={() => navigate(`/documentos/${doc.id}`)}
-                                    >
-                                        <div className="w-8 h-8 rounded-lg bg-surface-0 flex items-center justify-center text-muted group-hover:bg-brand/10 group-hover:text-brand transition-colors shrink-0">
-                                            <FileText size={15} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-primary group-hover:text-brand transition-colors truncate">
-                                                {doc.title || 'Sem título'}
-                                            </p>
-                                            <p className="text-xs text-muted mt-0.5">
-                                                Atualizado {new Date(doc.updated_at).toLocaleDateString('pt-BR')}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
+                            <div className="flex-1 overflow-y-auto">
+                                {projectDocs
+                                    .filter(d => !d.parent_id || !projectDocs.find(p => p.id === d.parent_id))
+                                    .map(doc => (
+                                        <DocTreeNode
+                                            key={doc.id}
+                                            doc={doc}
+                                            allDocs={projectDocs}
+                                            depth={0}
+                                            onNavigate={(docId) => navigate(`/documentos/${docId}`)}
+                                        />
+                                    ))
+                                }
                             </div>
                         )}
                     </div>

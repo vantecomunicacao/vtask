@@ -1,6 +1,7 @@
 import { Eye, EyeOff, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { Select } from '../ui/Select';
 import type { ProfileFormData, MailchimpList } from '../../lib/emailTypes';
+import { EMAIL_FONTS } from '../../lib/emailTypes';
 
 interface Props {
     form: ProfileFormData;
@@ -206,6 +207,23 @@ export function ProfileForm({
                             className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/30" />
                     </div>
                     <p className="text-[10px] text-gray-400 mt-1">Cor padrão dos botões de CTA nos emails</p>
+                </div>
+
+                <div className="col-span-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Fonte dos e-mails</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {EMAIL_FONTS.map(f => (
+                            <button
+                                key={f.value}
+                                type="button"
+                                onClick={() => set({ font_family: f.value })}
+                                className={`px-3 py-2.5 rounded-lg border text-left transition-colors ${(form.font_family ?? EMAIL_FONTS[0].value) === f.value ? 'border-brand bg-brand/5 text-brand' : 'border-gray-200 hover:bg-gray-50 text-gray-700'}`}
+                            >
+                                <span className="block text-sm" style={{ fontFamily: f.preview }}>{f.label}</span>
+                                <span className="block text-[10px] text-gray-400 mt-0.5" style={{ fontFamily: f.preview }}>Aa Bb Cc 123</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 

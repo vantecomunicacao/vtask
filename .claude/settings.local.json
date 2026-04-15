@@ -65,7 +65,11 @@
       "Bash(grep -l \"color\\\\|openai\" *.sql)",
       "Bash(ls -la *.sql)",
       "Bash(find /c/Users/leofb/OneDrive/Documentos/Projetos Antigravity/vflow-tarefas/src -type f -name *.tsx -o -name *.ts)",
-      "Bash(grep -r \"projectId\\\\|SelectProject\\\\|project.*selector\" /c/Users/leofb/OneDrive/Documentos/Projetos Antigravity/vflow-tarefas/src/components/documents --include=*.tsx --include=*.ts)"
+      "Bash(grep -r \"projectId\\\\|SelectProject\\\\|project.*selector\" /c/Users/leofb/OneDrive/Documentos/Projetos Antigravity/vflow-tarefas/src/components/documents --include=*.tsx --include=*.ts)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(grep -E \"\\\\.sql$\")",
+      "Bash(find ./supabase -name \"*.sql\" -exec grep -l \"projects\" {} \\\\;)",
+      "Read(//c/Users/leofb/AppData/Local/Temp/claude/c--Users-leofb-OneDrive-Documentos-Projetos-Antigravity-vflow-tarefas/080b1dd1-52cf-4154-aa55-ab5112a3fb3a/tasks/**)"
     ]
   }
 }

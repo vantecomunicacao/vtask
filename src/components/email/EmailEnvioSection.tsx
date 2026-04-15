@@ -20,6 +20,9 @@ interface Props {
     suggestingSubject: boolean;
     onSuggestSubject: () => void;
     canSuggest: boolean;
+    onSendTestEmail: () => void;
+    sendingTest: boolean;
+    testEmail?: string | null;
 }
 
 export function EmailEnvioSection({
@@ -29,6 +32,7 @@ export function EmailEnvioSection({
     previewText, onPreviewTextChange,
     scheduleEnabled, onScheduleToggle, scheduledAt, onScheduledAtChange,
     suggestingSubject, onSuggestSubject, canSuggest,
+    onSendTestEmail, sendingTest, testEmail,
 }: Props) {
     return (
         <div className="border-b">
@@ -49,7 +53,15 @@ export function EmailEnvioSection({
                         )}
                     </div>
 
-                    {/* Assunto */}
+                    {/* Botão de Teste */}
+                    <button
+                        onClick={onSendTestEmail}
+                        disabled={sendingTest}
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium text-brand border border-brand/30 rounded-lg hover:bg-brand/5 disabled:opacity-40 transition-colors"
+                    >
+                        {sendingTest ? '⏳ Enviando...' : `✉️ Enviar teste${testEmail ? ` → ${testEmail}` : ''}`}
+                    </button>
+
                     <div>
                         <div className="flex items-center justify-between mb-1.5">
                             <label className="text-xs font-medium text-secondary">Assunto</label>

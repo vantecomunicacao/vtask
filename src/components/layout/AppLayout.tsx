@@ -1,10 +1,11 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Layers, Trash2, BookOpen, Shield, Search, Archive, ChevronDown, ChevronRight } from 'lucide-react';
+import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Layers, Trash2, BookOpen, Shield, Search, Archive } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useTaskStore } from '../../store/taskStore';
+import { ProjectsSidebarSection } from './ProjectsSidebarSection';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { supabase } from '../../lib/supabase';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -20,12 +21,45 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export default function AppLayout() {
     const { user, signOut } = useAuthStore();
     const { activeWorkspace, fetchWorkspaces, showOnboarding } = useWorkspaceStore();
-    const { projects, fetchProjects } = useProjectStore();
+    const { fetchProjects } = useProjectStore();
     const { fetchCategories } = useTaskStore();
     const { subscribeToNotifications, unsubscribe } = useNotificationStore();
     const navigate = useNavigate();
     const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
     const [projectsExpanded, setProjectsExpanded] = useState(true);
+
+    const MIN_WIDTH = 180;
+    const MAX_WIDTH = 400;
+    const [sidebarWidth, setSidebarWidth] = useState(() => {
+        const saved = localStorage.getItem('fd_sidebar_width');
+        return saved ? parseInt(saved, 10) : 256;
+    });
+    const isDragging = useRef(false);
+
+    const onResizeStart = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        isDragging.current = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const onMove = (ev: MouseEvent) => {
+            if (!isDragging.current) return;
+            const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, ev.clientX));
+            setSidebarWidth(next);
+        };
+
+        const onUp = () => {
+            isDragging.current = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            setSidebarWidth(w => { localStorage.setItem('fd_sidebar_width', String(w)); return w; });
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }, []);
 
     useEffect(() => {
         if (!user) return;
@@ -69,7 +103,17 @@ export default function AppLayout() {
     return (
         <div className="flex h-screen bg-surface-1 overflow-hidden">
             {/* Sidebar */}
-            <aside className="w-64 bg-surface-1 border-r border-border-subtle flex flex-col fade-in">
+            <aside
+                style={{ width: sidebarWidth, minWidth: sidebarWidth, maxWidth: sidebarWidth }}
+                className="bg-surface-1 border-r border-border-subtle flex flex-col fade-in relative"
+            >
+                {/* Resize handle */}
+                <div
+                    onMouseDown={onResizeStart}
+                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize z-10 group"
+                >
+                    <div className="h-full w-px bg-transparent group-hover:bg-brand/40 transition-colors" />
+                </div>
                 <div className="h-16 flex items-center px-6 border-b border-border-subtle cursor-pointer hover:bg-surface-0 transition-colors">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white font-bold text-sm">
@@ -113,39 +157,10 @@ export default function AppLayout() {
                         </NavLink>
                     </nav>
 
-                    {(() => {
-                        const activeProjects = projects.filter(p => p.status === 'active');
-                        const archivedCount = projects.filter(p => p.status === 'archived' || p.status === 'completed').length;
-                        return (
-                            <div className="mt-6">
-                                <button
-                                    onClick={() => setProjectsExpanded(v => !v)}
-                                    className="w-full flex items-center gap-1 px-3 mb-1 group"
-                                >
-                                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex-1 text-left">Projetos Ativos</span>
-                                    {projectsExpanded ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
-                                </button>
-                                {projectsExpanded && (
-                                    <div className="space-y-0.5">
-                                        {activeProjects.length === 0 ? (
-                                            <p className="px-3 py-2 text-xs text-muted">Nenhum projeto ativo.</p>
-                                        ) : activeProjects.map(p => (
-                                            <NavLink key={p.id} to={`/projetos/${p.id}`} className={({ isActive }) => `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-[var(--radius-md)] transition-colors ${isActive ? 'text-brand bg-brand-light' : 'text-secondary hover:bg-surface-0'}`}>
-                                                <span style={p.color ? { color: p.color } : { color: '#9ca3af' }} className="font-bold">#</span>
-                                                <span className="truncate">{p.name}</span>
-                                            </NavLink>
-                                        ))}
-                                        {archivedCount > 0 && (
-                                            <NavLink to="/arquivados" className={({ isActive }) => `flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] transition-colors mt-1 ${isActive ? 'text-brand bg-brand-light' : 'text-muted hover:bg-surface-0 hover:text-secondary'}`}>
-                                                <Archive size={12} />
-                                                <span>{archivedCount} arquivado{archivedCount !== 1 ? 's' : ''}</span>
-                                            </NavLink>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
+                    <ProjectsSidebarSection
+                        projectsExpanded={projectsExpanded}
+                        setProjectsExpanded={setProjectsExpanded}
+                    />
                 </div>
 
                 <div className="p-4 border-t border-border-subtle space-y-1">
@@ -180,6 +195,7 @@ export default function AppLayout() {
                     </button>
                 </div>
             </aside>
+
 
             {/* Main Content */}
             <main className="flex-1 flex flex-col overflow-hidden bg-surface-1">

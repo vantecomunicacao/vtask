@@ -6,6 +6,7 @@ import { EmailSidebar } from '../components/email/EmailSidebar';
 import { EmailPreviewPanel } from '../components/email/EmailPreviewPanel';
 import { ProfilesModal } from '../components/email/ProfilesModal';
 import { EmailChecklistModal } from '../components/email/EmailChecklistModal';
+import { SaveDraftModal } from '../components/email/SaveDraftModal';
 import type { EmailProfile, EmailDraft, MailchimpList } from '../lib/emailTypes';
 import { callEmailApi } from '../lib/emailApi';
 
@@ -14,8 +15,6 @@ export type SectionKey = 'perfil' | 'envio' | 'rascunhos' | 'design' | 'ia';
 export default function GeradorEmail() {
     const activeWorkspace = useWorkspaceStore(state => state.activeWorkspace);
     const workspaceId = activeWorkspace?.id;
-    // A chave OpenAI é global do workspace — configurada em Configurações
-    const openaiKey = activeWorkspace?.openai_api_key ?? '';
 
     const [profiles, setProfiles] = useState<EmailProfile[]>([]);
     const [selectedProfile, setSelectedProfile] = useState<EmailProfile | null>(null);
@@ -57,21 +56,33 @@ export default function GeradorEmail() {
     const [scheduleEnabled, setScheduleEnabled] = useState(false);
     const [scheduledAt, setScheduledAt] = useState('');
     const [suggestingSubject, setSuggestingSubject] = useState(false);
+    const [sendingTest, setSendingTest] = useState(false);
+
+    // IA States
+    const [tone, setTone] = useState('persuasivo');
+
+    // Modal States
+    const [showSaveDraftModal, setShowSaveDraftModal] = useState(false);
 
     useEffect(() => {
         if (!selectedProfile) return;
         setButtonColor(selectedProfile.button_color || '#db4035');
         setHeaderColor(selectedProfile.brand_color || '#db4035');
-        if (selectedProfile.logo_url) setLogoUrl(selectedProfile.logo_url);
-        if (selectedProfile.banner_url) setBannerUrl(selectedProfile.banner_url);
-        if (selectedProfile.ai_prompt && !prompt) setPrompt(selectedProfile.ai_prompt);
-        if (selectedProfile.default_button_text) setButtonText(selectedProfile.default_button_text);
-        if (selectedProfile.default_button_link) setButtonLink(selectedProfile.default_button_link);
+        setLogoUrl(selectedProfile.logo_url || '');
+        setBannerUrl(selectedProfile.banner_url || '');
+        setBottomImageUrl('');
+        setPrompt(selectedProfile.ai_prompt || '');
+        setButtonText(selectedProfile.default_button_text || 'CLIQUE AQUI');
+        setButtonLink(selectedProfile.default_button_link || '');
+        setResult(null);
+        setSubject('');
+        setPreviewText('');
+        setMailchimpLists([]);
+        setSelectedListId('');
 
         if (selectedProfile.mailchimp_api_key && selectedProfile.mailchimp_server) {
             callEmailApi('/api/client-mailchimp-lists', {
-                apiKey: selectedProfile.mailchimp_api_key,
-                server: selectedProfile.mailchimp_server,
+                profile_id: selectedProfile.id,
             }).then((d: { lists?: MailchimpList[] }) => {
                 if (d.lists) {
                     setMailchimpLists(d.lists);
@@ -118,7 +129,7 @@ export default function GeradorEmail() {
 
     const handleGenerate = async () => {
         if (!prompt) { toast.error('Digite um comando para a IA'); return; }
-        if (!openaiKey) { toast.error('Configure a chave OpenAI em Configurações → Geral'); return; }
+        if (!workspaceId) { toast.error('Configure a chave OpenAI em Configurações → Geral'); return; }
         setLoading(true);
         setIsEditing(false);
         try {
@@ -127,9 +138,13 @@ export default function GeradorEmail() {
                 buttonText, buttonLink, title, bgColor, buttonColor, headerColor,
                 internalTemplateId, previewText,
                 clientContext: selectedProfile?.ai_prompt,
-                openaiApiKey: openaiKey,
                 ctaEnabled: selectedProfile?.cta_enabled ?? true,
                 emailLength: selectedProfile?.email_length ?? 'medium',
+                fontFamily: selectedProfile?.font_family,
+                tone,
+                // IDs seguros — servidor busca as chaves
+                workspace_id: workspaceId,
+                profile_id: selectedProfile?.id,
             });
             setResult({ subject: data.subject, body: data.body });
             if (!subject) setSubject(data.subject);
@@ -148,7 +163,8 @@ export default function GeradorEmail() {
             const data = await callEmailApi('/api/suggest-subject', {
                 prompt, title,
                 clientContext: selectedProfile?.ai_prompt,
-                openaiApiKey: openaiKey || undefined
+                workspace_id: workspaceId,
+                profile_id: selectedProfile?.id,
             });
             if (data.subject) setSubject(data.subject);
             toast.success('Sugestão aplicada!');
@@ -159,10 +175,9 @@ export default function GeradorEmail() {
         }
     };
 
-    const handleSaveDraft = async () => {
+    const handleSaveDraft = async (name: string) => {
         if (!workspaceId) return;
-        const name = window.prompt('Nome do rascunho:', emailName);
-        if (!name?.trim()) return;
+        setShowSaveDraftModal(false);
         setLoading(true);
         const { error } = await supabase.from('email_drafts').insert({
             workspace_id: workspaceId,
@@ -205,8 +220,9 @@ export default function GeradorEmail() {
                 listId: selectedListId || undefined,
                 previewText,
                 scheduleTime: scheduleEnabled && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
-                apiKey: selectedProfile?.mailchimp_api_key,
-                serverPrefix: selectedProfile?.mailchimp_server,
+                profile_id: selectedProfile?.id,
+                fromName: selectedProfile?.sender_name || selectedProfile?.name,
+                replyTo: selectedProfile?.sender_email,
             });
             toast.success('Campanha enviada para o Mailchimp!');
         } catch (err) {
@@ -215,6 +231,33 @@ export default function GeradorEmail() {
             setLoading(false);
         }
     };
+
+    const handleSendTestEmail = async () => {
+        if (!selectedProfile?.id) { toast.error('Selecione um perfil primeiro.'); return; }
+        if (!result?.body) { toast.error('Gere o e-mail antes de enviar um teste.'); return; }
+        setSendingTest(true);
+        try {
+            const data = await callEmailApi('/api/send-test-email', {
+                htmlContent: result.body,
+                subject: subject || result.subject,
+                profile_id: selectedProfile.id,
+            });
+            toast.success(`E-mail de teste enviado para ${data.sentTo}!`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Erro ao enviar teste');
+        } finally {
+            setSendingTest(false);
+        }
+    };
+
+    const buildChecks = () => [
+        { label: 'Conteúdo gerado pela IA', ok: !!result, blocking: true },
+        { label: 'Assunto preenchido', ok: !!subject.trim(), blocking: true },
+        { label: 'Chave do Mailchimp configurada no perfil', ok: !!selectedProfile?.mailchimp_api_key, blocking: true },
+        { label: 'Perfil de cliente selecionado', ok: !!selectedProfile, blocking: false },
+        { label: 'Lista do Mailchimp selecionada', ok: !!selectedListId, blocking: false },
+        { label: 'Horário de envio definido', ok: !scheduleEnabled || !!scheduledAt, blocking: false },
+    ];
 
     return (
         <div className="flex flex-col h-full fade-in">
@@ -226,7 +269,7 @@ export default function GeradorEmail() {
                     ) : emailName}
                 </button>
                 <div className="flex-1" />
-                <button onClick={handleSaveDraft} disabled={loading} className="h-9 px-5 rounded-[var(--radius-md)] text-[10px] font-black border border-border-subtle hover:bg-surface-card transition-all uppercase tracking-widest">
+                <button onClick={() => setShowSaveDraftModal(true)} disabled={loading} className="h-9 px-5 rounded-[var(--radius-md)] text-[10px] font-black border border-border-subtle hover:bg-surface-card transition-all uppercase tracking-widest">
                     SALVAR RASCUNHO
                 </button>
                 <button onClick={() => setShowChecklist(true)} disabled={!result || loading} className="h-9 px-5 rounded-[var(--radius-md)] text-[10px] font-black bg-brand text-white shadow-sm shadow-brand/20 hover:scale-105 transition-all disabled:opacity-50 uppercase tracking-widest">
@@ -250,6 +293,8 @@ export default function GeradorEmail() {
                     bgColor={bgColor} onBgColorChange={setBgColor} buttonColor={buttonColor} onButtonColorChange={setButtonColor}
                     getTemplateHeaderColor={() => headerColor}
                     prompt={prompt} onPromptChange={setPrompt} loading={loading} onGenerate={handleGenerate}
+                    tone={tone} onToneChange={setTone}
+                    onSendTestEmail={handleSendTestEmail} sendingTest={sendingTest}
                 />
 
                 <EmailPreviewPanel
@@ -261,7 +306,8 @@ export default function GeradorEmail() {
             </div>
 
             {showProfilesModal && <ProfilesModal onClose={() => { setShowProfilesModal(false); loadDrafts(); }} onSelectProfile={p => { setSelectedProfile(p); setShowProfilesModal(false); }} />}
-            {showChecklist && <EmailChecklistModal checks={[]} canSend={true} scheduleEnabled={scheduleEnabled} scheduledAt={scheduledAt} onClose={() => setShowChecklist(false)} onConfirm={handleCreateCampaign} />}
+            {showChecklist && (() => { const checks = buildChecks(); return <EmailChecklistModal checks={checks} canSend={checks.filter(c => c.blocking && !c.ok).length === 0} scheduleEnabled={scheduleEnabled} scheduledAt={scheduledAt} onClose={() => setShowChecklist(false)} onConfirm={handleCreateCampaign} />; })()}
+            {showSaveDraftModal && <SaveDraftModal defaultName={emailName} onConfirm={handleSaveDraft} onClose={() => setShowSaveDraftModal(false)} />}
         </div>
     );
 }
