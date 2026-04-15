@@ -165,7 +165,6 @@ interface Props {
     onBgColorChange: (v: string) => void;
     buttonColor: string;
     onButtonColorChange: (v: string) => void;
-    getTemplateHeaderColor: () => string;
 }
 
 export function EmailDesignSection({
@@ -177,7 +176,6 @@ export function EmailDesignSection({
     logoUrl, bannerUrl, bottomImageUrl, onFileUpload,
     bgColor, onBgColorChange,
     buttonColor, onButtonColorChange,
-    getTemplateHeaderColor,
 }: Props) {
     return (
         <div className="border-b">

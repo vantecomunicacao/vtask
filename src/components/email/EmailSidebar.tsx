@@ -50,7 +50,6 @@ interface EmailSidebarProps {
   onBgColorChange: (s: string) => void;
   buttonColor: string;
   onButtonColorChange: (s: string) => void;
-  getTemplateHeaderColor: () => string;
   // IA
   prompt: string;
   onPromptChange: (s: string) => void;
@@ -105,7 +104,7 @@ export function EmailSidebar(props: EmailSidebarProps) {
         onBgColorChange={props.onBgColorChange}
         buttonColor={props.buttonColor}
         onButtonColorChange={props.onButtonColorChange}
-        getTemplateHeaderColor={props.getTemplateHeaderColor}
+
       />
 
       <EmailEnvioSection

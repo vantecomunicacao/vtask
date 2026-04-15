@@ -57,6 +57,7 @@ export interface EmailProfile {
   font_family?: string;
   created_at?: string;
   workspace_id?: string;
+  test_email?: string;
 }
 
 export interface EmailSchedule {

@@ -291,7 +291,6 @@ export default function GeradorEmail() {
                     buttonText={buttonText} onButtonTextChange={setButtonText} buttonLink={buttonLink} onButtonLinkChange={setButtonLink}
                     logoUrl={logoUrl} bannerUrl={bannerUrl} bottomImageUrl={bottomImageUrl} onFileUpload={handleFileUpload}
                     bgColor={bgColor} onBgColorChange={setBgColor} buttonColor={buttonColor} onButtonColorChange={setButtonColor}
-                    getTemplateHeaderColor={() => headerColor}
                     prompt={prompt} onPromptChange={setPrompt} loading={loading} onGenerate={handleGenerate}
                     tone={tone} onToneChange={setTone}
                     onSendTestEmail={handleSendTestEmail} sendingTest={sendingTest}
