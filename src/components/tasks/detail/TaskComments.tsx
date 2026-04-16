@@ -10,6 +10,7 @@ import { createNotification } from '../../../store/notificationStore';
 import { useTaskStore } from '../../../store/taskStore';
 import { useWorkspaceStore } from '../../../store/workspaceStore';
 import { toast } from 'sonner';
+import { CommentEditor } from './CommentEditor';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type Comment = Database['public']['Tables']['comments']['Row'] & { user?: Profile | null };
@@ -27,6 +28,7 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
     ({ taskId, session }, ref) => {
         const [comments, setComments] = useState<Comment[]>([]);
         const [newComment, setNewComment] = useState('');
+        const [newCommentHtml, setNewCommentHtml] = useState('');
         const [loadingComments, setLoadingComments] = useState(false);
         const [submitting, setSubmitting] = useState(false);
         const [editingId, setEditingId] = useState<string | null>(null);
@@ -51,12 +53,13 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
         }, [reload]);
 
         const handleAddComment = async () => {
-            if (!newComment.trim() || !session) return;
+            const textContent = newComment.trim();
+            if (!textContent || !session) return;
             setSubmitting(true);
             const { error } = await supabase.from('comments').insert({
                 task_id: taskId,
                 user_id: session.user.id,
-                content: newComment.trim(),
+                content: newCommentHtml || textContent,
             });
             setSubmitting(false);
             if (error) {
@@ -64,6 +67,7 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
                 return;
             }
             setNewComment('');
+            setNewCommentHtml('');
             await reload();
 
             const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
@@ -190,13 +194,18 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className={`text-sm px-2.5 py-2 rounded-lg border inline-block max-w-full break-words ${
-                                                isSystem
-                                                    ? 'bg-surface-0 border-border-subtle text-muted italic text-[11px]'
-                                                    : 'bg-surface-2/50 border-border-subtle text-secondary'
-                                            }`}>
-                                                {c.content.replace('_SISTEMA_: ', '')}
-                                            </div>
+                                            <div
+                                                className={`text-sm px-2.5 py-2 rounded-lg border inline-block max-w-full break-words ${
+                                                    isSystem
+                                                        ? 'bg-surface-0 border-border-subtle text-muted italic text-[11px]'
+                                                        : 'bg-surface-2/50 border-border-subtle text-secondary'
+                                                } comment-body`}
+                                                dangerouslySetInnerHTML={{
+                                                    __html: c.content.startsWith('<')
+                                                        ? c.content.replace('_SISTEMA_: ', '')
+                                                        : `<p>${c.content.replace('_SISTEMA_: ', '')}</p>`
+                                                }}
+                                            />
                                         )}
                                     </div>
                                 </div>
@@ -206,14 +215,16 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
                 </div>
 
                 <div className="flex gap-3 items-start mt-4 pt-4 border-t border-border-subtle">
-                    <textarea
+                    <CommentEditor
                         value={newComment}
-                        onChange={e => setNewComment(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAddComment();
+                        onChange={(html) => {
+                            setNewCommentHtml(html);
+                            // extract plain text to keep disabled check working
+                            const tmp = document.createElement('div');
+                            tmp.innerHTML = html;
+                            setNewComment(tmp.textContent || '');
                         }}
-                        placeholder="Escreva um comentário... (Ctrl+Enter para enviar)"
-                        className="flex-1 px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:border-brand resize-none min-h-[60px] bg-surface-card"
+                        onSubmit={handleAddComment}
                     />
                     <Button onClick={handleAddComment} disabled={!newComment.trim() || submitting} isLoading={submitting}>
                         Enviar

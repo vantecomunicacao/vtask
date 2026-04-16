@@ -21,6 +21,9 @@ import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/authStore';
 import type { TaskWithAssignee } from '../../../store/taskStore';
 import { SlashCommands, suggestionItems, renderItems } from '../../documents/SlashCommands';
+import { DocMention } from '../../documents/extensions/DocMention';
+import { renderDocItems } from '../../documents/DocMentionSuggestion';
+import { useDocumentStore } from '../../../store/documentStore';
 
 export interface DescriptionEditorProps {
     task: TaskWithAssignee;
@@ -38,7 +41,11 @@ export function DescriptionEditor({
     isEditingDesc, setIsEditingDesc, saving, reloadAttachments,
 }: DescriptionEditorProps) {
     const { session } = useAuthStore();
+    const { documents } = useDocumentStore();
     const [uploadingInternal, setUploadingInternal] = useState(false);
+
+    const documentsRef = useRef(documents);
+    useEffect(() => { documentsRef.current = documents; }, [documents]);
 
     // Refs keep values fresh inside TipTap closures (stale closure problem)
     const taskRef = useRef(task);
@@ -68,6 +75,17 @@ export function DescriptionEditor({
                         )
                         .slice(0, 10),
                     render: renderItems,
+                },
+            }),
+            DocMention.configure({
+                HTMLAttributes: { class: 'doc-mention-node' },
+                suggestion: {
+                    char: '[[',
+                    items: ({ query }: { query: string }) =>
+                        documentsRef.current
+                            .filter(d => (d.title || '').toLowerCase().includes(query.toLowerCase()))
+                            .slice(0, 10),
+                    render: renderDocItems,
                 },
             }),
         ],
@@ -166,6 +184,14 @@ export function DescriptionEditor({
                 .tiptap-editor-mini table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 1.5rem 0; }
                 .tiptap-editor-mini table td, .tiptap-editor-mini table th { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
                 .tiptap-editor-mini pre { background: #1f2937; color: #e5e7eb; padding: 1rem; border-radius: 0.5rem; margin: 1rem 0; overflow-x: auto; }
+                .tiptap-editor-mini .doc-mention-chip {
+                    display: inline-flex; align-items: center; gap: 3px;
+                    padding: 1px 6px; border-radius: 4px;
+                    background: color-mix(in srgb, var(--color-brand, #db4035) 10%, transparent);
+                    color: var(--color-brand, #db4035);
+                    font-size: 12px; font-weight: 600; cursor: pointer;
+                    border: 1px solid color-mix(in srgb, var(--color-brand, #db4035) 20%, transparent);
+                }
             `}} />
 
             <div className="flex items-center justify-between mb-1">

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2, Eye, EyeOff, Paintbrush, Moon, Sun } from 'lucide-react';
+import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2, Eye, EyeOff, Paintbrush, Moon, Sun, Layers, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTaskStore, type CustomStatus } from '../store/taskStore';
 import { useThemeStore, THEMES } from '../store/themeStore';
@@ -29,7 +29,7 @@ export default function Configuracoes() {
     const [loading, setLoading] = useState(false);
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
     const [inviteEmail, setInviteEmail] = useState('');
-    const [activeTab, setActiveTab] = useState<'geral' | 'equipe' | 'fluxo' | 'categorias' | 'aparencia'>('geral');
+    const [activeTab, setActiveTab] = useState<'geral' | 'equipe' | 'fluxo' | 'categorias' | 'aparencia' | 'design'>('geral');
     const { theme, setTheme, darkMode, toggleDarkMode } = useThemeStore();
 
     // Status management state
@@ -253,6 +253,14 @@ export default function Configuracoes() {
                     >
                         <Paintbrush size={18} /> Aparência
                     </button>
+                    <div className="border-t border-border-subtle pt-2 mt-2">
+                        <button
+                            onClick={() => setActiveTab('design')}
+                            className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'design' ? 'bg-brand-light text-brand' : 'hover:bg-surface-0 text-muted'}`}
+                        >
+                            <Layers size={18} /> Design System
+                        </button>
+                    </div>
                 </div>
 
                 {/* Conteúdo do Settings */}
@@ -646,6 +654,30 @@ export default function Configuracoes() {
                                         ))}
                                     </div>
                                 </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Design System */}
+                    {activeTab === 'design' && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Layers size={20} className="text-brand" />
+                                    Design System
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-secondary mb-4">Referência de componentes, tokens de cor, tipografia e estilos usados no FlowDesk.</p>
+                                <a
+                                    href="/design-system"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors"
+                                >
+                                    <ExternalLink size={14} />
+                                    Abrir Design System
+                                </a>
                             </CardContent>
                         </Card>
                     )}

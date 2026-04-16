@@ -27,17 +27,17 @@ function ColResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) =
             onMouseDown={onMouseDown}
             className="absolute right-0 top-0 h-full w-3 cursor-col-resize z-10 flex items-center justify-center group/rh"
         >
-            <div className="h-3/4 w-px bg-transparent group-hover/rh:bg-brand/40 transition-colors" />
+            <div className="h-3/4 w-px bg-border-subtle group-hover/rh:w-0.5 group-hover/rh:bg-brand/50 transition-all duration-150" />
         </div>
     );
 }
 
 // ─── Column resize config ──────────────────────
-const COL_IDS = ['title', 'project', 'due', 'created', 'assignee', 'priority', 'actions'] as const;
+const COL_IDS = ['title', 'project', 'due', 'created', 'priority', 'assignee', 'actions'] as const;
 type ColId = typeof COL_IDS[number];
 const DEFAULT_COL_W: Record<ColId, number> = { title: 280, project: 130, due: 110, created: 100, assignee: 48, priority: 90, actions: 44 };
 const MIN_COL_W: Record<ColId, number> = { title: 150, project: 80, due: 80, created: 80, assignee: 48, priority: 60, actions: 44 };
-const RESIZABLE_COLS = new Set<ColId>(['title', 'project', 'due', 'created', 'priority']);
+const RESIZABLE_COLS = new Set<ColId>(['title', 'project', 'due', 'created', 'assignee', 'priority']);
 
 // ─── Skeleton Component ────────────────────────
 function TaskSkeleton({ gridTemplate }: { gridTemplate: string }) {
@@ -510,16 +510,17 @@ export default function Tarefas() {
                         <span className="text-[10px] font-black uppercase tracking-widest text-muted truncate">Criação</span>
                         <ColResizeHandle onMouseDown={onColResizeStart('created')} />
                     </div>
-                    {/* Resp. */}
-                    <div className="overflow-hidden">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted">Resp.</span>
-                    </div>
                     {/* Prioridade */}
                     <div className="relative overflow-hidden">
                         <button onClick={() => handleSort('priority')} className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:text-secondary transition-colors truncate", sortConfig.field === 'priority' ? 'text-brand' : 'text-muted')}>
                             Prior. <SortIcon field="priority" />
                         </button>
                         <ColResizeHandle onMouseDown={onColResizeStart('priority')} />
+                    </div>
+                    {/* Resp. */}
+                    <div className="relative overflow-hidden">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted">Resp.</span>
+                        <ColResizeHandle onMouseDown={onColResizeStart('assignee')} />
                     </div>
                     <div />
                 </div>

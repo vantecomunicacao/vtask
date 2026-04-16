@@ -28,7 +28,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
     const { statuses, taskCategories, updateTask, deleteTask, toggleTaskCompletion, tasks } = useTaskStore();
     const { session } = useAuthStore();
     const { activeWorkspace } = useWorkspaceStore();
-    const { documents } = useDocumentStore();
+    const { documents, fetchDocuments } = useDocumentStore();
 
     const [members, setMembers] = useState<Profile[]>([]);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -39,6 +39,12 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
 
     const commentsRef = useRef<TaskCommentsRef>(null);
     const attachmentsRef = useRef<TaskAttachmentsRef>(null);
+
+    // Load documents for mention support
+    useEffect(() => {
+        if (!isOpen || !activeWorkspace || documents.length > 0) return;
+        fetchDocuments(activeWorkspace.id);
+    }, [isOpen, activeWorkspace, documents.length, fetchDocuments]);
 
     // Load members + sync title when modal opens or task changes
     useEffect(() => {

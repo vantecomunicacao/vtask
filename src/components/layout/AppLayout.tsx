@@ -151,10 +151,6 @@ export default function AppLayout() {
                             <span className="flex-1">Gerador de E-mails</span>
                             <span className="text-[9px] font-bold uppercase tracking-wide text-muted bg-surface-2 border border-border-subtle px-1.5 py-0.5 rounded-full">Em breve</span>
                         </NavLink>
-                        <NavLink to="/design-system" className={navLinkClass}>
-                            <Layers size={18} />
-                            Design System
-                        </NavLink>
                     </nav>
 
                     <ProjectsSidebarSection

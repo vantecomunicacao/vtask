@@ -241,12 +241,12 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
                                         onClick={() => toggleFolder(folder.id)}
                                     >
                                         <ChevronRight
-                                            size={12}
+                                            size={14}
                                             className={`text-muted transition-transform duration-150 shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
                                         />
                                         {isExpanded
-                                            ? <FolderOpen size={14} className="text-muted shrink-0" />
-                                            : <Folder size={14} className="text-muted shrink-0" />}
+                                            ? <FolderOpen size={18} className="text-muted shrink-0" />
+                                            : <Folder size={18} className="text-muted shrink-0" />}
 
                                         {renamingId === folder.id ? (
                                             <input
@@ -263,7 +263,7 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
                                                 className="flex-1 text-xs px-1 py-0.5 rounded border border-brand/40 bg-surface-0 outline-none"
                                             />
                                         ) : (
-                                            <span className="text-xs font-medium text-secondary flex-1 truncate">
+                                            <span className="text-sm font-medium text-secondary flex-1 truncate">
                                                 {folder.name}
                                                 {!isExpanded && fps.length > 0 && (
                                                     <span className="text-muted ml-1 font-normal">({fps.length})</span>

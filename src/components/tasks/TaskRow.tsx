@@ -214,24 +214,6 @@ export const TaskRow = React.memo(function TaskRow({
                             : '—'}
                     </div>
 
-                    {/* Responsável */}
-                    <div className="flex items-center overflow-hidden">
-                        {task.assignee ? (
-                            <div
-                                className="w-6 h-6 rounded-full border-2 border-surface-card overflow-hidden shrink-0"
-                                title={task.assignee.full_name || task.assignee.email || ''}
-                            >
-                                <img
-                                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(task.assignee.full_name || task.assignee.email || 'U')}&background=fdf3f2&color=db4035&size=48`}
-                                    alt={task.assignee.full_name || task.assignee.email || ''}
-                                    className="w-full h-full object-cover"
-                                />
-                            </div>
-                        ) : (
-                            <span className="text-xs text-muted opacity-0 group-hover:opacity-60">—</span>
-                        )}
-                    </div>
-
                     {/* Prioridade */}
                     <div className="flex items-center overflow-hidden">
                         {task.priority ? (
@@ -249,6 +231,24 @@ export const TaskRow = React.memo(function TaskRow({
                                 </span>
                             </span>
                         ) : <span className="text-xs text-muted">—</span>}
+                    </div>
+
+                    {/* Responsável */}
+                    <div className="flex items-center overflow-hidden">
+                        {task.assignee ? (
+                            <div
+                                className="w-6 h-6 rounded-full border-2 border-surface-card overflow-hidden shrink-0"
+                                title={task.assignee.full_name || task.assignee.email || ''}
+                            >
+                                <img
+                                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(task.assignee.full_name || task.assignee.email || 'U')}&background=fdf3f2&color=db4035&size=48`}
+                                    alt={task.assignee.full_name || task.assignee.email || ''}
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                        ) : (
+                            <span className="text-xs text-muted opacity-0 group-hover:opacity-60">—</span>
+                        )}
                     </div>
 
                     {/* Ações */}
