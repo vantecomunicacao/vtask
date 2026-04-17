@@ -4,6 +4,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { cn } from '../../lib/utils';
+import { TextSubstitutions } from '../../lib/tiptapExtensions';
 import {
     Bold, Italic, Strikethrough, List, ListOrdered,
     Heading2, Heading3, CheckSquare, Code,
@@ -43,6 +44,7 @@ export function MiniRichEditor({ value, onChange, placeholder, className }: Mini
     const editor = useEditor({
         extensions: [
             StarterKit,
+            TextSubstitutions,
             Placeholder.configure({ placeholder: placeholder ?? 'Adicione uma descrição detalhada...' }),
             TaskList,
             TaskItem.configure({ nested: true }),

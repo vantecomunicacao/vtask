@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Draggable } from '@hello-pangea/dnd';
 import { MoreHorizontal, Calendar as CalendarIcon, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
 import { isToday, isTomorrow, isPast, format } from 'date-fns';
@@ -53,13 +54,25 @@ export const TaskRow = React.memo(function TaskRow({
     const deleteTask = useTaskStore(s => s.deleteTask);
     const [isEditingDate, setIsEditingDate] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
     const dateBtnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const menuBtnRef = useRef<HTMLButtonElement>(null);
+
+    const openMenu = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setMenuPos({ top: rect.bottom + 4, left: rect.right - 176 });
+        setIsMenuOpen(v => !v);
+    }, []);
 
     useEffect(() => {
         if (!isMenuOpen) return;
         const handler = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+            if (
+                menuRef.current && !menuRef.current.contains(e.target as Node) &&
+                menuBtnRef.current && !menuBtnRef.current.contains(e.target as Node)
+            ) {
                 setIsMenuOpen(false);
             }
         };
@@ -252,9 +265,10 @@ export const TaskRow = React.memo(function TaskRow({
                     </div>
 
                     {/* Ações */}
-                    <div className="flex justify-end items-center relative" ref={menuRef}>
+                    <div className="flex justify-end items-center">
                         <button
-                            onClick={(e) => { e.stopPropagation(); setIsMenuOpen(v => !v); }}
+                            ref={menuBtnRef}
+                            onClick={openMenu}
                             className={cn(
                                 "p-1.5 rounded-lg transition-all duration-200",
                                 isMenuOpen
@@ -267,8 +281,12 @@ export const TaskRow = React.memo(function TaskRow({
                             <MoreHorizontal size={14} />
                         </button>
 
-                        {isMenuOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-44 bg-surface-card border border-border-subtle rounded-lg shadow-float z-50 py-1 popup-spring">
+                        {isMenuOpen && createPortal(
+                            <div
+                                ref={menuRef}
+                                style={{ top: menuPos.top, left: menuPos.left }}
+                                className="fixed w-44 bg-surface-card border border-border-subtle rounded-lg shadow-float z-[9999] py-1 popup-spring"
+                            >
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onOpenDetail(task); }}
                                     className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
@@ -291,7 +309,8 @@ export const TaskRow = React.memo(function TaskRow({
                                     <Trash2 size={13} />
                                     Mover para lixeira
                                 </button>
-                            </div>
+                            </div>,
+                            document.body
                         )}
                     </div>
                 </div>

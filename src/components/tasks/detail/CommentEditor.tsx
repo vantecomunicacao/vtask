@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { DocMention } from '../../documents/extensions/DocMention';
 import { renderDocItems } from '../../documents/DocMentionSuggestion';
 import { useDocumentStore } from '../../../store/documentStore';
+import { TextSubstitutions } from '../../../lib/tiptapExtensions';
 
 interface CommentEditorProps {
     value: string;
@@ -21,6 +22,7 @@ export function CommentEditor({ value, onChange, onSubmit, placeholder }: Commen
     const editor = useEditor({
         extensions: [
             StarterKit.configure({ codeBlock: false }),
+            TextSubstitutions,
             Placeholder.configure({ placeholder: placeholder ?? 'Escreva um comentário… use [[ para mencionar um documento' }),
             DocMention.configure({
                 HTMLAttributes: { class: 'doc-mention-node' },

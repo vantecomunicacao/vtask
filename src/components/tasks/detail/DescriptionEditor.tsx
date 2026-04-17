@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
+import { TextSubstitutions } from '../../../lib/tiptapExtensions';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
 import { TaskList } from '@tiptap/extension-task-list';
@@ -56,6 +57,7 @@ export function DescriptionEditor({
     const editor = useEditor({
         extensions: [
             StarterKit,
+            TextSubstitutions,
             Placeholder.configure({ placeholder: 'Digite "/" para comandos...' }),
             Link.configure({ openOnClick: false }),
             TaskList,

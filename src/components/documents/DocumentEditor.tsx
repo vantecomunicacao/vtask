@@ -36,6 +36,7 @@ import {
     History, Download, ChevronDown, Check,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { TextSubstitutions } from '../../lib/tiptapExtensions';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import type { DocumentVersion } from '../../store/documentStore';
 
@@ -120,6 +121,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
     const editor = useEditor({
         extensions: [
             StarterKit.configure({ codeBlock: false }),
+            TextSubstitutions,
             Placeholder.configure({
                 placeholder: 'Digite "/" para comandos ou comece a escrever...',
             }),
