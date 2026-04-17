@@ -100,7 +100,7 @@ export default function Lixeira() {
                 {totalCount > 0 && (
                     <button
                         onClick={handleEmptyTrash}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand-light rounded-[var(--radius-md)] transition-colors border border-brand/20"
                     >
                         <Trash2 size={14} />
                         Esvaziar lixeira
@@ -109,13 +109,13 @@ export default function Lixeira() {
             </div>
 
             {/* Aviso */}
-            <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-5 text-sm text-amber-800">
+            <div className="flex items-start gap-2.5 p-3 bg-surface-0 border border-border-subtle rounded-[var(--radius-card)] mb-5 text-sm text-secondary">
                 <AlertTriangle size={15} className="shrink-0 mt-0.5" />
                 <span>Itens na lixeira não aparecem no sistema. Restaure para recuperá-los ou exclua permanentemente.</span>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 bg-surface-0 p-1 rounded-xl mb-4 border border-border-subtle w-fit">
+            <div className="flex gap-1 bg-surface-0 p-1 rounded-[var(--radius-card)] mb-4 border border-border-subtle w-fit">
                 {(['tarefas', 'documentos'] as Tab[]).map(t => (
                     <button
                         key={t}
@@ -123,7 +123,7 @@ export default function Lixeira() {
                         className={cn(
                             'flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
                             tab === t
-                                ? 'bg-surface-card text-primary shadow-sm border border-border-subtle'
+                                ? 'bg-surface-card text-primary border border-border-subtle'
                                 : 'text-muted hover:text-secondary'
                         )}
                     >
@@ -143,7 +143,7 @@ export default function Lixeira() {
             {loading ? (
                 <div className="space-y-2">
                     {[...Array(4)].map((_, i) => (
-                        <div key={i} className="skeleton-pulse h-16 rounded-xl" />
+                        <div key={i} className="skeleton-pulse h-16 rounded-[var(--radius-card)]" />
                     ))}
                 </div>
             ) : tab === 'tarefas' ? (
@@ -201,7 +201,7 @@ function TrashItem({
     const timeAgo = formatDistanceToNow(new Date(deletedAt), { addSuffix: true, locale: ptBR });
 
     return (
-        <div className="flex items-center gap-3 p-3 bg-surface-card rounded-xl border border-border-subtle group hover:border-border-default transition-all shadow-sm">
+        <div className="flex items-center gap-3 p-3 bg-surface-card rounded-[var(--radius-card)] border border-border-subtle group hover:border-border transition-all">
             <div className="w-8 h-8 rounded-lg bg-surface-0 flex items-center justify-center shrink-0">
                 {icon}
             </div>
@@ -224,7 +224,7 @@ function TrashItem({
                 <button
                     onClick={onDelete}
                     title="Excluir permanentemente"
-                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-brand hover:bg-brand-light rounded-[var(--radius-sm)] transition-colors border border-brand/20"
                 >
                     <Trash2 size={12} />
                     Excluir

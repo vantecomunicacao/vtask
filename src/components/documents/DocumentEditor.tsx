@@ -407,7 +407,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                     <div className="w-px h-5 bg-border-subtle" />
                     <button
                         onClick={handleDelete}
-                        className="p-2 hover:bg-red-50 text-muted hover:text-red-500 rounded-[var(--radius-md)] transition-colors"
+                        className="p-2 hover:bg-brand-light text-muted hover:text-brand rounded-[var(--radius-md)] transition-colors"
                         title="Excluir página"
                     >
                         <Trash2 size={17} />
@@ -419,53 +419,53 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
             {editor && (
                 <BubbleMenu
                     editor={editor}
-                    className="flex items-center gap-0.5 bg-gray-900 text-white p-1.5 rounded-xl shadow-2xl border border-white/10"
+                    className="flex items-center gap-0.5 bg-surface-card text-primary p-1.5 rounded-[var(--radius-sm)] shadow-float border border-border-subtle"
                 >
                     {/* Heading selector */}
                     <button
                         onMouseDown={e => { e.preventDefault(); editor.chain().toggleHeading({ level: 1 }).run(); }}
-                        className={`px-1.5 py-1 rounded text-xs font-bold hover:bg-white/10 transition-colors ${editor.isActive('heading', { level: 1 }) ? 'text-brand' : 'text-gray-300'}`}
+                        className={`px-1.5 py-1 rounded-[var(--radius-xs)] text-xs font-bold hover:bg-surface-0 transition-colors ${editor.isActive('heading', { level: 1 }) ? 'text-brand' : 'text-secondary'}`}
                         title="Título 1"
                     >H1</button>
                     <button
                         onMouseDown={e => { e.preventDefault(); editor.chain().toggleHeading({ level: 2 }).run(); }}
-                        className={`px-1.5 py-1 rounded text-xs font-bold hover:bg-white/10 transition-colors ${editor.isActive('heading', { level: 2 }) ? 'text-brand' : 'text-gray-300'}`}
+                        className={`px-1.5 py-1 rounded-[var(--radius-xs)] text-xs font-bold hover:bg-surface-0 transition-colors ${editor.isActive('heading', { level: 2 }) ? 'text-brand' : 'text-secondary'}`}
                         title="Título 2"
                     >H2</button>
                     <button
                         onMouseDown={e => { e.preventDefault(); editor.chain().toggleHeading({ level: 3 }).run(); }}
-                        className={`px-1.5 py-1 rounded text-xs font-bold hover:bg-white/10 transition-colors ${editor.isActive('heading', { level: 3 }) ? 'text-brand' : 'text-gray-300'}`}
+                        className={`px-1.5 py-1 rounded-[var(--radius-xs)] text-xs font-bold hover:bg-surface-0 transition-colors ${editor.isActive('heading', { level: 3 }) ? 'text-brand' : 'text-secondary'}`}
                         title="Título 3"
                     >H3</button>
 
-                    <div className="w-px h-4 bg-white/20 mx-0.5" />
+                    <div className="w-px h-4 bg-border-subtle mx-0.5" />
 
                     <button
                         onMouseDown={e => { e.preventDefault(); editor.chain().toggleBold().run(); }}
-                        className={`p-1.5 rounded hover:bg-white/10 transition-colors ${editor.isActive('bold') ? 'text-brand' : ''}`}
+                        className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors ${editor.isActive('bold') ? 'text-brand' : 'text-secondary'}`}
                         title="Negrito (Ctrl+B)"
                     ><Bold size={14} /></button>
                     <button
                         onMouseDown={e => { e.preventDefault(); editor.chain().toggleItalic().run(); }}
-                        className={`p-1.5 rounded hover:bg-white/10 transition-colors ${editor.isActive('italic') ? 'text-brand' : ''}`}
+                        className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors ${editor.isActive('italic') ? 'text-brand' : 'text-secondary'}`}
                         title="Itálico (Ctrl+I)"
                     ><Italic size={14} /></button>
                     <button
                         onMouseDown={e => { e.preventDefault(); editor.chain().toggleStrike().run(); }}
-                        className={`p-1.5 rounded hover:bg-white/10 transition-colors ${editor.isActive('strike') ? 'text-brand' : ''}`}
+                        className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors ${editor.isActive('strike') ? 'text-brand' : 'text-secondary'}`}
                         title="Tachado"
                     ><Strikethrough size={14} /></button>
 
-                    <div className="w-px h-4 bg-white/20 mx-0.5" />
+                    <div className="w-px h-4 bg-border-subtle mx-0.5" />
 
                     <button
                         onMouseDown={e => { e.preventDefault(); editor.chain().toggleHighlight({ color: '#FEF08A' }).run(); }}
-                        className={`p-1.5 rounded hover:bg-white/10 transition-colors ${editor.isActive('highlight') ? 'text-yellow-400' : ''}`}
+                        className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors ${editor.isActive('highlight') ? 'text-brand' : 'text-secondary'}`}
                         title="Destacar"
                     ><Highlighter size={14} /></button>
 
                     {/* Cor do texto */}
-                    <label className="relative p-1.5 rounded hover:bg-white/10 transition-colors cursor-pointer" title="Cor do texto">
+                    <label className="relative p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors cursor-pointer text-secondary" title="Cor do texto">
                         <Palette size={14} />
                         <input
                             type="color"
@@ -474,7 +474,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                         />
                     </label>
 
-                    <div className="w-px h-4 bg-white/20 mx-0.5" />
+                    <div className="w-px h-4 bg-border-subtle mx-0.5" />
 
                     <button
                         onMouseDown={e => {
@@ -486,7 +486,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                                 if (url) editor.chain().setLink({ href: url }).run();
                             }
                         }}
-                        className={`p-1.5 rounded hover:bg-white/10 transition-colors ${editor.isActive('link') ? 'text-brand' : ''}`}
+                        className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors ${editor.isActive('link') ? 'text-brand' : 'text-secondary'}`}
                         title="Link"
                     ><LinkIcon size={14} /></button>
                 </BubbleMenu>
@@ -678,7 +678,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
 
             <style dangerouslySetInnerHTML={{ __html: `
                 .tiptap-editor-container .ProseMirror:focus { outline: none; }
-                .tiptap-editor-container .ProseMirror { min-height: 500px; font-family: "Figtree", ui-sans-serif, system-ui, sans-serif; }
+                .tiptap-editor-container .ProseMirror { min-height: 500px; font-family: "Figtree", ui-sans-serif, system-ui, sans-serif; line-height: 1.55; }
 
                 .tiptap-editor-container .ProseMirror p.is-editor-empty:first-child::before {
                     content: attr(data-placeholder);
@@ -689,7 +689,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                 .tiptap-editor-container .ProseMirror h1 { font-size: 2.25rem; font-weight: 800; margin: 1.5rem 0 0.5rem; color: #1c1a18; line-height: 1.2; }
                 .tiptap-editor-container .ProseMirror h2 { font-size: 1.6rem; font-weight: 700; margin: 1.25rem 0 0.4rem; color: #1c1a18; line-height: 1.3; }
                 .tiptap-editor-container .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.35rem; color: #1c1a18; line-height: 1.4; }
-                .tiptap-editor-container .ProseMirror p { margin-bottom: 0.5rem; line-height: 1.55; color: #1c1a18; font-size: 1rem; }
+                .tiptap-editor-container .ProseMirror p { margin-top: 0; margin-bottom: 0; line-height: 1.55; color: #1c1a18; font-size: 1rem; }
                 .tiptap-editor-container .ProseMirror s { text-decoration: line-through; color: #a09d98; }
 
                 /* Inline code */

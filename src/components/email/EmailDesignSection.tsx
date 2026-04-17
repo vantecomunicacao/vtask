@@ -193,7 +193,7 @@ export function EmailDesignSection({
                                     <button
                                         key={t.id}
                                         onClick={() => onTemplateChange(t.id)}
-                                        className={`relative flex flex-col rounded-lg border-2 overflow-hidden text-left transition-all ${isSelected ? 'border-brand shadow-sm' : 'border-border-subtle hover:border-brand/40'}`}
+                                        className={`relative flex flex-col rounded-[var(--radius-card)] border-2 overflow-hidden text-left transition-all ${isSelected ? 'border-brand' : 'border-border-subtle hover:border-brand/40'}`}
                                     >
                                         {isSelected && (
                                             <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-brand flex items-center justify-center z-10">
@@ -252,7 +252,7 @@ export function EmailDesignSection({
                             ]).map(({ key, label, url }) => (
                                 <label
                                     key={key}
-                                    className={`flex items-center gap-3 p-2.5 rounded-lg border border-dashed cursor-pointer hover:bg-surface-2 transition-colors ${url ? 'border-green-300 bg-green-50/40' : 'border-border-subtle'}`}
+                                    className={`flex items-center gap-3 p-2.5 rounded-[var(--radius-md)] border border-dashed cursor-pointer hover:bg-surface-2 transition-colors ${url ? 'border-brand/40 bg-brand-light/30' : 'border-border-subtle'}`}
                                 >
                                     <span className="text-xs font-medium text-secondary w-24 flex-shrink-0">{label}</span>
                                     {url

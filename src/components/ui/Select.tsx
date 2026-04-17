@@ -130,8 +130,8 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                     tabIndex={props.disabled ? -1 : 0}
                     className={cn(
                         'w-full flex items-center justify-between px-3 py-2 bg-surface-card border border-border-subtle rounded-[var(--radius-md)] text-sm transition-all cursor-pointer outline-none select-none',
-                        isOpen ? 'ring-2 ring-brand/20 border-brand shadow-sm' : 'hover:border-border-subtle',
-                        error && 'border-red-500 ring-red-500/10 focus:border-red-500',
+                        isOpen ? 'ring-2 ring-brand/20 border-brand' : 'hover:border-border-subtle',
+                        error && 'border-brand ring-brand/10',
                         props.disabled && 'opacity-50 cursor-not-allowed bg-surface-2',
                         className
                     )}

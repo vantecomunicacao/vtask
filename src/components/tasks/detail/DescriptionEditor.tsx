@@ -13,10 +13,17 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
 import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
+import { Color } from '@tiptap/extension-color';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Highlight } from '@tiptap/extension-highlight';
+import { Callout } from '../../documents/extensions/Callout';
+import { Details } from '../../documents/extensions/Details';
 import {
-    Bold, Italic, Link as LinkIcon, Heading1, Heading2, List, ListOrdered,
+    Bold, Italic, Strikethrough, Link as LinkIcon,
+    Heading1, Heading2, Heading3, List, ListOrdered,
     CheckSquare, Table as TableIcon, Image as ImageIcon, Code,
     AlignLeft, AlignCenter, AlignRight, Minus,
+    Undo2, Redo2, Highlighter,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/authStore';
@@ -58,6 +65,11 @@ export function DescriptionEditor({
         extensions: [
             StarterKit,
             TextSubstitutions,
+            TextStyle,
+            Color,
+            Highlight.configure({ multicolor: true }),
+            Callout,
+            Details,
             Placeholder.configure({ placeholder: 'Digite "/" para comandos...' }),
             Link.configure({ openOnClick: false }),
             TaskList,
@@ -93,7 +105,7 @@ export function DescriptionEditor({
         ],
         content: '',
         editorProps: {
-            attributes: { class: 'prose prose-sm max-w-none focus:outline-none min-h-[100px] text-gray-700 leading-relaxed' },
+            attributes: { class: 'focus:outline-none min-h-[100px] text-sm text-primary' },
         },
     });
 
@@ -170,10 +182,11 @@ export function DescriptionEditor({
             <style dangerouslySetInnerHTML={{
                 __html: `
                 .tiptap-editor-mini .ProseMirror:focus { outline: none; }
+                .tiptap-editor-mini .ProseMirror { line-height: 1.55; }
                 .tiptap-editor-mini .ProseMirror p.is-editor-empty:first-child::before {
                     content: attr(data-placeholder); float: left; color: #adb5bd; pointer-events: none; height: 0;
                 }
-                .tiptap-editor-mini .ProseMirror p { margin-bottom: 0.5rem; }
+                .tiptap-editor-mini .ProseMirror p { margin-top: 0; margin-bottom: 0; }
                 .tiptap-editor-mini ul[data-type="taskList"] { list-style: none; padding: 0; }
                 .tiptap-editor-mini ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.25rem; }
                 .tiptap-editor-mini ul[data-type="taskList"] input[type="checkbox"] { width: 1rem; height: 1rem; margin-top: 0.2rem; cursor: pointer; accent-color: #db4035; }
@@ -186,6 +199,19 @@ export function DescriptionEditor({
                 .tiptap-editor-mini table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 1.5rem 0; }
                 .tiptap-editor-mini table td, .tiptap-editor-mini table th { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
                 .tiptap-editor-mini pre { background: #1f2937; color: #e5e7eb; padding: 1rem; border-radius: 0.5rem; margin: 1rem 0; overflow-x: auto; }
+                .tiptap-editor-mini mark { background: #fef08a; color: inherit; border-radius: 2px; padding: 0 2px; }
+                .tiptap-editor-mini s { text-decoration: line-through; }
+                .tiptap-editor-mini [data-callout] { padding: 0.75rem 1rem; border-radius: 6px; margin: 0.75rem 0; border-left: 3px solid; }
+                .tiptap-editor-mini [data-callout][data-type="info"] { background: #eff6ff; border-color: #3b82f6; }
+                .tiptap-editor-mini [data-callout][data-type="warning"] { background: #fffbeb; border-color: #f59e0b; }
+                .tiptap-editor-mini [data-callout][data-type="success"] { background: #f0fdf4; border-color: #22c55e; }
+                .tiptap-editor-mini [data-callout][data-type="error"] { background: #fef2f2; border-color: #ef4444; }
+                .tiptap-editor-mini [data-callout][data-type="note"] { background: #faf5ff; border-color: #a855f7; }
+                .tiptap-editor-mini .tiptap-details { border: 1px solid var(--color-border-subtle); border-radius: 6px; margin: 0.5rem 0; overflow: hidden; }
+                .tiptap-editor-mini .tiptap-details-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--color-surface-0); }
+                .tiptap-editor-mini .tiptap-details-toggle { background: none; border: none; cursor: pointer; padding: 2px; color: var(--color-text-muted); display: flex; }
+                .tiptap-editor-mini .tiptap-details-title { border: none; background: transparent; font-size: 0.875rem; font-weight: 600; color: var(--color-text-primary); outline: none; flex: 1; }
+                .tiptap-editor-mini .tiptap-details-content { padding: 8px 12px; }
                 .tiptap-editor-mini .doc-mention-chip {
                     display: inline-flex; align-items: center; gap: 3px;
                     padding: 1px 6px; border-radius: 4px;
@@ -213,51 +239,59 @@ export function DescriptionEditor({
             </div>
 
             {isEditingDesc && (
-                <BubbleMenu editor={editor} className="flex items-center gap-1 bg-gray-900 text-white p-1 rounded-lg shadow-xl border border-white/10 z-50">
-                    <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded hover:bg-white/10 ${editor.isActive('bold') ? 'text-brand' : ''}`}><Bold size={14} /></button>
-                    <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded hover:bg-white/10 ${editor.isActive('italic') ? 'text-brand' : ''}`}><Italic size={14} /></button>
-                    <div className="w-px h-4 bg-white/20 mx-0.5" />
-                    <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded hover:bg-white/10 ${editor.isActive('bulletList') ? 'text-brand' : ''}`}><List size={14} /></button>
-                    <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded hover:bg-white/10 ${editor.isActive('taskList') ? 'text-brand' : ''}`}><CheckSquare size={14} /></button>
-                    <div className="w-px h-4 bg-white/20 mx-0.5" />
+                <BubbleMenu editor={editor} className="flex items-center gap-0.5 bg-surface-card text-primary p-1 rounded-[var(--radius-sm)] shadow-float border border-border-subtle z-50">
+                    <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 ${editor.isActive('bold') ? 'text-brand' : 'text-secondary'}`}><Bold size={13} /></button>
+                    <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 ${editor.isActive('italic') ? 'text-brand' : 'text-secondary'}`}><Italic size={13} /></button>
+                    <button onClick={() => editor.chain().focus().toggleStrike().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 ${editor.isActive('strike') ? 'text-brand' : 'text-secondary'}`}><Strikethrough size={13} /></button>
+                    <button onClick={() => editor.chain().focus().toggleHighlight().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 ${editor.isActive('highlight') ? 'text-brand' : 'text-secondary'}`}><Highlighter size={13} /></button>
+                    <div className="w-px h-4 bg-border-subtle mx-0.5" />
+                    <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 ${editor.isActive('bulletList') ? 'text-brand' : 'text-secondary'}`}><List size={13} /></button>
+                    <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 ${editor.isActive('taskList') ? 'text-brand' : 'text-secondary'}`}><CheckSquare size={13} /></button>
+                    <div className="w-px h-4 bg-border-subtle mx-0.5" />
                     <button onClick={() => {
                         const url = window.prompt('URL:');
                         if (url) editor.chain().focus().setLink({ href: url }).run();
-                    }} className={`p-1.5 rounded hover:bg-white/10 ${editor.isActive('link') ? 'text-brand' : ''}`}><LinkIcon size={14} /></button>
+                    }} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 ${editor.isActive('link') ? 'text-brand' : 'text-secondary'}`}><LinkIcon size={13} /></button>
                 </BubbleMenu>
             )}
 
             <div
                 onClick={() => !isEditingDesc && setIsEditingDesc(true)}
-                className={`bg-gray-50/50 rounded-lg border transition-all relative overflow-hidden flex flex-col
+                className={`bg-surface-0 rounded-[var(--radius-card)] border transition-all relative overflow-hidden flex flex-col
                     ${saving ? 'border-brand/30 opacity-70' : 'border-border-subtle'}
-                    ${!isEditingDesc ? 'p-4 cursor-pointer hover:bg-gray-100/50' : 'bg-white border-brand shadow-sm'}
+                    ${!isEditingDesc ? 'p-4 cursor-pointer hover:bg-surface-0' : 'bg-surface-card border-brand'}
                     ${!isExpanded && isLongDescription && !isEditingDesc ? 'max-h-[150px]' : 'max-h-none'}`}
             >
                 {isEditingDesc && (
-                    <div className="border-b border-gray-100 bg-gray-50 px-2 py-1.5 flex items-center gap-1 shrink-0 overflow-x-auto custom-scrollbar">
-                        <button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive('heading', { level: 1 }) ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><Heading1 size={16} /></button>
-                        <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive('heading', { level: 2 }) ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><Heading2 size={16} /></button>
-                        <div className="w-px h-5 bg-gray-200 mx-1" />
-                        <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive('bold') ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><Bold size={16} /></button>
-                        <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive('italic') ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><Italic size={16} /></button>
-                        <div className="w-px h-5 bg-gray-200 mx-1" />
-                        <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive('bulletList') ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><List size={16} /></button>
-                        <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive('orderedList') ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><ListOrdered size={16} /></button>
-                        <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive('taskList') ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><CheckSquare size={16} /></button>
-                        <div className="w-px h-5 bg-gray-200 mx-1" />
-                        <button onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className="p-1.5 rounded hover:bg-white text-gray-500"><TableIcon size={16} /></button>
+                    <div className="border-b border-border-subtle bg-surface-0 px-2 py-1.5 flex items-center gap-0.5 shrink-0 overflow-x-auto custom-scrollbar">
+                        <button onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className="p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 text-muted disabled:opacity-30"><Undo2 size={15} /></button>
+                        <button onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className="p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 text-muted disabled:opacity-30"><Redo2 size={15} /></button>
+                        <div className="w-px h-5 bg-border-subtle mx-1" />
+                        <button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('heading', { level: 1 }) ? 'text-brand bg-surface-2' : 'text-muted'}`}><Heading1 size={15} /></button>
+                        <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('heading', { level: 2 }) ? 'text-brand bg-surface-2' : 'text-muted'}`}><Heading2 size={15} /></button>
+                        <button onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('heading', { level: 3 }) ? 'text-brand bg-surface-2' : 'text-muted'}`}><Heading3 size={15} /></button>
+                        <div className="w-px h-5 bg-border-subtle mx-1" />
+                        <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('bold') ? 'text-brand bg-surface-2' : 'text-muted'}`}><Bold size={15} /></button>
+                        <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('italic') ? 'text-brand bg-surface-2' : 'text-muted'}`}><Italic size={15} /></button>
+                        <button onClick={() => editor.chain().focus().toggleStrike().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('strike') ? 'text-brand bg-surface-2' : 'text-muted'}`}><Strikethrough size={15} /></button>
+                        <button onClick={() => editor.chain().focus().toggleHighlight().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('highlight') ? 'text-brand bg-surface-2' : 'text-muted'}`}><Highlighter size={15} /></button>
+                        <div className="w-px h-5 bg-border-subtle mx-1" />
+                        <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('bulletList') ? 'text-brand bg-surface-2' : 'text-muted'}`}><List size={15} /></button>
+                        <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('orderedList') ? 'text-brand bg-surface-2' : 'text-muted'}`}><ListOrdered size={15} /></button>
+                        <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('taskList') ? 'text-brand bg-surface-2' : 'text-muted'}`}><CheckSquare size={15} /></button>
+                        <div className="w-px h-5 bg-border-subtle mx-1" />
+                        <button onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className="p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 text-muted"><TableIcon size={15} /></button>
                         <button onClick={() => {
                             const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
                             input.onchange = async (e) => { const file = (e.target as HTMLInputElement).files?.[0]; if (file) handleEditorImageUpload(file); };
                             input.click();
-                        }} className="p-1.5 rounded hover:bg-white text-gray-500"><ImageIcon size={16} /></button>
-                        <button onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive('codeBlock') ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><Code size={16} /></button>
-                        <button onClick={() => editor.chain().focus().setHorizontalRule().run()} className="p-1.5 rounded hover:bg-white text-gray-500"><Minus size={16} /></button>
-                        <div className="w-px h-5 bg-gray-200 mx-1" />
-                        <button onClick={() => editor.chain().focus().setTextAlign('left').run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive({ textAlign: 'left' }) ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><AlignLeft size={16} /></button>
-                        <button onClick={() => editor.chain().focus().setTextAlign('center').run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive({ textAlign: 'center' }) ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><AlignCenter size={16} /></button>
-                        <button onClick={() => editor.chain().focus().setTextAlign('right').run()} className={`p-1.5 rounded hover:bg-white ${editor.isActive({ textAlign: 'right' }) ? 'text-brand bg-white shadow-sm' : 'text-gray-500'}`}><AlignRight size={16} /></button>
+                        }} className="p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 text-muted"><ImageIcon size={15} /></button>
+                        <button onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive('codeBlock') ? 'text-brand bg-surface-2' : 'text-muted'}`}><Code size={15} /></button>
+                        <button onClick={() => editor.chain().focus().setHorizontalRule().run()} className="p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 text-muted"><Minus size={15} /></button>
+                        <div className="w-px h-5 bg-border-subtle mx-1" />
+                        <button onClick={() => editor.chain().focus().setTextAlign('left').run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive({ textAlign: 'left' }) ? 'text-brand bg-surface-2' : 'text-muted'}`}><AlignLeft size={15} /></button>
+                        <button onClick={() => editor.chain().focus().setTextAlign('center').run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive({ textAlign: 'center' }) ? 'text-brand bg-surface-2' : 'text-muted'}`}><AlignCenter size={15} /></button>
+                        <button onClick={() => editor.chain().focus().setTextAlign('right').run()} className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-2 ${editor.isActive({ textAlign: 'right' }) ? 'text-brand bg-surface-2' : 'text-muted'}`}><AlignRight size={15} /></button>
                     </div>
                 )}
 
@@ -266,11 +300,11 @@ export function DescriptionEditor({
                 </div>
 
                 {!isExpanded && isLongDescription && !isEditingDesc && (
-                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-gray-50/90 to-transparent pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-surface-0 to-transparent pointer-events-none" />
                 )}
 
                 {(saving || uploadingInternal) && (
-                    <div className="absolute top-3 right-3 flex items-center gap-1.5 text-[10px] font-bold text-brand animate-pulse bg-white/80 px-2 py-1 rounded shadow-xs">
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5 text-[10px] font-bold text-brand animate-pulse bg-surface-card/80 px-2 py-1 rounded-[var(--radius-xs)]">
                         <div className="w-1.5 h-1.5 rounded-full bg-brand animate-bounce" />
                         {uploadingInternal ? 'Enviando...' : 'Salvando...'}
                     </div>
@@ -281,7 +315,7 @@ export function DescriptionEditor({
                 <div className="flex justify-center -mt-4 relative z-10">
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
-                        className="text-[10px] font-black uppercase tracking-widest text-brand hover:text-brand-dark px-6 py-2 rounded-full bg-white border border-brand/20 shadow-md transition-all hover:scale-110 active:scale-95 flex items-center gap-2"
+                        className="text-[10px] font-black uppercase tracking-widest text-brand hover:text-brand-dark px-6 py-2 rounded-full bg-surface-card border border-border-subtle transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
                     >
                         {isExpanded ? <span>Recolher</span> : <span>Expandir descrição</span>}
                     </button>

@@ -77,22 +77,22 @@ export function TaskSubtasks({ taskId, statuses, taskCategories, members }: Task
                     {subtasks.map(st => {
                         const isDone = st.status_id === doneStatusId;
                         return (
-                            <div key={st.id} className="flex items-center gap-3 p-2.5 bg-white border border-border-subtle rounded-xl hover:border-brand/30 transition-all hover:shadow-sm group">
+                            <div key={st.id} className="flex items-center gap-3 p-2.5 bg-surface-card border border-border-subtle rounded-[var(--radius-card)] hover:border-brand/30 transition-all group">
                                 <input
                                     type="checkbox"
                                     checked={isDone}
                                     onChange={() => handleToggleSubtask(st)}
-                                    className="rounded-full w-5 h-5 text-brand focus:ring-brand border-gray-300 cursor-pointer"
+                                    className="rounded-full w-5 h-5 text-brand focus:ring-brand border-border-subtle cursor-pointer"
                                 />
                                 <div className="flex-1 flex items-center justify-between gap-4">
-                                    <span className={`text-sm transition-all ${isDone ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                                    <span className={`text-sm transition-all ${isDone ? 'line-through text-muted' : 'text-primary'}`}>
                                         {st.title}
                                     </span>
                                     <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <select
                                             value={st.category_id || ''}
                                             onChange={(e) => handleUpdateSubtask(st.id, { category_id: e.target.value || null })}
-                                            className="text-[10px] bg-transparent border-none p-0 text-gray-500 focus:ring-0 cursor-pointer hover:text-brand font-medium max-w-[80px] truncate"
+                                            className="text-[10px] bg-transparent border-none p-0 text-muted focus:ring-0 cursor-pointer hover:text-brand font-medium max-w-[80px] truncate"
                                         >
                                             <option value="">Sem tipo</option>
                                             {taskCategories.map(c => (

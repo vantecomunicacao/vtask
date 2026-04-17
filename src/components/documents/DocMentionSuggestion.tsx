@@ -39,21 +39,21 @@ const DocList = forwardRef<DocListHandle, SuggestionProps<Document>>((props, ref
     useEffect(() => setSelectedIndex(0), [props.items]);
 
     return (
-        <div className="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden w-72 animate-in fade-in zoom-in-95 duration-100">
+        <div className="bg-surface-card rounded-[var(--radius-card)] shadow-float border border-border-subtle overflow-hidden w-72 animate-in fade-in zoom-in-95 duration-100">
             <div className="px-3 pt-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-brand/60">
                 Documentos
             </div>
             <div className="overflow-y-auto max-h-[280px] custom-scrollbar p-1.5 pt-0">
                 {items.length === 0 ? (
-                    <div className="p-4 text-sm text-gray-400 text-center">Nenhum documento encontrado</div>
+                    <div className="p-4 text-sm text-muted text-center">Nenhum documento encontrado</div>
                 ) : (
                     items.map((item, index) => (
                         <button
                             key={item.id}
                             onMouseDown={e => { e.preventDefault(); selectItem(index); }}
-                            className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors ${index === selectedIndex ? 'bg-brand/10 text-brand' : 'hover:bg-gray-50 text-gray-700'}`}
+                            className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[var(--radius-sm)] text-left transition-colors ${index === selectedIndex ? 'bg-brand/10 text-brand' : 'hover:bg-surface-0 text-primary'}`}
                         >
-                            <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${index === selectedIndex ? 'bg-white border-brand/20 text-brand' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>
+                            <div className={`w-7 h-7 rounded-[var(--radius-sm)] border flex items-center justify-center shrink-0 ${index === selectedIndex ? 'bg-brand-light border-brand/20 text-brand' : 'bg-surface-0 border-border-subtle text-muted'}`}>
                                 <FileText size={14} />
                             </div>
                             <span className="text-sm font-medium truncate">

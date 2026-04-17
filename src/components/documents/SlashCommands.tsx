@@ -286,7 +286,11 @@ export const renderItems = () => {
             popup?.setProps({ getReferenceClientRect: props.clientRect as () => DOMRect });
         },
         onKeyDown(props: SuggestionKeyDownProps) {
-            if (props.event.key === 'Escape') { popup?.hide(); return true; }
+            if (props.event.key === 'Escape') {
+                props.event.stopPropagation(); // impede o Dialog de fechar junto
+                popup?.hide();
+                return true;
+            }
             return renderer?.ref?.onKeyDown(props) ?? false;
         },
         onExit() {
@@ -337,10 +341,10 @@ const CommandList = forwardRef<CommandListHandle, SuggestionProps<SlashCommandIt
     let flatIndex = 0;
 
     return (
-        <div className="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden w-72 animate-in fade-in zoom-in-95 duration-100">
+        <div className="bg-surface-card rounded-[var(--radius-card)] shadow-float border border-border-subtle overflow-hidden w-72 animate-in fade-in zoom-in-95 duration-100">
             <div className="overflow-y-auto max-h-[380px] custom-scrollbar p-1.5">
                 {items.length === 0 ? (
-                    <div className="p-4 text-sm text-gray-400 text-center">Nenhum comando encontrado</div>
+                    <div className="p-4 text-sm text-muted text-center">Nenhum comando encontrado</div>
                 ) : isFiltering ? (
                     items.map((item, index) => (
                         <CommandItem
@@ -353,7 +357,7 @@ const CommandList = forwardRef<CommandListHandle, SuggestionProps<SlashCommandIt
                 ) : (
                     Object.entries(grouped).map(([category, catItems]) => (
                         <div key={category}>
-                            <div className={`px-3 pt-2 pb-0.5 text-[9px] font-bold uppercase tracking-widest ${CATEGORY_COLORS[category] ?? 'text-gray-400'}`}>
+                            <div className={`px-3 pt-2 pb-0.5 text-[9px] font-bold uppercase tracking-widest ${CATEGORY_COLORS[category] ?? 'text-muted'}`}>
                                 {category}
                             </div>
                             {catItems.map((item) => {
@@ -379,14 +383,14 @@ function CommandItem({ item, isSelected, onClick }: { item: SlashCommandItem; is
     return (
         <button
             onMouseDown={e => { e.preventDefault(); onClick(); }}
-            className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors ${isSelected ? 'bg-brand/10 text-brand' : 'hover:bg-gray-50 text-gray-700'}`}
+            className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[var(--radius-sm)] text-left transition-colors ${isSelected ? 'bg-brand/10 text-brand' : 'hover:bg-surface-0 text-primary'}`}
         >
-            <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${isSelected ? 'bg-white border-brand/20 text-brand' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>
+            <div className={`w-7 h-7 rounded-[var(--radius-sm)] border flex items-center justify-center shrink-0 ${isSelected ? 'bg-brand-light border-brand/20 text-brand' : 'bg-surface-0 border-border-subtle text-muted'}`}>
                 <item.icon size={14} />
             </div>
             <div className="min-w-0">
                 <div className="text-sm font-semibold truncate leading-tight">{item.title}</div>
-                <div className="text-[10px] text-gray-400 truncate leading-tight">{item.description}</div>
+                <div className="text-[10px] text-muted truncate leading-tight">{item.description}</div>
             </div>
         </button>
     );

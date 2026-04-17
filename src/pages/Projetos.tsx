@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useProjectStore } from '../store/projectStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { Link } from 'react-router-dom';
-import { Folder, Users, Calendar, Edit2, Trash2, Archive, CheckCircle2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+import { Folder, Calendar, Edit2, Trash2, Archive, CheckCircle2 } from 'lucide-react';
+import { format, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ProjectFormModal } from '../components/projects/ProjectFormModal';
 import { toast } from 'sonner';
@@ -14,6 +13,7 @@ import type { ProjectWithClient } from '../store/projectStore';
 export default function Projetos() {
     const { activeWorkspace } = useWorkspaceStore();
     const { projects, loading, error, fetchProjects, deleteProject, archiveProject, completeProject } = useProjectStore();
+    const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [projectToEdit, setProjectToEdit] = useState<ProjectWithClient | null>(null);
 
@@ -88,75 +88,93 @@ export default function Projetos() {
                     <Button onClick={handleOpenCreate}>Criar Projeto</Button>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {activeProjects.map(project => (
-                        <Card key={project.id} className="group hover:border-gray-300 transition-colors flex flex-col">
-                            <CardHeader className="pb-4">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-3">
+                <div className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] overflow-hidden">
+                    {/* Header */}
+                    <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-surface-0 border-b border-border-subtle text-[10px] font-black text-muted uppercase tracking-widest">
+                        <div className="col-span-5">Projeto</div>
+                        <div className="col-span-3">Cliente</div>
+                        <div className="col-span-3">Prazo</div>
+                        <div className="col-span-1" />
+                    </div>
+
+                    {/* Rows */}
+                    <div className="divide-y divide-border-subtle">
+                        {activeProjects.map(project => {
+                            const due = project.due_date ? new Date(project.due_date) : null;
+                            const dueClass = due
+                                ? isToday(due) || isPast(due) ? 'text-brand' : 'text-secondary'
+                                : '';
+                            return (
+                                <div
+                                    key={project.id}
+                                    className="group grid grid-cols-12 gap-4 px-4 py-3 items-center hover:bg-surface-0 transition-colors cursor-pointer"
+                                    onClick={() => navigate(`/projetos/${project.id}`)}
+                                >
+                                    {/* Nome */}
+                                    <div className="col-span-5 flex items-center gap-3 min-w-0">
                                         <div
-                                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white"
+                                            className="w-2 h-8 rounded-full shrink-0"
                                             style={{ backgroundColor: project.color || '#db4035' }}
-                                        >
-                                            <Folder size={20} />
-                                        </div>
-                                        <div>
-                                            <Link to={`/projetos/${project.id}`}>
-                                                <CardTitle className="text-lg hover:text-brand transition-colors cursor-pointer">{project.name}</CardTitle>
-                                            </Link>
-                                            <p className="text-xs text-muted mt-1">{project.client?.name || 'Agência'}</p>
+                                        />
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-primary group-hover:text-brand transition-colors truncate">
+                                                {project.name}
+                                            </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                                    {/* Cliente */}
+                                    <div className="col-span-3 text-sm text-secondary truncate">
+                                        {project.client?.name || <span className="text-muted">—</span>}
+                                    </div>
+
+                                    {/* Prazo */}
+                                    <div className="col-span-3">
+                                        {due ? (
+                                            <span className={`flex items-center gap-1.5 text-sm font-medium ${dueClass}`}>
+                                                <Calendar size={13} />
+                                                {format(due, "dd 'de' MMM", { locale: ptBR })}
+                                            </span>
+                                        ) : (
+                                            <span className="text-muted text-sm">—</span>
+                                        )}
+                                    </div>
+
+                                    {/* Ações */}
+                                    <div className="col-span-1 flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
-                                            onClick={() => handleOpenEdit(project)}
+                                            onClick={e => { e.stopPropagation(); handleOpenEdit(project); }}
                                             className="p-1.5 text-muted hover:text-brand hover:bg-brand-light rounded-md transition-colors"
-                                            title="Editar Projeto"
+                                            title="Editar"
                                         >
-                                            <Edit2 size={16} />
+                                            <Edit2 size={14} />
                                         </button>
                                         <button
-                                            onClick={() => handleComplete(project.id)}
-                                            className="p-1.5 text-muted hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
-                                            title="Marcar como Concluído"
+                                            onClick={e => { e.stopPropagation(); handleComplete(project.id); }}
+                                            className="p-1.5 text-muted hover:text-brand hover:bg-brand-light rounded-md transition-colors"
+                                            title="Concluir"
                                         >
-                                            <CheckCircle2 size={16} />
+                                            <CheckCircle2 size={14} />
                                         </button>
                                         <button
-                                            onClick={() => handleArchive(project.id)}
-                                            className="p-1.5 text-muted hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
-                                            title="Arquivar Projeto"
+                                            onClick={e => { e.stopPropagation(); handleArchive(project.id); }}
+                                            className="p-1.5 text-muted hover:text-brand hover:bg-brand-light rounded-md transition-colors"
+                                            title="Arquivar"
                                         >
-                                            <Archive size={16} />
+                                            <Archive size={14} />
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(project.id)}
-                                            className="p-1.5 text-muted hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                            title="Excluir Projeto"
+                                            onClick={e => { e.stopPropagation(); handleDelete(project.id); }}
+                                            className="p-1.5 text-muted hover:text-brand hover:bg-brand-light rounded-md transition-colors"
+                                            title="Excluir"
                                         >
-                                            <Trash2 size={16} />
+                                            <Trash2 size={14} />
                                         </button>
                                     </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent className="flex-1 flex flex-col justify-end">
-                                {project.due_date && (
-                                    <div className="flex items-center gap-2 text-xs text-muted font-medium mb-4">
-                                        <Calendar size={14} />
-                                        Prazo: <span className="text-primary">{format(new Date(project.due_date), "dd 'de' MMM", { locale: ptBR })}</span>
-                                    </div>
-                                )}
-                                <div className="pt-4 border-t border-border-subtle flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-xs text-muted font-medium">
-                                        <Users size={14} /> Equipe
-                                    </div>
-                                    <span className="text-xs font-bold px-2 py-1 rounded-[var(--radius-xs)] bg-green-50 text-green-700 border border-green-200 uppercase tracking-wider">
-                                        Ativo
-                                    </span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                            );
+                        })}
+                    </div>
                 </div>
             )}
 

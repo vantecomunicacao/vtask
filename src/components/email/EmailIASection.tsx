@@ -29,21 +29,21 @@ export function EmailIASection({ openSections, toggle, prompt, onPromptChange, l
                 <div className="px-5 pb-5 space-y-4">
                     {/* Seletor de Tom */}
                     <div>
-                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tom de Voz</label>
+                        <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">Tom de Voz</label>
                         <div className="grid grid-cols-2 gap-1.5">
                             {TONES.map(t => (
                                 <button
                                     key={t.value}
                                     type="button"
                                     onClick={() => onToneChange(t.value)}
-                                    className={`flex flex-col items-start px-2.5 py-2 rounded-lg border text-left transition-all ${
+                                    className={`flex flex-col items-start px-2.5 py-2 rounded-[var(--radius-md)] border text-left transition-all ${
                                         tone === t.value
                                             ? 'border-brand bg-brand/5 text-brand'
-                                            : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                                            : 'border-border-subtle hover:bg-surface-0 text-primary'
                                     }`}
                                 >
                                     <span className="text-xs font-semibold leading-tight">{t.label}</span>
-                                    <span className="text-[10px] text-gray-400 mt-0.5">{t.desc}</span>
+                                    <span className="text-[10px] text-muted mt-0.5">{t.desc}</span>
                                 </button>
                             ))}
                         </div>
@@ -51,12 +51,12 @@ export function EmailIASection({ openSections, toggle, prompt, onPromptChange, l
 
                     {/* Prompt */}
                     <div>
-                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tema do E-mail</label>
+                        <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">Tema do E-mail</label>
                         <textarea
                             value={prompt}
                             onChange={e => onPromptChange(e.target.value)}
                             rows={4}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 resize-none custom-scrollbar"
+                            className="w-full border border-border-subtle rounded-[var(--radius-md)] px-3 py-2 text-sm bg-surface-0 text-primary focus:outline-none focus:ring-2 focus:ring-brand/30 resize-none custom-scrollbar"
                             placeholder="Ex: Lançamento de produto, promoção de fim de semana, newsletter mensal..."
                         />
                     </div>

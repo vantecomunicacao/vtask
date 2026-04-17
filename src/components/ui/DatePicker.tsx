@@ -163,7 +163,7 @@ export function DatePickerPopover({ open, onClose, value, onChange, anchorRef }:
                         <button key={day.toISOString()} type="button" onClick={() => select(day)}
                             className={cn(
                                 'h-8 w-full text-xs rounded-[var(--radius-sm)] transition-colors font-medium',
-                                isSelected ? 'bg-brand text-white font-bold shadow-sm'
+                                isSelected ? 'bg-brand text-white font-bold'
                                     : isCurrent ? 'bg-brand-light text-brand font-bold'
                                     : isInMonth ? 'text-primary hover:bg-surface-0'
                                     : 'text-muted/50 hover:bg-surface-0'
@@ -254,7 +254,7 @@ export function DatePicker({
                     'flex h-10 w-full items-center gap-2 rounded-[var(--radius-md)] border bg-surface-card px-3 text-sm transition-colors',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20',
                     'disabled:cursor-not-allowed disabled:opacity-50',
-                    error ? 'border-red-500' : 'border-border-subtle',
+                    error ? 'border-brand' : 'border-border-subtle',
                     open && !error && 'ring-2 ring-brand/20 border-brand/40',
                 )}
             >
@@ -279,7 +279,7 @@ export function DatePicker({
                 )}
             </button>
 
-            {error && <span className="mt-1 block text-xs text-red-500">{error}</span>}
+            {error && <span className="mt-1 block text-xs text-brand">{error}</span>}
 
             {/* Popover */}
             {open && (
@@ -354,7 +354,7 @@ export function DatePicker({
                                     className={cn(
                                         'h-8 w-full text-xs rounded-[var(--radius-sm)] transition-colors font-medium',
                                         isSelected
-                                            ? 'bg-brand text-white font-bold shadow-sm'
+                                            ? 'bg-brand text-white font-bold'
                                             : isCurrent
                                                 ? 'bg-brand-light text-brand font-bold'
                                                 : isInMonth

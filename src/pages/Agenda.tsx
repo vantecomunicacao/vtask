@@ -24,7 +24,7 @@ export default function Agenda() {
                 <div className="flex items-center gap-4">
                     <Button
                         variant="ghost"
-                        className="gap-2 bg-white border border-[#e8e5e0] text-muted font-medium cursor-not-allowed opacity-60"
+                        className="gap-2 bg-surface-card border border-border-subtle text-muted font-medium cursor-not-allowed opacity-60"
                         disabled
                         title="Integração em desenvolvimento"
                     >
@@ -37,19 +37,19 @@ export default function Agenda() {
                 </div>
             </div>
 
-            <Card className="flex-1 flex flex-col overflow-hidden bg-white">
+            <Card className="flex-1 flex flex-col overflow-hidden bg-surface-card">
                 <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-bg-main">
                     <h2 className="text-lg font-bold text-primary capitalize">
                         {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
                     </h2>
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={prevMonth} className="bg-white">
+                        <Button variant="ghost" size="icon" onClick={prevMonth} className="bg-surface-card">
                             <ChevronLeft size={18} />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setCurrentDate(new Date())} className="bg-white">
+                        <Button variant="ghost" size="sm" onClick={() => setCurrentDate(new Date())} className="bg-surface-card">
                             Hoje
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={nextMonth} className="bg-white">
+                        <Button variant="ghost" size="icon" onClick={nextMonth} className="bg-surface-card">
                             <ChevronRight size={18} />
                         </Button>
                     </div>
@@ -72,7 +72,7 @@ export default function Agenda() {
                     {daysInMonth.map((date) => (
                         <div
                             key={date.toString()}
-                            className={`bg-white p-2 min-h-[100px] hover:bg-bg-sidebar transition-colors cursor-pointer group flex flex-col ${!isSameMonth(date, currentDate) ? 'text-muted bg-bg-sidebar/50' : 'text-primary'
+                            className={`bg-surface-card p-2 min-h-[100px] hover:bg-surface-0 transition-colors cursor-pointer group flex flex-col ${!isSameMonth(date, currentDate) ? 'text-muted bg-surface-0/50' : 'text-primary'
                                 }`}
                         >
                             <div className="flex items-start justify-between">

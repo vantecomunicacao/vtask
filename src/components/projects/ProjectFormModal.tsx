@@ -124,7 +124,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: ProjectFormModalP
                         {...register('description')}
                         rows={3}
                         placeholder="Opcional. Breve descrição sobre o projeto."
-                        className="w-full px-3 py-2 border border-border-subtle rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 sm:text-sm text-primary"
+                        className="w-full px-3 py-2 border border-border-subtle rounded-[var(--radius-md)] placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/40 sm:text-sm text-primary"
                     />
                 </div>
 
@@ -149,7 +149,7 @@ export function ProjectFormModal({ isOpen, onClose, project }: ProjectFormModalP
                                 key={color}
                                 type="button"
                                 onClick={() => setValue('color', color)}
-                                className={`w-6 h-6 rounded-full border-2 transition-transform ${selectedColor === color ? 'scale-125 border-gray-900 shadow-sm' : 'border-transparent hover:scale-110'}`}
+                                className={`w-6 h-6 rounded-full border-2 transition-transform ${selectedColor === color ? 'scale-125 border-primary/80' : 'border-transparent hover:scale-110'}`}
                                 style={{ backgroundColor: color }}
                                 aria-label={`Selecionar cor ${color}`}
                             />

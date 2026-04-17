@@ -63,7 +63,7 @@ export function EmailPreviewPanel({
   if (!result) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-surface-2/30">
-        <div className="h-24 w-24 bg-surface-card shadow-float rounded-3xl flex items-center justify-center mb-8 border border-border-subtle animate-bounce-subtle">
+        <div className="h-24 w-24 bg-surface-card shadow-float rounded-[var(--radius-card)] flex items-center justify-center mb-8 border border-border-subtle animate-bounce-subtle">
           <span className="text-4xl text-brand group-hover:scale-110 transition-transform">✉️</span>
         </div>
         <h3 className="text-xl font-bold text-primary mb-3 tracking-tight">Crie sua próxima campanha</h3>
@@ -85,17 +85,17 @@ export function EmailPreviewPanel({
           </p>
         </div>
 
-        <div className="flex items-center bg-surface-2/80 rounded-xl p-1 border border-border-subtle shadow-inner">
-          <button 
+        <div className="flex items-center bg-surface-2/80 rounded-[var(--radius-md)] p-1 border border-border-subtle">
+          <button
             onClick={() => setMobilePreview(false)}
-            className={`p-2 rounded-lg transition-all duration-300 ${!mobilePreview ? 'bg-surface-card shadow-float text-brand scale-105' : 'text-muted hover:text-secondary'}`}
+            className={`p-2 rounded-[var(--radius-sm)] transition-all duration-300 ${!mobilePreview ? 'bg-surface-card border border-border-subtle text-brand' : 'text-muted hover:text-secondary'}`}
             title="Desktop View"
           >
             <Monitor size={18} strokeWidth={2.5} />
           </button>
-          <button 
+          <button
             onClick={() => setMobilePreview(true)}
-            className={`p-2 rounded-lg transition-all duration-300 ${mobilePreview ? 'bg-surface-card shadow-float text-brand scale-105' : 'text-muted hover:text-secondary'}`}
+            className={`p-2 rounded-[var(--radius-sm)] transition-all duration-300 ${mobilePreview ? 'bg-surface-card border border-border-subtle text-brand' : 'text-muted hover:text-secondary'}`}
             title="Mobile View"
           >
             <Smartphone size={18} strokeWidth={2.5} />
@@ -105,10 +105,10 @@ export function EmailPreviewPanel({
         <button
           onClick={onToggleEditMode}
           disabled={loading}
-          className={`h-10 px-5 rounded-xl text-xs font-black flex items-center gap-2.5 transition-all active:scale-95 border-2 ${
-            isEditing 
-              ? 'bg-brand text-white border-brand shadow-brand/20' 
-              : 'bg-surface-card text-primary border-border-subtle hover:border-brand/30 shadow-sm'
+          className={`h-10 px-5 rounded-[var(--radius-md)] text-xs font-black flex items-center gap-2.5 transition-all active:scale-95 border ${
+            isEditing
+              ? 'bg-brand text-white border-brand'
+              : 'bg-surface-card text-primary border-border-subtle hover:border-brand/30'
           }`}
         >
           {isEditing ? <><Check size={16} strokeWidth={3} /> SALVAR</> : <><Edit3 size={16} strokeWidth={2.5} /> EDITAR</>}
@@ -128,7 +128,7 @@ export function EmailPreviewPanel({
               key={cmd}
               title={title}
               onMouseDown={e => { e.preventDefault(); execCmd(cmd); }}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
+              className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
             >
               {icon}
             </button>
@@ -137,7 +137,7 @@ export function EmailPreviewPanel({
           <div className="w-px h-5 bg-border-subtle mx-1" />
 
           {/* Cor do texto */}
-          <label title="Cor do texto" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-2 cursor-pointer transition-colors relative">
+          <label title="Cor do texto" className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center hover:bg-surface-2 cursor-pointer transition-colors relative">
             <span className="text-xs font-black text-secondary select-none leading-none">A</span>
             <input
               type="color"
@@ -150,7 +150,7 @@ export function EmailPreviewPanel({
           </label>
 
           {/* Cor de fundo do texto */}
-          <label title="Cor de fundo do texto" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-2 cursor-pointer transition-colors relative">
+          <label title="Cor de fundo do texto" className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center hover:bg-surface-2 cursor-pointer transition-colors relative">
             <span className="text-xs font-black text-secondary select-none leading-none">A</span>
             <input
               type="color"
@@ -174,7 +174,7 @@ export function EmailPreviewPanel({
               key={cmd}
               title={title}
               onMouseDown={e => { e.preventDefault(); execCmd(cmd); }}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
+              className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
             >
               {icon}
             </button>
@@ -185,7 +185,7 @@ export function EmailPreviewPanel({
           {/* Tamanho da fonte */}
           <select
             title="Tamanho da fonte"
-            className="h-7 px-2 rounded-lg border border-border-subtle text-xs text-secondary bg-surface-card focus:outline-none hover:border-brand/40 transition-colors"
+            className="h-7 px-2 rounded-[var(--radius-sm)] border border-border-subtle text-xs text-secondary bg-surface-card focus:outline-none hover:border-brand/40 transition-colors"
             defaultValue=""
             onChange={e => { if (e.target.value) execCmd('fontSize', e.target.value); e.target.value = ''; }}
           >
@@ -206,7 +206,7 @@ export function EmailPreviewPanel({
 
       {/* Viewport Area */}
       <div className="flex-1 overflow-auto flex justify-center p-8 custom-scrollbar bg-gradient-to-b from-transparent to-surface-2/20">
-        <div className={`bg-white shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] rounded-xl transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] origin-top border border-border-subtle overflow-hidden ${
+        <div className={`bg-surface-card shadow-float rounded-[var(--radius-card)] transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] origin-top border border-border-subtle overflow-hidden ${
           mobilePreview ? 'w-[375px] h-[667px]' : 'w-full max-w-[720px] min-h-[900px]'
         }`}>
           <iframe

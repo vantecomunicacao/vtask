@@ -18,7 +18,7 @@ export function SaveDraftModal({ defaultName, onConfirm, onClose }: Props) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
             <div
-                className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-200"
+                className="bg-surface-card rounded-[var(--radius-card)] shadow-float border border-border-subtle p-6 w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-200"
                 onClick={e => e.stopPropagation()}
             >
                 <h2 className="text-base font-bold text-primary mb-1">Salvar Rascunho</h2>
@@ -31,13 +31,13 @@ export function SaveDraftModal({ defaultName, onConfirm, onClose }: Props) {
                         value={name}
                         onChange={e => setName(e.target.value)}
                         placeholder="Ex: Newsletter de Abril"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
+                        className="w-full border border-border-subtle rounded-[var(--radius-md)] px-3 py-2.5 text-sm bg-surface-0 text-primary focus:outline-none focus:ring-2 focus:ring-brand/30"
                     />
                     <div className="flex gap-2 justify-end">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="px-4 py-2 text-sm text-secondary hover:bg-surface-0 rounded-[var(--radius-md)] transition-colors"
                         >
                             Cancelar
                         </button>

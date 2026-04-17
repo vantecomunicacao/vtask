@@ -106,11 +106,11 @@ export const StatusPopover: React.FC<StatusPopoverProps> = ({
                         >
                             <div
                                 className={cn(
-                                    "flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all duration-150 group",
+                                    "flex items-center justify-between px-3 py-2.5 rounded-[var(--radius-sm)] text-sm transition-all duration-150 group",
                                     isDone
                                         ? "hover:bg-gradient-to-r hover:from-brand/10 hover:to-brand/5 text-brand font-semibold"
                                         : "hover:bg-surface-2 text-secondary",
-                                    isCurrent && "bg-surface-0/80 ring-1 ring-gray-200/50",
+                                    isCurrent && "bg-surface-0 ring-1 ring-border",
                                     !isCurrent && !isDone && "active:scale-[0.97] active:bg-surface-0"
                                 )}
                             >

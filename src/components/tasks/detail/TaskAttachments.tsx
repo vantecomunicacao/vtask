@@ -62,17 +62,17 @@ export const TaskAttachments = forwardRef<TaskAttachmentsRef, TaskAttachmentsPro
 
         return (
             <div className="mt-6">
-                <h3 className="text-sm font-bold text-gray-900 mb-2">Anexos</h3>
+                <h3 className="text-sm font-bold text-primary mb-2">Anexos</h3>
                 {attachments.length === 0 ? (
-                    <div className="text-sm text-gray-500 italic">Nenhum anexo.</div>
+                    <div className="text-sm text-secondary italic">Nenhum anexo.</div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {attachments.map((att) => {
                             const isImage = att.file_type?.startsWith('image/');
                             const publicUrl = supabase.storage.from('task_attachments').getPublicUrl(att.file_path).data.publicUrl;
                             return (
-                                <div key={att.id} className="group relative flex flex-col bg-white border border-border-subtle rounded-xl overflow-hidden hover:shadow-md transition-all hover:border-brand/30">
-                                    <div className="aspect-video bg-gray-50 flex items-center justify-center overflow-hidden border-b border-border-subtle">
+                                <div key={att.id} className="group relative flex flex-col bg-surface-card border border-border-subtle rounded-[var(--radius-card)] overflow-hidden transition-all hover:border-brand/30">
+                                    <div className="aspect-video bg-surface-0 flex items-center justify-center overflow-hidden border-b border-border-subtle">
                                         {isImage ? (
                                             <img
                                                 src={publicUrl}
@@ -81,8 +81,8 @@ export const TaskAttachments = forwardRef<TaskAttachmentsRef, TaskAttachmentsPro
                                             />
                                         ) : (
                                             <div className="flex flex-col items-center gap-1">
-                                                <Paperclip size={24} className="text-gray-300" />
-                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Arquivo</span>
+                                                <Paperclip size={24} className="text-muted" />
+                                                <span className="text-[10px] text-muted font-bold uppercase tracking-tighter">Arquivo</span>
                                             </div>
                                         )}
                                     </div>
@@ -91,13 +91,13 @@ export const TaskAttachments = forwardRef<TaskAttachmentsRef, TaskAttachmentsPro
                                             href={publicUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="block text-sm font-medium text-gray-900 truncate hover:text-brand transition-colors mb-0.5"
+                                            className="block text-sm font-medium text-primary truncate hover:text-brand transition-colors mb-0.5"
                                             title={att.file_name}
                                         >
                                             {att.file_name}
                                         </a>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[10px] text-gray-500">{(att.file_size / 1024).toFixed(1)} KB</span>
+                                            <span className="text-[10px] text-muted">{(att.file_size / 1024).toFixed(1)} KB</span>
                                             <button
                                                 onClick={async () => {
                                                     if (confirm('Excluir anexo?')) {
@@ -106,7 +106,7 @@ export const TaskAttachments = forwardRef<TaskAttachmentsRef, TaskAttachmentsPro
                                                         reload();
                                                     }
                                                 }}
-                                                className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all"
+                                                className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-brand transition-all"
                                             >
                                                 <Trash2 size={12} />
                                             </button>

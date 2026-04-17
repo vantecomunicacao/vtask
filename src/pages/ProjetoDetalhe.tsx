@@ -31,26 +31,27 @@ function DocTreeNode({ doc, allDocs, depth, onNavigate }: {
     return (
         <div>
             <div
-                className="flex items-center gap-1.5 pr-3 py-2 hover:bg-surface-2 cursor-pointer group transition-colors rounded-md"
-                style={{ paddingLeft: `${12 + depth * 14}px` }}
+                className="flex items-center gap-1 pr-2 py-1 hover:bg-surface-0 cursor-pointer group transition-colors rounded-lg text-sm"
+                style={{ paddingLeft: `${6 + depth * 14}px` }}
             >
                 <button
-                    className="w-3.5 h-3.5 flex items-center justify-center text-muted shrink-0"
+                    className="p-0.5 shrink-0 text-muted hover:text-secondary rounded"
                     onClick={e => { e.stopPropagation(); if (hasChildren) setExpanded(v => !v); }}
                 >
-                    {hasChildren && (
-                        <ChevronRight size={11} className={`transition-transform ${expanded ? 'rotate-90' : ''}`} />
-                    )}
+                    {hasChildren
+                        ? <ChevronRight size={12} className={`transition-transform ${expanded ? 'rotate-90' : ''}`} />
+                        : <span className="w-3 inline-block" />
+                    }
                 </button>
                 <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => onNavigate(doc.id)}>
-                    <FileText size={13} className="text-muted group-hover:text-brand transition-colors shrink-0" />
-                    <span className="text-xs font-medium text-secondary group-hover:text-brand transition-colors truncate">
+                    <FileText size={13} className="shrink-0 text-muted group-hover:text-brand transition-colors" />
+                    <span className="flex-1 truncate leading-none py-0.5 text-secondary group-hover:text-brand transition-colors">
                         {doc.title || 'Sem título'}
                     </span>
                 </div>
                 <button
                     onClick={() => onNavigate(doc.id)}
-                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted hover:text-brand transition-all shrink-0"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted hover:text-secondary transition-all shrink-0"
                     title="Abrir documento"
                 >
                     <ExternalLink size={11} />
@@ -187,13 +188,13 @@ export default function ProjetoDetalhe() {
                     <div className="flex bg-surface-0 p-1 rounded-lg border border-border-subtle">
                         <button
                             onClick={() => setView('kanban')}
-                            className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'kanban' ? 'bg-surface-card shadow-sm text-brand' : 'text-secondary hover:text-primary')}
+                            className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'kanban' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
                         >
                             <Trello size={15} /> Kanban
                         </button>
                         <button
                             onClick={() => setView('list')}
-                            className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'list' ? 'bg-surface-card shadow-sm text-brand' : 'text-secondary hover:text-primary')}
+                            className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'list' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
                         >
                             <LayoutList size={15} /> Lista
                         </button>

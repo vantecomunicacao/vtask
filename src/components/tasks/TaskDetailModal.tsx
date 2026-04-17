@@ -166,7 +166,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                                 setIsEditingTitle(false);
                             }
                         }}
-                        className="bg-transparent border-none p-0 text-xl font-bold text-gray-900 focus:ring-0 w-full"
+                        className="bg-transparent border-none p-0 text-xl font-bold text-primary focus:ring-0 w-full"
                     />
                 ) : (
                     <div
@@ -186,7 +186,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                             onClose();
                         }
                     }}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    className="p-1.5 rounded-[var(--radius-sm)] text-muted hover:text-brand hover:bg-brand-light transition-colors"
                     title="Mover para lixeira"
                 >
                     <Trash2 size={16} />
@@ -199,7 +199,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                     {/* Description */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-sm font-bold text-gray-900">Descrição</h3>
+                            <h3 className="text-sm font-bold text-primary">Descrição</h3>
                         </div>
                         <div className="relative group min-h-[100px]">
                             {isOpen && (

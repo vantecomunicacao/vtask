@@ -233,7 +233,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-            <div className="bg-surface-card w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-border-subtle">
+            <div className="bg-surface-card w-full max-w-5xl h-[85vh] rounded-[var(--radius-card)] shadow-float flex flex-col overflow-hidden border border-border-subtle">
                 <div className="h-16 px-6 border-b border-border-subtle flex items-center justify-between bg-surface-card/80 backdrop-blur-md sticky top-0 z-10">
                     <h2 className="text-xl font-black text-primary tracking-tight">GERENCIAR CLIENTES</h2>
                     <button onClick={onClose} className="p-2 hover:bg-surface-2 rounded-full transition-colors"><X className="w-6 h-6" /></button>
@@ -243,13 +243,13 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                     {/* Lista de perfis */}
                     <div className="w-1/3 border-r border-border-subtle flex flex-col bg-surface-1/30">
                         <div className="p-4 flex gap-2">
-                            <button onClick={() => { setSelectedId(null); setForm(emptyProfile()); }} className="flex-1 h-11 bg-brand text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-brand/20">
+                            <button onClick={() => { setSelectedId(null); setForm(emptyProfile()); }} className="flex-1 h-11 bg-brand text-white rounded-[var(--radius-md)] font-bold flex items-center justify-center gap-2 hover:bg-brand/90 active:scale-95 transition-all">
                                 <Plus className="w-5 h-5" /> NOVO CLIENTE
                             </button>
                         </div>
                         <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2 custom-scrollbar">
                             {profiles.map(p => (
-                                <button key={p.id} onClick={() => { setSelectedId(p.id); setForm(p as ProfileFormData); }} className={`w-full p-4 rounded-2xl text-left border transition-all ${selectedId === p.id ? 'bg-white border-brand shadow-md scale-[1.02]' : 'bg-white/50 border-transparent hover:border-border-subtle'}`}>
+                                <button key={p.id} onClick={() => { setSelectedId(p.id); setForm(p as ProfileFormData); }} className={`w-full p-4 rounded-[var(--radius-card)] text-left border transition-all ${selectedId === p.id ? 'bg-surface-card border-brand' : 'bg-surface-0 border-transparent hover:border-border-subtle'}`}>
                                     <div className="font-bold text-primary truncate">{p.name}</div>
                                     <div className="text-xs text-muted mt-1">
                                         {p.mailchimp_api_key ? '✓ Mailchimp' : 'Sem integração'} · {p.email_length ?? 'médio'}
@@ -260,7 +260,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                     </div>
 
                     {/* Formulário do perfil */}
-                    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-white">
+                    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-surface-card">
                         {(isNew || selectedId) ? (
                             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
 
@@ -273,10 +273,10 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                                         {selectedId && !isNew && (
                                             <>
                                                 <button onClick={() => onSelectProfile(profiles.find(p => p.id === selectedId)!)} className="px-4 h-9 bg-surface-2 text-primary rounded-lg text-xs font-black border border-border-subtle hover:bg-surface-3 transition-all">SELECIONAR</button>
-                                                <button onClick={handleDeleteProfile} className="px-3 h-9 text-red-500 rounded-lg text-xs font-black hover:bg-red-50 transition-all">DELETAR</button>
+                                                <button onClick={handleDeleteProfile} className="px-3 h-9 text-brand rounded-[var(--radius-md)] text-xs font-black hover:bg-brand-light transition-all">DELETAR</button>
                                             </>
                                         )}
-                                        <button onClick={handleSaveProfile} className="px-6 h-9 bg-brand text-white rounded-lg text-xs font-black shadow-lg shadow-brand/20 hover:scale-105 active:scale-95 transition-all">SALVAR</button>
+                                        <button onClick={handleSaveProfile} className="px-6 h-9 bg-brand text-white rounded-[var(--radius-md)] text-xs font-black hover:bg-brand/90 active:scale-95 transition-all">SALVAR</button>
                                     </div>
                                 </div>
 
@@ -375,7 +375,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                                                             {url ? (
                                                                 <div className="relative">
                                                                     <img src={url} alt={label} className={`w-full object-cover ${type === 'logo' ? 'h-16 object-contain p-2' : 'h-20'}`} />
-                                                                    <button onClick={() => setForm(f => ({ ...f, [type === 'logo' ? 'logo_url' : 'banner_url']: '' }))} className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                                                                    <button onClick={() => setForm(f => ({ ...f, [type === 'logo' ? 'logo_url' : 'banner_url']: '' }))} className="absolute top-1 right-1 w-6 h-6 bg-brand text-white rounded-full flex items-center justify-center hover:bg-brand-dark transition-colors">
                                                                         <Trash2 size={10} />
                                                                     </button>
                                                                 </div>
@@ -448,7 +448,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                                             <h3 className="text-sm font-black text-muted tracking-widest uppercase">Automações</h3>
                                             <button
                                                 onClick={() => { setShowScheduleForm(true); setEditingScheduleId(null); setScheduleForm(emptySchedule()); setCronPreset(CRON_PRESETS[0].value); }}
-                                                className="px-4 h-8 bg-brand text-white rounded-lg text-[10px] font-black shadow-sm hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
+                                                className="px-4 h-8 bg-brand text-white rounded-[var(--radius-md)] text-[10px] font-black hover:bg-brand/90 active:scale-95 transition-all flex items-center gap-1.5"
                                             >
                                                 <Plus className="w-3 h-3" /> NOVO AGENDAMENTO
                                             </button>
@@ -481,7 +481,7 @@ export function ProfilesModal({ onClose, onSelectProfile }: ProfilesModalProps) 
                             </div>
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-4">
-                                <div className="w-20 h-20 bg-surface-1 rounded-3xl flex items-center justify-center">
+                                <div className="w-20 h-20 bg-surface-1 rounded-[var(--radius-card)] flex items-center justify-center">
                                     <Plus className="w-10 h-10 text-muted" />
                                 </div>
                                 <h4 className="text-lg font-black text-primary uppercase">Selecione ou Crie</h4>

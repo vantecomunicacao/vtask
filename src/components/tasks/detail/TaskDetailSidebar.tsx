@@ -99,18 +99,18 @@ export function TaskDetailSidebar({
                         </label>
                         <button
                             onClick={toggleStatusPopover}
-                            className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-white border border-border-subtle rounded-lg text-sm hover:border-brand/50 transition-all group"
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-surface-card border border-border-subtle rounded-[var(--radius-md)] text-sm hover:border-brand/50 transition-all group"
                         >
                             <div className="flex items-center gap-2 truncate">
                                 <div
-                                    className="w-2 h-2 rounded-full shrink-0 shadow-sm"
+                                    className="w-2 h-2 rounded-full shrink-0"
                                     style={{ backgroundColor: statuses.find(s => s.id === currentTask.status_id)?.color || '#ccc' }}
                                 />
                                 <span className="truncate font-medium">
                                     {statuses.find(s => s.id === currentTask.status_id)?.name || 'Selecionar status'}
                                 </span>
                             </div>
-                            <ChevronRight size={14} className="text-gray-400 group-hover:text-brand transition-colors" />
+                            <ChevronRight size={14} className="text-muted group-hover:text-brand transition-colors" />
                         </button>
                     </div>
 
@@ -282,7 +282,7 @@ export function TaskDetailSidebar({
                                             className="flex-1 outline-none text-xs bg-transparent"
                                         />
                                     </div>
-                                    <div className="absolute top-full left-0 right-0 mt-1 z-20 bg-white border border-border-subtle rounded-lg shadow-xl max-h-40 overflow-y-auto popover-enter">
+                                    <div className="absolute top-full left-0 right-0 mt-1 z-20 bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float max-h-40 overflow-y-auto popover-enter">
                                         {documents
                                             .filter(d => d.title.toLowerCase().includes(docSearchQuery.toLowerCase()))
                                             .filter(d => !linkedDocuments.some(ld => ld.document_id === d.id))

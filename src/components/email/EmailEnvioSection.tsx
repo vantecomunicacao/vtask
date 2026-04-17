@@ -112,7 +112,7 @@ export function EmailEnvioSection({
                                 onClick={onScheduleToggle}
                                 className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${scheduleEnabled ? 'bg-brand' : 'bg-surface-0'}`}
                             >
-                                <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${scheduleEnabled ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+                                <span className={`inline-block h-3.5 w-3.5 rounded-full bg-surface-card transition-transform ${scheduleEnabled ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
                             </button>
                         </div>
                         {scheduleEnabled ? (

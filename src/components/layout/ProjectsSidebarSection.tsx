@@ -124,7 +124,7 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
         <div
             data-sidebar-menu
             style={{ position: 'fixed', top: folderMenu.top, left: folderMenu.left, zIndex: 9999 }}
-            className="bg-surface-card border border-border-subtle rounded-lg shadow-float py-1 w-36"
+            className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float py-1 w-36"
         >
             <button
                 onClick={() => { setFolderMenu(null); setRenamingId(folderMenu.id); setRenameName(folders.find(f => f.id === folderMenu.id)?.name ?? ''); }}
@@ -134,7 +134,7 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
             </button>
             <button
                 onClick={async () => { setFolderMenu(null); await deleteFolder(folderMenu.id); }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50"
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-brand hover:bg-brand-light"
             >
                 <Trash2 size={11} /> Excluir pasta
             </button>
@@ -148,7 +148,7 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
         <div
             data-sidebar-menu
             style={{ position: 'fixed', top: projectMenu.top, left: projectMenu.left, zIndex: 9999 }}
-            className="bg-surface-card border border-border-subtle rounded-lg shadow-float py-1 w-44"
+            className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float py-1 w-44"
         >
             {currentProjectInFolder?.folder_id ? (
                 <button
@@ -186,16 +186,16 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
                     onClick={() => setProjectsExpanded(v => !v)}
                     className="flex items-center gap-1 flex-1 text-left"
                 >
-                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Projetos Ativos</span>
+                    <span className="text-[11px] font-bold text-muted uppercase tracking-widest">Projetos Ativos</span>
                     {projectsExpanded
-                        ? <ChevronDown size={12} className="text-gray-400 ml-1" />
-                        : <ChevronRight size={12} className="text-gray-400 ml-1" />}
+                        ? <ChevronDown size={12} className="text-muted ml-1" />
+                        : <ChevronRight size={12} className="text-muted ml-1" />}
                 </button>
                 {projectsExpanded && (
                     <button
                         onClick={() => setCreatingFolder(true)}
                         title="Nova pasta"
-                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-surface-2 text-gray-400 hover:text-secondary transition-all"
+                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-surface-2 text-muted hover:text-secondary transition-all"
                     >
                         <FolderPlus size={13} />
                     </button>

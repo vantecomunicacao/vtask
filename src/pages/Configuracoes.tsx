@@ -7,7 +7,7 @@ import { Badge } from '../components/ui/Badge';
 import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2, Eye, EyeOff, Paintbrush, Moon, Sun, Layers, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTaskStore, type CustomStatus } from '../store/taskStore';
-import { useThemeStore, THEMES } from '../store/themeStore';
+import { useThemeStore } from '../store/themeStore';
 import { toast } from 'sonner';
 import type { Database } from '../lib/database.types';
 type TaskCategory = Database['public']['Tables']['task_categories']['Row'];
@@ -30,7 +30,7 @@ export default function Configuracoes() {
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
     const [inviteEmail, setInviteEmail] = useState('');
     const [activeTab, setActiveTab] = useState<'geral' | 'equipe' | 'fluxo' | 'categorias' | 'aparencia' | 'design'>('geral');
-    const { theme, setTheme, darkMode, toggleDarkMode } = useThemeStore();
+    const { darkMode, toggleDarkMode } = useThemeStore();
 
     // Status management state
     const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
@@ -427,7 +427,7 @@ export default function Configuracoes() {
                                             statuses.map((status, index) => (
                                                 <div
                                                     key={status.id}
-                                                    className={`flex items-center justify-between p-4 border rounded-card transition-all ${editingStatusId === status.id ? 'border-brand ring-2 ring-brand/10 bg-brand/5' : 'border-border-subtle bg-white hover:border-border-subtle'}`}
+                                                    className={`flex items-center justify-between p-4 border rounded-card transition-all ${editingStatusId === status.id ? 'border-brand ring-2 ring-brand/10 bg-brand/5' : 'border-border-subtle bg-surface-card'}`}
                                                 >
                                                     <div className="flex items-center gap-4 flex-1">
                                                         <div className="flex flex-col gap-1">
@@ -481,7 +481,7 @@ export default function Configuracoes() {
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeleteStatus(status.id)}
-                                                                className="p-2 text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                className="p-2 text-muted hover:text-brand hover:bg-brand-light rounded-lg transition-colors"
                                                             >
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -551,7 +551,7 @@ export default function Configuracoes() {
                                         {taskCategories.map((category) => (
                                             <div
                                                 key={category.id}
-                                                className={`flex items-center justify-between p-4 border rounded-card transition-all ${editingCategoryId === category.id ? 'border-brand ring-2 ring-brand/10 bg-brand/5' : 'border-border-subtle bg-white hover:border-border-subtle'}`}
+                                                className={`flex items-center justify-between p-4 border rounded-card transition-all ${editingCategoryId === category.id ? 'border-brand ring-2 ring-brand/10 bg-brand/5' : 'border-border-subtle bg-surface-card'}`}
                                             >
                                                 <div className="flex items-center gap-4 flex-1">
                                                     {editingCategoryId === category.id ? (
@@ -588,7 +588,7 @@ export default function Configuracoes() {
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteCategory(category.id)}
-                                                            className="p-2 text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                            className="p-2 text-muted hover:text-brand hover:bg-brand-light rounded-lg transition-colors"
                                                         >
                                                             <Trash2 size={16} />
                                                         </button>
@@ -627,33 +627,10 @@ export default function Configuracoes() {
                                         role="switch"
                                         aria-checked={darkMode}
                                     >
-                                        <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ${darkMode ? 'translate-x-5' : 'translate-x-0'}`} />
+                                        <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-surface-card ring-0 transition-transform duration-200 ${darkMode ? 'translate-x-5' : 'translate-x-0'}`} />
                                     </button>
                                 </div>
 
-                                {/* Layout Themes */}
-                                <div>
-                                    <p className="text-sm text-secondary mb-4">Escolha o estilo visual da interface. A troca é instantânea e salva automaticamente.</p>
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {THEMES.map((t) => (
-                                            <button
-                                                key={t.id}
-                                                onClick={() => setTheme(t.id)}
-                                                className={`flex items-center justify-between p-4 rounded-[var(--radius-card)] border-2 text-left transition-all ${
-                                                    theme === t.id
-                                                        ? 'border-brand bg-brand-light'
-                                                        : 'border-border-subtle hover:border-border-subtle bg-white'
-                                                }`}
-                                            >
-                                                <div>
-                                                    <p className={`text-sm font-bold ${theme === t.id ? 'text-brand' : 'text-primary'}`}>{t.label}</p>
-                                                    <p className="text-xs text-secondary mt-0.5">{t.description}</p>
-                                                </div>
-                                                <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${theme === t.id ? 'border-brand bg-brand' : 'border-border-subtle'}`} />
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
                             </CardContent>
                         </Card>
                     )}

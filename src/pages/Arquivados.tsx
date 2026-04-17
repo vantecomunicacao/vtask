@@ -95,7 +95,7 @@ export default function Arquivados() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filtered.map(project => (
-                        <Card key={project.id} className="group hover:border-gray-300 transition-colors flex flex-col opacity-80 hover:opacity-100">
+                        <Card key={project.id} className="group hover:border-border transition-colors flex flex-col opacity-80 hover:opacity-100">
                             <CardHeader className="pb-4">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-3">
@@ -125,7 +125,7 @@ export default function Arquivados() {
                                         </button>
                                         <button
                                             onClick={() => handleDelete(project.id)}
-                                            className="p-1.5 text-muted hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                            className="p-1.5 text-muted hover:text-brand hover:bg-brand-light rounded-md transition-colors"
                                             title="Excluir Permanentemente"
                                         >
                                             <Trash2 size={16} />

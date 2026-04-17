@@ -13,6 +13,16 @@ import { parseDueDate } from '../../lib/dateUtils';
 
 const parseLocalDate = parseDueDate;
 
+// Padrão visual para células de metadados (prazo, criação, prioridade, etc.)
+// Use este componente em qualquer nova coluna para manter consistência.
+function ColCell({ children, className }: { children: React.ReactNode; className?: string }) {
+    return (
+        <div className={cn("flex items-center gap-1.5 text-xs overflow-hidden", className)}>
+            {children}
+        </div>
+    );
+}
+
 function formatDueDate(due: string) {
     const date = parseLocalDate(due);
     if (isToday(date)) return { label: 'Hoje', className: 'text-amber-600 font-semibold' };
@@ -107,7 +117,7 @@ export const TaskRow = React.memo(function TaskRow({
                     {...provided.dragHandleProps}
                     data-task-id={task.id}
                     className={cn(
-                        "task-row px-4 py-3 grid gap-3 items-center group",
+                        "task-row px-4 py-2 grid gap-3 items-center group",
                         snapshot.isDragging && "bg-surface-card shadow-card border border-brand/10 z-50 rounded-lg",
                         !snapshot.isDragging && isSelected && "bg-brand/5",
                         !snapshot.isDragging && isFocused && "bg-brand/[0.08] ring-1 ring-brand/20",
@@ -128,7 +138,7 @@ export const TaskRow = React.memo(function TaskRow({
                             aria-label={`Selecionar tarefa: ${task.title}`}
                             className={cn(
                                 "w-4 h-4 rounded border-border-subtle text-brand focus:ring-brand cursor-pointer shrink-0 transition-opacity",
-                                !isSelected && !anySelected && "opacity-30 group-hover:opacity-100"
+                                !isSelected && !anySelected && "opacity-0 group-hover:opacity-100"
                             )}
                         />
                         <div className="relative flex items-center justify-center shrink-0">
@@ -190,7 +200,7 @@ export const TaskRow = React.memo(function TaskRow({
                     </div>
 
                     {/* Prazo */}
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold relative overflow-hidden">
+                    <ColCell className="font-bold relative">
                         {due ? (
                             <button
                                 ref={dateBtnRef}
@@ -198,7 +208,7 @@ export const TaskRow = React.memo(function TaskRow({
                                 className={cn("flex items-center gap-1 hover:underline", due.className)}
                                 title="Editar prazo (D)"
                             >
-                                <CalendarIcon size={11} /> {due.label}
+                                <CalendarIcon size={12} /> {due.label}
                             </button>
                         ) : (
                             <button
@@ -207,8 +217,8 @@ export const TaskRow = React.memo(function TaskRow({
                                 className="flex items-center gap-1 text-muted opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-brand transition-all"
                                 title="Adicionar prazo (D)"
                             >
-                                <CalendarIcon size={11} />
-                                <span className="text-[10px]">Data</span>
+                                <CalendarIcon size={12} />
+                                <span>Data</span>
                             </button>
                         )}
                         <DatePickerPopover
@@ -218,19 +228,19 @@ export const TaskRow = React.memo(function TaskRow({
                             onChange={async (val) => { await updateTask(task.id, { due_date: val }); }}
                             anchorRef={dateBtnRef}
                         />
-                    </div>
+                    </ColCell>
 
                     {/* Criação */}
-                    <div className="flex items-center text-[11px] text-muted overflow-hidden">
+                    <ColCell className="text-muted">
                         {task.created_at
                             ? format(new Date(task.created_at), "dd/MM/yy", { locale: ptBR })
                             : '—'}
-                    </div>
+                    </ColCell>
 
                     {/* Prioridade */}
-                    <div className="flex items-center overflow-hidden">
+                    <ColCell>
                         {task.priority ? (
-                            <span className="flex items-center gap-1.5 text-[11px] font-medium text-secondary">
+                            <span className="flex items-center gap-1.5 font-medium text-secondary">
                                 <span className={cn(
                                     "w-2 h-2 rounded-full shrink-0",
                                     task.priority === 'urgent' ? 'bg-red-500' :
@@ -243,8 +253,8 @@ export const TaskRow = React.memo(function TaskRow({
                                      task.priority === 'high' ? 'Alta' : 'Urgente'}
                                 </span>
                             </span>
-                        ) : <span className="text-xs text-muted">—</span>}
-                    </div>
+                        ) : <span className="text-muted">—</span>}
+                    </ColCell>
 
                     {/* Responsável */}
                     <div className="flex items-center overflow-hidden">
@@ -285,7 +295,7 @@ export const TaskRow = React.memo(function TaskRow({
                             <div
                                 ref={menuRef}
                                 style={{ top: menuPos.top, left: menuPos.left }}
-                                className="fixed w-44 bg-surface-card border border-border-subtle rounded-lg shadow-float z-[9999] py-1 popup-spring"
+                                className="fixed w-44 bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float z-[9999] py-1 popup-spring"
                             >
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onOpenDetail(task); }}
