@@ -299,16 +299,14 @@ export default function Dashboard() {
 
     const overdueTasks = useMemo(
         () => myTasks
-            .filter(t => t.due_date && parseDueDate(t.due_date) < today && t.status_id !== doneStatusId)
+            .filter(t => t.due_date && parseDueDate(t.due_date) < today)
             .sort((a, b) => parseDueDate(a.due_date!).getTime() - parseDueDate(b.due_date!).getTime()),
-        [myTasks, today, doneStatusId],
+        [myTasks, today],
     );
 
     const todayTasks = useMemo(
-        () => myTasks.filter(t =>
-            t.due_date && isToday(parseDueDate(t.due_date)) && t.status_id !== doneStatusId
-        ),
-        [myTasks, doneStatusId],
+        () => myTasks.filter(t => t.due_date && isToday(parseDueDate(t.due_date))),
+        [myTasks],
     );
 
     const upcomingTasks = useMemo(
@@ -316,12 +314,11 @@ export default function Dashboard() {
             .filter(t =>
                 t.due_date &&
                 isFuture(parseDueDate(t.due_date)) &&
-                !isToday(parseDueDate(t.due_date)) &&
-                t.status_id !== doneStatusId
+                !isToday(parseDueDate(t.due_date))
             )
             .sort((a, b) => parseDueDate(a.due_date!).getTime() - parseDueDate(b.due_date!).getTime())
             .slice(0, 10),
-        [myTasks, doneStatusId],
+        [myTasks],
     );
 
     const activeProjects = useMemo(
