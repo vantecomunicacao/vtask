@@ -35,10 +35,11 @@ interface TaskFormModalProps {
     isOpen: boolean;
     onClose: () => void;
     projectId?: string;
+    defaultDueDate?: string;
     onTaskCreated?: () => void;
 }
 
-export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: TaskFormModalProps) {
+export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTaskCreated }: TaskFormModalProps) {
     const { fetchTasks, fetchWorkspaceTasks, statuses, taskCategories } = useTaskStore();
     const { activeWorkspace } = useWorkspaceStore();
     const { projects } = useProjectStore();
@@ -70,13 +71,14 @@ export function TaskFormModal({ isOpen, onClose, projectId, onTaskCreated }: Tas
         }
     }, [isOpen, activeWorkspace]);
 
-    // Atualiza status e projeto padrão quando modal abre
+    // Atualiza status, projeto e data padrão quando modal abre
     useEffect(() => {
         if (isOpen) {
             if (statuses.length > 0) setValue('status_id', statuses[0].id);
             if (projectId) setValue('project_id', projectId);
+            if (defaultDueDate) setValue('due_date', defaultDueDate);
         }
-    }, [isOpen, statuses, projectId, setValue]);
+    }, [isOpen, statuses, projectId, defaultDueDate, setValue]);
 
     const onSubmit = async (data: TaskFormData) => {
         setLoading(true);
