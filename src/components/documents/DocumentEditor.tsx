@@ -1,8 +1,9 @@
 import { useEditor, EditorContent } from '@tiptap/react';
+import { createPortal } from 'react-dom';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import Image from '@tiptap/extension-image';
+import { ResizableImage } from './extensions/ResizableImage';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
@@ -24,7 +25,8 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Callout } from './extensions/Callout';
 import { Details } from './extensions/Details';
 import { DocMention } from './extensions/DocMention';
-import { renderDocItems } from './DocMentionSuggestion';
+import { ColoredBlockquote, BLOCKQUOTE_COLORS, type BlockquoteColor } from './extensions/ColoredBlockquote';
+import { createRenderDocItems } from './DocMentionSuggestion';
 import { Button } from '../ui/Button';
 import { SlashCommands, suggestionItems, renderItems } from './SlashCommands';
 import {
@@ -34,6 +36,7 @@ import {
     CheckSquare, Code, Image as ImageIcon, Trash2, Minus,
     FileText, Plus, Undo, Redo, Palette, Highlighter, FolderOpen,
     History, Download, ChevronDown, Check, ChevronLeft,
+    Quote, Eraser,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { TextSubstitutions } from '../../lib/tiptapExtensions';
@@ -66,6 +69,93 @@ function Divider() {
     return <div className="w-px h-5 bg-border-subtle mx-1 shrink-0" />;
 }
 
+// ─── Highlight color picker ───────────────────────────────────────
+const HIGHLIGHT_COLORS = [
+    { color: '#FEF08A', label: 'Amarelo' },
+    { color: '#BBF7D0', label: 'Verde' },
+    { color: '#BAE6FD', label: 'Azul' },
+    { color: '#FBCFE8', label: 'Rosa' },
+    { color: '#FED7AA', label: 'Laranja' },
+    { color: '#DDD6FE', label: 'Roxo' },
+    { color: '#FECACA', label: 'Vermelho' },
+    { color: '#E5E7EB', label: 'Cinza' },
+];
+
+// ─── Portal picker (evita ser cortado por overflow-x-auto da toolbar) ──
+function PickerPortal({ pos, children }: {
+    pos: { top: number; left: number };
+    children: React.ReactNode;
+}) {
+    return createPortal(
+        <div data-picker style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}>
+            {children}
+        </div>,
+        document.body
+    );
+}
+
+function HighlightSwatches({ editor, onClose }: { editor: import('@tiptap/react').Editor; onClose: () => void }) {
+    return (
+        <div className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float p-2 flex flex-col gap-1.5 min-w-[9rem]">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-muted px-1">Destaque</span>
+            <div className="grid grid-cols-4 gap-1">
+                {HIGHLIGHT_COLORS.map(({ color, label }) => (
+                    <button
+                        key={color}
+                        onMouseDown={e => {
+                            e.preventDefault();
+                            editor.chain().focus().setHighlight({ color }).run();
+                            onClose();
+                        }}
+                        title={label}
+                        className="w-7 h-7 rounded-[var(--radius-sm)] border-2 border-transparent hover:border-brand transition-all hover:scale-110"
+                        style={{ backgroundColor: color }}
+                    />
+                ))}
+            </div>
+            <button
+                onMouseDown={e => {
+                    e.preventDefault();
+                    editor.chain().focus().unsetHighlight().run();
+                    onClose();
+                }}
+                className="text-[10px] text-muted hover:text-primary transition-colors px-1 text-left mt-0.5"
+            >
+                Remover destaque
+            </button>
+        </div>
+    );
+}
+
+// ─── Blockquote color picker ─────────────────────────────────────
+function BlockquotePicker({ editor, onClose }: { editor: import('@tiptap/react').Editor; onClose: () => void }) {
+    return (
+        <div className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float p-2 flex flex-col gap-1.5 min-w-[9rem]">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-muted px-1">Citação</span>
+            <div className="grid grid-cols-3 gap-1">
+                {(Object.entries(BLOCKQUOTE_COLORS) as [BlockquoteColor, { border: string; bg: string; label: string }][]).map(([key, { border, bg, label }]) => (
+                    <button
+                        key={key}
+                        onMouseDown={e => {
+                            e.preventDefault();
+                            if (!editor.isActive('blockquote')) {
+                                editor.chain().focus().toggleBlockquote().run();
+                            }
+                            editor.chain().focus().setBlockquoteColor(key).run();
+                            onClose();
+                        }}
+                        title={label}
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-[var(--radius-sm)] hover:opacity-80 transition-opacity"
+                        style={{ borderLeft: `3px solid ${border}`, backgroundColor: bg }}
+                    >
+                        <span className="text-[10px] font-medium truncate" style={{ color: border }}>{label}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 // ─── Props ────────────────────────────────────────────────────────
 interface DocumentEditorProps {
     documentId: string;
@@ -87,12 +177,21 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
     const [wordCount, setWordCount] = useState(0);
     const [showVersionPanel, setShowVersionPanel] = useState(false);
     const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+    const [highlightPickerOpen, setHighlightPickerOpen] = useState<'toolbar' | 'bubble' | null>(null);
+    const [blockquotePickerOpen, setBlockquotePickerOpen] = useState<'toolbar' | 'bubble' | null>(null);
+    const [highlightPickerPos, setHighlightPickerPos] = useState({ top: 0, left: 0 });
+    const [blockquotePickerPos, setBlockquotePickerPos] = useState({ top: 0, left: 0 });
     const projectDropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node)) {
                 setProjectDropdownOpen(false);
+            }
+            const target = e.target as HTMLElement;
+            if (!target.closest('[data-picker]') && !target.closest('[data-picker-btn]')) {
+                setHighlightPickerOpen(null);
+                setBlockquotePickerOpen(null);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -121,14 +220,13 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
     // ─── Editor ───────────────────────────────────────────────────
     const editor = useEditor({
         extensions: [
-            StarterKit.configure({ codeBlock: false }),
+            StarterKit.configure({ codeBlock: false, blockquote: false }),
+            ColoredBlockquote,
             TextSubstitutions,
             Placeholder.configure({
                 placeholder: 'Digite "/" para comandos ou comece a escrever...',
             }),
-            Image.configure({
-                HTMLAttributes: { class: 'rounded-lg border border-border-subtle shadow-sm max-w-full h-auto my-4' },
-            }),
+            ResizableImage,
             Table.configure({ resizable: true }),
             TableRow, TableHeader, TableCell,
             TaskList,
@@ -149,14 +247,32 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                 },
                 suggestion: {
                     char: '[[',
-                    items: ({ query }: { query: string }) =>
-                        documentsRef.current
+                    items: ({ query }: { query: string }) => {
+                        const all = documentsRef.current;
+                        const q = query.toLowerCase().trim();
+                        return all
+                            .filter(d => d.id !== documentId && !d.deleted_at)
+                            .map(d => ({
+                                ...d,
+                                _parentTitle: d.parent_id
+                                    ? (all.find(p => p.id === d.parent_id)?.title ?? null)
+                                    : null,
+                            }))
                             .filter(d =>
-                                d.id !== documentId &&
-                                (d.title || '').toLowerCase().includes(query.toLowerCase())
+                                q === '' ||
+                                (d.title || '').toLowerCase().includes(q) ||
+                                (d._parentTitle || '').toLowerCase().includes(q)
                             )
-                            .slice(0, 10),
-                    render: renderDocItems,
+                            .sort((a, b) => {
+                                if (!q) return (a.title || '').localeCompare(b.title || '');
+                                const aExact = (a.title || '').toLowerCase().startsWith(q);
+                                const bExact = (b.title || '').toLowerCase().startsWith(q);
+                                if (aExact && !bExact) return -1;
+                                if (!aExact && bExact) return 1;
+                                return (a.title || '').localeCompare(b.title || '');
+                            });
+                    },
+                    render: createRenderDocItems(id => documentsRef.current.find(d => d.id === id)),
                 },
             }),
             SlashCommands.configure({
@@ -480,10 +596,24 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                     <div className="w-px h-4 bg-border-subtle mx-0.5" />
 
                     <button
-                        onMouseDown={e => { e.preventDefault(); editor.chain().toggleHighlight({ color: '#FEF08A' }).run(); }}
-                        className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors ${editor.isActive('highlight') ? 'text-brand' : 'text-secondary'}`}
+                        data-picker-btn
+                        onMouseDown={e => {
+                            e.preventDefault();
+                            const r = e.currentTarget.getBoundingClientRect();
+                            setHighlightPickerPos({ top: r.bottom + 6, left: r.left });
+                            setHighlightPickerOpen(v => v === 'bubble' ? null : 'bubble');
+                        }}
+                        className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors flex flex-col items-center gap-0.5 ${editor.isActive('highlight') ? 'text-brand' : 'text-secondary'}`}
                         title="Destacar"
-                    ><Highlighter size={14} /></button>
+                    >
+                        <Highlighter size={14} />
+                        <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: editor.getAttributes('highlight').color ?? '#FEF08A' }} />
+                    </button>
+                    {highlightPickerOpen === 'bubble' && (
+                        <PickerPortal pos={highlightPickerPos}>
+                            <HighlightSwatches editor={editor} onClose={() => setHighlightPickerOpen(null)} />
+                        </PickerPortal>
+                    )}
 
                     {/* Cor do texto */}
                     <label className="relative p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors cursor-pointer text-secondary" title="Cor do texto">
@@ -510,6 +640,31 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                         className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors ${editor.isActive('link') ? 'text-brand' : 'text-secondary'}`}
                         title="Link"
                     ><LinkIcon size={14} /></button>
+
+                    <div className="w-px h-4 bg-border-subtle mx-0.5" />
+
+                    <button
+                        data-picker-btn
+                        onMouseDown={e => {
+                            e.preventDefault();
+                            const r = e.currentTarget.getBoundingClientRect();
+                            setBlockquotePickerPos({ top: r.bottom + 6, left: r.left });
+                            setBlockquotePickerOpen(v => v === 'bubble' ? null : 'bubble');
+                        }}
+                        className={`p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors ${editor.isActive('blockquote') ? 'text-brand' : 'text-secondary'}`}
+                        title="Citação"
+                    ><Quote size={14} /></button>
+                    {blockquotePickerOpen === 'bubble' && (
+                        <PickerPortal pos={blockquotePickerPos}>
+                            <BlockquotePicker editor={editor} onClose={() => setBlockquotePickerOpen(null)} />
+                        </PickerPortal>
+                    )}
+
+                    <button
+                        onMouseDown={e => { e.preventDefault(); editor.chain().focus().clearNodes().unsetAllMarks().run(); }}
+                        className="p-1.5 rounded-[var(--radius-xs)] hover:bg-surface-0 transition-colors text-secondary"
+                        title="Remover formatação"
+                    ><Eraser size={14} /></button>
                 </BubbleMenu>
             )}
 
@@ -549,9 +704,26 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                 <TB onClick={() => editor?.chain().focus().toggleStrike().run()} active={editor?.isActive('strike')} title="Tachado">
                     <Strikethrough size={17} />
                 </TB>
-                <TB onClick={() => editor?.chain().focus().toggleHighlight({ color: '#FEF08A' }).run()} active={editor?.isActive('highlight')} title="Destacar texto">
+                {/* Destacar texto — color picker */}
+                <button
+                    data-picker-btn
+                    onMouseDown={e => {
+                        e.preventDefault();
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setHighlightPickerPos({ top: r.bottom + 6, left: r.left });
+                        setHighlightPickerOpen(v => v === 'toolbar' ? null : 'toolbar');
+                    }}
+                    title="Destacar texto"
+                    className={`p-1.5 rounded-[var(--radius-sm)] transition-all flex flex-col items-center gap-0.5 ${editor?.isActive('highlight') ? 'text-brand bg-surface-card shadow-[var(--shadow-card)]' : 'text-secondary hover:bg-surface-card hover:shadow-[var(--shadow-card)]'}`}
+                >
                     <Highlighter size={17} />
-                </TB>
+                    <span className="w-3.5 h-1 rounded-full" style={{ backgroundColor: editor?.getAttributes('highlight').color ?? '#FEF08A' }} />
+                </button>
+                {highlightPickerOpen === 'toolbar' && (
+                    <PickerPortal pos={highlightPickerPos}>
+                        <HighlightSwatches editor={editor!} onClose={() => setHighlightPickerOpen(null)} />
+                    </PickerPortal>
+                )}
 
                 {/* Cor do texto */}
                 <label
@@ -566,6 +738,11 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                         onInput={e => editor?.chain().focus().setColor((e.target as HTMLInputElement).value).run()}
                     />
                 </label>
+
+                {/* Remover formatação */}
+                <TB onClick={() => editor?.chain().focus().clearNodes().unsetAllMarks().run()} title="Remover formatação">
+                    <Eraser size={17} />
+                </TB>
 
                 <Divider />
 
@@ -583,6 +760,24 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                 <Divider />
 
                 {/* Bloco */}
+                <button
+                    data-picker-btn
+                    onMouseDown={e => {
+                        e.preventDefault();
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setBlockquotePickerPos({ top: r.bottom + 6, left: r.left });
+                        setBlockquotePickerOpen(v => v === 'toolbar' ? null : 'toolbar');
+                    }}
+                    title="Citação"
+                    className={`p-1.5 rounded-[var(--radius-sm)] transition-all ${editor?.isActive('blockquote') ? 'text-brand bg-surface-card shadow-[var(--shadow-card)]' : 'text-secondary hover:bg-surface-card hover:shadow-[var(--shadow-card)]'}`}
+                >
+                    <Quote size={17} />
+                </button>
+                {blockquotePickerOpen === 'toolbar' && (
+                    <PickerPortal pos={blockquotePickerPos}>
+                        <BlockquotePicker editor={editor!} onClose={() => setBlockquotePickerOpen(null)} />
+                    </PickerPortal>
+                )}
                 <TB onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Tabela">
                     <TableIcon size={17} />
                 </TB>
@@ -749,7 +944,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                 .tiptap-editor-container li { margin-bottom: 0.25rem; }
 
                 /* Blockquote */
-                .tiptap-editor-container blockquote { border-left: 3px solid #db4035; padding-left: 1rem; font-style: italic; color: #6b6860; margin: 1.5rem 0; background: #fdf3f2; border-radius: 0 6px 6px 0; padding: 0.75rem 1rem; }
+                .tiptap-editor-container blockquote { border-left: 3px solid #ef4444; padding: 0.75rem 1rem; background: #fef2f2; margin: 1.5rem 0; font-style: italic; color: #6b6860; border-radius: 0 6px 6px 0; }
 
                 /* Highlight */
                 .tiptap-editor-container mark { border-radius: 3px; padding: 0.1em 0.15em; }

@@ -9,7 +9,6 @@ import {
     Trash2, Search, FilePlus, GripVertical, FolderOpen, X,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { useIsMobile } from '../../hooks/useIsMobile';
 
 // ─── Nó da árvore ────────────────────────────────────────────────
 function DocTreeItem({
@@ -84,7 +83,6 @@ export function DocumentsSidebarSection() {
     const { activeWorkspace } = useWorkspaceStore();
     const { documents, fetchDocuments, createDocument, createSubDocument, deleteDocument, moveDocument, loading } = useDocumentStore();
     const { projects, fetchProjects } = useProjectStore();
-    const isMobile = useIsMobile();
 
     const activeDocId = pathname.startsWith('/documentos/') ? pathname.split('/documentos/')[1] : undefined;
 
