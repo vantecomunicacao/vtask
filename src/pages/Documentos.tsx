@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { useDocumentStore, type Document } from '../store/documentStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useProjectStore } from '../store/projectStore';
@@ -26,6 +28,7 @@ function DocTreeItem({
     onDragOver,
     onDragLeave,
     onDrop,
+    isMobile,
 }: {
     doc: Document;
     allDocs: Document[];
@@ -40,6 +43,7 @@ function DocTreeItem({
     onDragOver: (id: string) => void;
     onDragLeave: () => void;
     onDrop: (targetId: string) => void;
+    isMobile: boolean;
 }) {
     const children = allDocs.filter(d => d.parent_id === doc.id);
     const [open, setOpen] = useState(depth === 0);
@@ -57,7 +61,7 @@ function DocTreeItem({
                     !isDropTarget && isActive && 'bg-brand/10 text-brand font-semibold',
                     !isDropTarget && !isActive && 'text-secondary hover:bg-surface-0 hover:text-primary',
                 )}
-                style={{ paddingLeft: `${6 + depth * 14}px` }}
+                style={{ paddingLeft: `${6 + depth * 14}px`, minHeight: isMobile ? '44px' : undefined }}
                 draggable={true}
                 onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(doc.id); }}
                 onDragEnd={() => onDragLeave()}
@@ -123,6 +127,7 @@ function DocTreeItem({
                     onDragOver={onDragOver}
                     onDragLeave={onDragLeave}
                     onDrop={onDrop}
+                    isMobile={isMobile}
                 />
             ))}
         </div>
@@ -152,11 +157,28 @@ export default function Documentos() {
     const { documents, fetchDocuments, createDocument, createSubDocument, deleteDocument, moveDocument, loading } = useDocumentStore();
     const { projects, fetchProjects } = useProjectStore();
 
+    const isMobile = useIsMobile();
     const [search, setSearch] = useState('');
     const [projectFilter, setProjectFilter] = useState<string | null>(null);
+    const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+    const [projectDropdownPos, setProjectDropdownPos] = useState({ top: 0, left: 0 });
+    const projectFilterBtnRef = useRef<HTMLButtonElement>(null);
+    const projectDropdownRef = useRef<HTMLDivElement>(null);
     const [dragging, setDragging] = useState<string | null>(null);
     const [dropTarget, setDropTarget] = useState<string | null>(null);
     const searchRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!projectDropdownOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (
+                projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node) &&
+                projectFilterBtnRef.current && !projectFilterBtnRef.current.contains(e.target as Node)
+            ) setProjectDropdownOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [projectDropdownOpen]);
 
     useEffect(() => {
         if (activeWorkspace) {
@@ -210,7 +232,7 @@ export default function Documentos() {
 
     const handleDragOver = useCallback((targetId: string) => {
         if (!dragging || targetId === dragging) return;
-        if (isDescendant(targetId, dragging)) return; // would create cycle
+        if (isDescendant(targetId, dragging)) return;
         setDropTarget(targetId);
     }, [dragging, isDescendant]);
 
@@ -265,8 +287,9 @@ export default function Documentos() {
 
     return (
         <div className="h-full flex fade-in rounded-card overflow-hidden border border-border-subtle shadow-card bg-surface-card">
-            {/* ── Sidebar de Páginas ── */}
-            <div className="w-60 shrink-0 flex flex-col border-r border-border-subtle bg-surface-2/40 overflow-hidden">
+            {/* ── Sidebar de Páginas — oculta no mobile quando editor está aberto ── */}
+            {(!isMobile || !id) && (
+            <div className={cn("shrink-0 flex flex-col border-r border-border-subtle bg-surface-2/40 overflow-hidden", isMobile ? "w-full" : "w-60")}>
                 {/* Header */}
                 <div className="px-3 pt-4 pb-2 flex items-center justify-between shrink-0">
                     <span className="text-[11px] font-bold text-muted uppercase tracking-widest">Páginas</span>
@@ -275,34 +298,91 @@ export default function Documentos() {
                         {projects.length > 0 && (
                             <div className="relative group/filter">
                                 <button
+                                    ref={projectFilterBtnRef}
                                     title="Filtrar por projeto"
                                     className={cn(
-                                        'p-1 rounded-lg hover:bg-surface-0 transition-colors',
+                                        'rounded-lg hover:bg-surface-0 transition-colors',
+                                        isMobile ? 'p-3' : 'p-1',
                                         projectFilter ? 'text-brand bg-brand/10' : 'text-muted hover:text-primary'
                                     )}
-                                    onClick={() => {/* toggle handled by select below */}}
+                                    onClick={e => {
+                                        if (isMobile) {
+                                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                            setProjectDropdownPos({
+                                                top: rect.bottom + 4,
+                                                left: Math.max(8, Math.min(rect.left, window.innerWidth - 224 - 8)),
+                                            });
+                                            setProjectDropdownOpen(v => !v);
+                                        }
+                                    }}
                                 >
-                                    <FolderOpen size={14} />
+                                    <FolderOpen size={isMobile ? 18 : 14} />
                                 </button>
-                                <select
-                                    value={projectFilter || ''}
-                                    onChange={e => setProjectFilter(e.target.value || null)}
-                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                    title="Filtrar por projeto"
-                                >
-                                    <option value="">Todos os documentos</option>
-                                    {projects.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </select>
+
+                                {/* Desktop: native select overlay */}
+                                {!isMobile && (
+                                    <select
+                                        value={projectFilter || ''}
+                                        onChange={e => setProjectFilter(e.target.value || null)}
+                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                        title="Filtrar por projeto"
+                                    >
+                                        <option value="">Todos os documentos</option>
+                                        {projects.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+
+                                {/* Mobile: custom dropdown via portal */}
+                                {isMobile && projectDropdownOpen && createPortal(
+                                    <div
+                                        ref={projectDropdownRef}
+                                        style={{ top: projectDropdownPos.top, left: projectDropdownPos.left }}
+                                        className="fixed w-56 bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float z-[9999] py-1 overflow-hidden"
+                                    >
+                                        <p className="px-3 py-1.5 text-[10px] font-black text-muted uppercase tracking-widest">Filtrar por projeto</p>
+                                        <div className="border-t border-border-subtle" />
+                                        <button
+                                            onClick={() => { setProjectFilter(null); setProjectDropdownOpen(false); }}
+                                            className={cn(
+                                                'w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors text-left',
+                                                !projectFilter ? 'text-brand bg-brand/5 font-medium' : 'text-secondary hover:bg-surface-2'
+                                            )}
+                                        >
+                                            <FolderOpen size={14} className="shrink-0" />
+                                            Todos os documentos
+                                        </button>
+                                        {projects.map(p => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => { setProjectFilter(p.id); setProjectDropdownOpen(false); }}
+                                                className={cn(
+                                                    'w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors text-left',
+                                                    projectFilter === p.id ? 'text-brand bg-brand/5 font-medium' : 'text-secondary hover:bg-surface-2'
+                                                )}
+                                            >
+                                                <span
+                                                    className="w-2 h-2 rounded-full shrink-0"
+                                                    style={{ backgroundColor: (p as { color?: string }).color || '#888' }}
+                                                />
+                                                <span className="truncate">{p.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>,
+                                    document.body
+                                )}
                             </div>
                         )}
                         <button
                             onClick={handleCreate}
                             title="Nova página (N)"
-                            className="p-1 rounded-lg hover:bg-surface-0 text-muted hover:text-primary transition-colors"
+                            className={cn(
+                                'rounded-lg hover:bg-surface-0 text-muted hover:text-primary transition-colors',
+                                isMobile ? 'p-3' : 'p-1'
+                            )}
                         >
-                            <FilePlus size={15} />
+                            <FilePlus size={isMobile ? 18 : 15} />
                         </button>
                     </div>
                 </div>
@@ -418,6 +498,7 @@ export default function Documentos() {
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
+                                    isMobile={isMobile}
                                 />
                             ))}
                             {/* Root drop zone — shown while dragging */}
@@ -441,8 +522,10 @@ export default function Documentos() {
                     </Button>
                 </div>
             </div>
+            )}
 
-            {/* ── Área principal ── */}
+            {/* ── Área principal — oculta no mobile quando nenhum doc selecionado ── */}
+            {(!isMobile || !!id) && (
             <div className="flex-1 overflow-hidden">
                 {id ? (
                     <DocumentEditor
@@ -450,11 +533,13 @@ export default function Documentos() {
                         documentId={id}
                         onClose={() => navigate('/documentos')}
                         onAddSubPage={handleAddChild}
+                        isMobile={isMobile}
                     />
                 ) : (
                     <EmptyState onCreate={handleCreate} />
                 )}
             </div>
+            )}
         </div>
     );
 }

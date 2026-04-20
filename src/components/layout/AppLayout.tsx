@@ -1,5 +1,6 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Trash2, BookOpen, Shield, Search, Archive } from 'lucide-react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Monitor } from 'lucide-react';
+import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Trash2, BookOpen, Shield, Search, Archive, Menu, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -25,8 +26,23 @@ export default function AppLayout() {
     const { fetchCategories } = useTaskStore();
     const { subscribeToNotifications, unsubscribe } = useNotificationStore();
     const navigate = useNavigate();
+    const { pathname } = useLocation();
     const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
+    const MOBILE_ALLOWED = ['/dashboard', '/tarefas', '/documentos'];
+    const isMobileAllowed = MOBILE_ALLOWED.some(p => pathname === p || pathname.startsWith(p + '/'));
     const [projectsExpanded, setProjectsExpanded] = useState(true);
+
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+
+    useEffect(() => {
+        const handler = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handler);
+        return () => window.removeEventListener('resize', handler);
+    }, []);
+
+    const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
     const MIN_WIDTH = 180;
     const MAX_WIDTH = 400;
@@ -102,51 +118,72 @@ export default function AppLayout() {
 
     return (
         <div className="flex h-screen bg-surface-1 overflow-hidden">
+            {/* Mobile backdrop */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/40 z-40 md:hidden"
+                    onClick={closeSidebar}
+                />
+            )}
+
             {/* Sidebar */}
             <aside
-                style={{ width: sidebarWidth, minWidth: sidebarWidth, maxWidth: sidebarWidth }}
-                className="bg-surface-1 border-r border-border-subtle flex flex-col fade-in relative"
+                style={isMobile ? undefined : { width: sidebarWidth, minWidth: sidebarWidth, maxWidth: sidebarWidth }}
+                className={
+                    isMobile
+                        ? `bg-surface-1 border-r border-border-subtle flex flex-col w-72 fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+                        : 'bg-surface-1 border-r border-border-subtle flex flex-col relative fade-in'
+                }
             >
-                {/* Resize handle */}
-                <div
-                    onMouseDown={onResizeStart}
-                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize z-10 group"
-                >
-                    <div className="h-full w-px bg-transparent group-hover:bg-brand/40 transition-colors" />
-                </div>
+                {/* Resize handle (desktop only) */}
+                {!isMobile && (
+                    <div
+                        onMouseDown={onResizeStart}
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize z-10 group"
+                    >
+                        <div className="h-full w-px bg-transparent group-hover:bg-brand/40 transition-colors" />
+                    </div>
+                )}
+
                 <div className="h-16 flex items-center px-6 border-b border-border-subtle cursor-pointer hover:bg-surface-0 transition-colors">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-1">
                         <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white font-bold text-sm">
                             {activeWorkspace?.name?.substring(0, 2)?.toUpperCase() || 'FD'}
                         </div>
                         <span className="font-bold text-primary truncate max-w-[140px]">{activeWorkspace?.name || 'FlowDesk'}</span>
                     </div>
+                    <button
+                        onClick={closeSidebar}
+                        className="md:hidden w-11 h-11 flex items-center justify-center rounded-lg text-secondary hover:bg-surface-0 transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
                 </div>
 
                 <div className="p-4 flex-1 overflow-y-auto">
                     <nav className="space-y-1">
-                        <NavLink to="/dashboard" className={navLinkClass}>
+                        <NavLink to="/dashboard" className={navLinkClass} onClick={closeSidebar}>
                             <LayoutDashboard size={18} />
                             Dashboard
                         </NavLink>
-                        <NavLink to="/tarefas" className={navLinkClass}>
+                        <NavLink to="/tarefas" className={navLinkClass} onClick={closeSidebar}>
                             <CheckCircle size={18} />
                             Tarefas
                         </NavLink>
-                        <NavLink to="/documentos" className={navLinkClass}>
+                        <NavLink to="/documentos" className={navLinkClass} onClick={closeSidebar}>
                             <FileText size={18} />
                             Documentos
                         </NavLink>
-                        <NavLink to="/projetos" className={navLinkClass}>
+                        <NavLink to="/projetos" className={navLinkClass} onClick={closeSidebar}>
                             <Folder size={18} />
                             Todos os Projetos
                         </NavLink>
-                        <NavLink to="/agenda" className={navLinkClass}>
+                        <NavLink to="/agenda" className={navLinkClass} onClick={closeSidebar}>
                             <CalendarIcon size={18} />
                             <span className="flex-1">Agenda</span>
                             <span className="text-[9px] font-bold uppercase tracking-wide text-muted bg-surface-2 border border-border-subtle px-1.5 py-0.5 rounded-full">Em breve</span>
                         </NavLink>
-                        <NavLink to="/gerador-email" className={navLinkClass}>
+                        <NavLink to="/gerador-email" className={navLinkClass} onClick={closeSidebar}>
                             <Mail size={18} />
                             <span className="flex-1">Gerador de E-mails</span>
                             <span className="text-[9px] font-bold uppercase tracking-wide text-muted bg-surface-2 border border-border-subtle px-1.5 py-0.5 rounded-full">Em breve</span>
@@ -160,25 +197,25 @@ export default function AppLayout() {
                 </div>
 
                 <div className="p-4 border-t border-border-subtle space-y-1">
-                    <NavLink to="/arquivados" className={navLinkClass}>
+                    <NavLink to="/arquivados" className={navLinkClass} onClick={closeSidebar}>
                         <Archive size={18} />
                         Arquivados
                     </NavLink>
-                    <NavLink to="/lixeira" className={navLinkClass}>
+                    <NavLink to="/lixeira" className={navLinkClass} onClick={closeSidebar}>
                         <Trash2 size={18} />
                         Lixeira
                     </NavLink>
                     {isPlatformAdmin && (
-                        <NavLink to="/admin" className={navLinkClass}>
+                        <NavLink to="/admin" className={navLinkClass} onClick={closeSidebar}>
                             <Shield size={18} />
                             Admin
                         </NavLink>
                     )}
-                    <NavLink to="/configuracoes" className={navLinkClass}>
+                    <NavLink to="/configuracoes" className={navLinkClass} onClick={closeSidebar}>
                         <Settings size={18} />
                         Configurações
                     </NavLink>
-                    <NavLink to="/documentacao" className={navLinkClass}>
+                    <NavLink to="/documentacao" className={navLinkClass} onClick={closeSidebar}>
                         <BookOpen size={18} />
                         Documentação
                     </NavLink>
@@ -194,8 +231,14 @@ export default function AppLayout() {
 
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col overflow-hidden bg-surface-1">
-                <header className="h-16 shrink-0 border-b border-border-subtle bg-surface-card/60 backdrop-blur-sm z-10 flex items-center px-8">
+            <main className="flex-1 flex flex-col overflow-hidden bg-surface-1 min-w-0">
+                <header className="h-16 shrink-0 border-b border-border-subtle bg-surface-card/60 backdrop-blur-sm z-10 flex items-center px-4 md:px-8">
+                    <button
+                        onClick={() => setSidebarOpen(true)}
+                        className="md:hidden w-11 h-11 -ml-2 mr-1 flex items-center justify-center rounded-lg text-secondary hover:bg-surface-0 transition-colors"
+                    >
+                        <Menu size={20} />
+                    </button>
                     <div className="flex-1" />
                     <div className="flex items-center gap-3">
                         <button
@@ -214,8 +257,26 @@ export default function AppLayout() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-auto p-8">
-                    <Outlet />
+                <div className="flex-1 overflow-auto p-4 md:p-8">
+                    {isMobile && !isMobileAllowed ? (
+                        <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-6">
+                            <div className="w-16 h-16 rounded-2xl bg-surface-0 border border-border-subtle flex items-center justify-center">
+                                <Monitor size={28} className="text-muted" />
+                            </div>
+                            <div>
+                                <p className="text-base font-bold text-primary">Esta página é melhor no computador</p>
+                                <p className="text-sm text-muted mt-1">Acesse pelo desktop para usar esta funcionalidade.</p>
+                            </div>
+                            <div className="mt-2 px-4 py-3 rounded-xl bg-surface-card border border-border-subtle text-xs text-secondary space-y-1">
+                                <p className="font-bold text-muted uppercase tracking-widest text-[10px] mb-2">Disponível no mobile</p>
+                                <p>· Dashboard</p>
+                                <p>· Tarefas</p>
+                                <p>· Documentos</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <Outlet />
+                    )}
                 </div>
             </main>
 

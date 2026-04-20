@@ -132,6 +132,7 @@ interface TaskGroupSectionProps {
     focusedTaskIndex: number;
     selectedTaskIds: Set<string>;
     statuses: CustomStatus[];
+    isMobile?: boolean;
     onToggleSection: (id: string) => void;
     onToggleSelect: (id: string) => void;
     onToggleStatusPopover: (e: React.MouseEvent, id: string) => void;
@@ -149,6 +150,7 @@ export function TaskGroupSection({
     focusedTaskIndex,
     selectedTaskIds,
     statuses,
+    isMobile = false,
     onToggleSection,
     onToggleSelect,
     onToggleStatusPopover,
@@ -236,6 +238,7 @@ export function TaskGroupSection({
                                             gridTemplate={gridTemplate}
                                             doneStatusId={doneStatusId}
                                             statuses={statuses}
+                                            isMobile={isMobile}
                                             onToggleSelect={onToggleSelect}
                                             onToggleStatusPopover={onToggleStatusPopover}
                                             onOpenDetail={onOpenDetail}

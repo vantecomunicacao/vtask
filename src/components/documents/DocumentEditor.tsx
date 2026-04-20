@@ -33,7 +33,7 @@ import {
     AlignLeft, AlignCenter, AlignRight, Table as TableIcon,
     CheckSquare, Code, Image as ImageIcon, Trash2, Minus,
     FileText, Plus, Undo, Redo, Palette, Highlighter, FolderOpen,
-    History, Download, ChevronDown, Check,
+    History, Download, ChevronDown, Check, ChevronLeft,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { TextSubstitutions } from '../../lib/tiptapExtensions';
@@ -71,9 +71,10 @@ interface DocumentEditorProps {
     documentId: string;
     onClose: () => void;
     onAddSubPage?: (parentId: string) => void;
+    isMobile?: boolean;
 }
 
-export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEditorProps) {
+export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = false }: DocumentEditorProps) {
     const navigate = useNavigate();
     const { documents, updateDocument, deleteDocument, uploadImage, saveVersion, restoreVersion } = useDocumentStore();
     const { projects, fetchProjects } = useProjectStore();
@@ -322,7 +323,16 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
         <div className="h-full bg-surface-card flex flex-col overflow-hidden">
 
             {/* ── Top bar: título + ações ── */}
-            <div className="h-14 border-b border-border-subtle flex items-center justify-between px-6 bg-surface-card shrink-0">
+            <div className="h-14 border-b border-border-subtle flex items-center justify-between px-4 md:px-6 bg-surface-card shrink-0">
+                {isMobile && (
+                    <button
+                        onClick={onClose}
+                        className="flex items-center gap-1 min-h-[44px] px-1 text-sm font-medium text-brand mr-2 shrink-0"
+                    >
+                        <ChevronLeft size={20} />
+                        Docs
+                    </button>
+                )}
                 <input
                     type="text"
                     value={title}
@@ -331,24 +341,30 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                     placeholder="Título da página"
                     className="text-lg font-bold text-primary outline-none flex-1 bg-transparent mr-4 placeholder:text-muted placeholder:font-normal"
                 />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 md:gap-2">
                     {/* Project link */}
                     {projects.length > 0 && (
                         <div className="relative shrink-0" ref={projectDropdownRef}>
                             <button
                                 onClick={() => setProjectDropdownOpen(v => !v)}
                                 className={cn(
-                                    'flex items-center gap-1.5 px-2 py-1 text-xs rounded-[var(--radius-md)] border transition-colors cursor-pointer outline-none',
+                                    'flex items-center gap-1.5 rounded-[var(--radius-md)] border transition-colors cursor-pointer outline-none',
+                                    isMobile ? 'p-2' : 'px-2 py-1 text-xs',
                                     doc.project_id
                                         ? 'border-brand/30 text-brand bg-brand/5 hover:bg-brand/10'
                                         : 'border-border-subtle text-secondary bg-transparent hover:border-brand/40 hover:text-primary'
                                 )}
+                                title={projects.find(p => p.id === doc.project_id)?.name ?? 'Sem projeto'}
                             >
-                                <FolderOpen size={13} className="shrink-0" />
-                                <span className="max-w-[110px] truncate">
-                                    {projects.find(p => p.id === doc.project_id)?.name ?? 'Sem projeto'}
-                                </span>
-                                <ChevronDown size={12} className={cn('transition-transform duration-200 shrink-0', projectDropdownOpen && 'rotate-180')} />
+                                <FolderOpen size={isMobile ? 16 : 13} className="shrink-0" />
+                                {!isMobile && (
+                                    <>
+                                        <span className="max-w-[110px] truncate">
+                                            {projects.find(p => p.id === doc.project_id)?.name ?? 'Sem projeto'}
+                                        </span>
+                                        <ChevronDown size={12} className={cn('transition-transform duration-200 shrink-0', projectDropdownOpen && 'rotate-180')} />
+                                    </>
+                                )}
                             </button>
                             {projectDropdownOpen && (
                                 <div className="absolute top-full right-0 mt-1 z-50 bg-surface-card border border-border-subtle rounded-card shadow-float overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 min-w-[160px]">
@@ -381,33 +397,38 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage }: DocumentEd
                             )}
                         </div>
                     )}
-                    <div className="w-px h-5 bg-border-subtle" />
-                    <span className="text-[10px] text-muted font-medium uppercase tracking-wider hidden sm:block">
-                        {saving ? 'Salvando...' : 'Salvo'}
-                    </span>
-                    {/* Histórico de versões */}
-                    <button
-                        onClick={() => setShowVersionPanel(v => !v)}
-                        title="Histórico de versões"
-                        className={`p-2 rounded-[var(--radius-md)] transition-colors ${showVersionPanel ? 'bg-brand/10 text-brand' : 'text-muted hover:bg-surface-0 hover:text-secondary'}`}
-                    >
-                        <History size={17} />
-                    </button>
-                    {/* Exportar PDF */}
-                    <button
-                        onClick={handleExportPdf}
-                        title="Exportar como PDF"
-                        className="p-2 text-muted hover:bg-surface-0 hover:text-secondary rounded-[var(--radius-md)] transition-colors"
-                    >
-                        <Download size={17} />
-                    </button>
-                    <Button variant="ghost" onClick={() => handleSave(true)} disabled={saving} className="gap-1.5">
-                        <Save size={15} /> Salvar
-                    </Button>
-                    <div className="w-px h-5 bg-border-subtle" />
+
+                    {/* Ações secundárias — ocultas no mobile (auto-save funciona no blur) */}
+                    {!isMobile && (
+                        <>
+                            <div className="w-px h-5 bg-border-subtle" />
+                            <span className="text-[10px] text-muted font-medium uppercase tracking-wider hidden sm:block">
+                                {saving ? 'Salvando...' : 'Salvo'}
+                            </span>
+                            <button
+                                onClick={() => setShowVersionPanel(v => !v)}
+                                title="Histórico de versões"
+                                className={`p-2 rounded-[var(--radius-md)] transition-colors ${showVersionPanel ? 'bg-brand/10 text-brand' : 'text-muted hover:bg-surface-0 hover:text-secondary'}`}
+                            >
+                                <History size={17} />
+                            </button>
+                            <button
+                                onClick={handleExportPdf}
+                                title="Exportar como PDF"
+                                className="p-2 text-muted hover:bg-surface-0 hover:text-secondary rounded-[var(--radius-md)] transition-colors"
+                            >
+                                <Download size={17} />
+                            </button>
+                            <Button variant="ghost" onClick={() => handleSave(true)} disabled={saving} className="gap-1.5">
+                                <Save size={15} /> Salvar
+                            </Button>
+                            <div className="w-px h-5 bg-border-subtle" />
+                        </>
+                    )}
+
                     <button
                         onClick={handleDelete}
-                        className="p-2 hover:bg-brand-light text-muted hover:text-brand rounded-[var(--radius-md)] transition-colors"
+                        className={cn("hover:bg-brand-light text-muted hover:text-brand rounded-[var(--radius-md)] transition-colors flex items-center justify-center", isMobile ? "w-11 h-11" : "p-2")}
                         title="Excluir página"
                     >
                         <Trash2 size={17} />

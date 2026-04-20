@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -89,6 +90,7 @@ function EmptyState({ groupName, hasFilters }: { groupName?: string; hasFilters:
 }
 
 export default function Tarefas() {
+    const isMobile = useIsMobile();
     const { activeWorkspace } = useWorkspaceStore();
     const tasks = useTaskStore(s => s.tasks);
     const loading = useTaskStore(s => s.loading);
@@ -175,6 +177,8 @@ export default function Tarefas() {
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const taskListRef = useRef<HTMLDivElement>(null);
+    const lastScrollY = useRef(0);
+    const [filtersVisible, setFiltersVisible] = useState(true);
 
     const uniqueCategories = taskCategories;
 
@@ -196,6 +200,22 @@ export default function Tarefas() {
     useEffect(() => {
         return () => { animationTimersRef.current.forEach(clearTimeout); };
     }, []);
+
+    // Hide filters bar on scroll down, reveal on scroll up (mobile only)
+    useEffect(() => {
+        if (!isMobile) { setFiltersVisible(true); return; }
+        const el = taskListRef.current;
+        if (!el) return;
+        const handleScroll = () => {
+            const current = el.scrollTop;
+            const diff = current - lastScrollY.current;
+            if (diff > 10) setFiltersVisible(false);
+            else if (diff < 0) setFiltersVisible(true);
+            lastScrollY.current = current;
+        };
+        el.addEventListener('scroll', handleScroll, { passive: true });
+        return () => el.removeEventListener('scroll', handleScroll);
+    }, [isMobile]);
 
     useEffect(() => {
         if (statuses.length > 0 && !hasExpandedStatuses.current) {
@@ -459,23 +479,28 @@ export default function Tarefas() {
             </div>
 
             <Card className="flex-1 flex flex-col overflow-hidden">
-                <TaskFiltersBar
-                    search={search} onSearchChange={setSearch} searchInputRef={searchInputRef}
-                    groupBy={groupBy} onGroupByChange={setGroupBy}
-                    selectedProject={selectedProject} onProjectChange={setSelectedProject}
-                    selectedAssignee={selectedAssignee} onAssigneeChange={setSelectedAssignee}
-                    selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory}
-                    uniqueProjects={uniqueProjects} uniqueAssignees={uniqueAssignees}
-                    uniqueCategories={uniqueCategories}
-                    activeFilterCount={activeFilterCount}
-                    showCompleted={showCompleted} onShowCompletedChange={setShowCompleted}
-                    defaultExpanded={defaultExpanded} onDefaultExpandedChange={handleDefaultExpandedChange}
-                    onExpandAll={expandAll} onCollapseAll={collapseAll}
-                />
+                <div className={cn(
+                    "shrink-0 overflow-hidden transition-[max-height] duration-300 ease-in-out",
+                    isMobile ? (filtersVisible ? "max-h-[200px]" : "max-h-0") : "max-h-[200px]"
+                )}>
+                    <TaskFiltersBar
+                        search={search} onSearchChange={setSearch} searchInputRef={searchInputRef}
+                        groupBy={groupBy} onGroupByChange={setGroupBy}
+                        selectedProject={selectedProject} onProjectChange={setSelectedProject}
+                        selectedAssignee={selectedAssignee} onAssigneeChange={setSelectedAssignee}
+                        selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory}
+                        uniqueProjects={uniqueProjects} uniqueAssignees={uniqueAssignees}
+                        uniqueCategories={uniqueCategories}
+                        activeFilterCount={activeFilterCount}
+                        showCompleted={showCompleted} onShowCompletedChange={setShowCompleted}
+                        defaultExpanded={defaultExpanded} onDefaultExpandedChange={handleDefaultExpandedChange}
+                        onExpandAll={expandAll} onCollapseAll={collapseAll}
+                    />
+                </div>
 
-                {/* Table header */}
+                {/* Table header — desktop only */}
                 <div
-                    className="px-4 py-2 grid gap-3 bg-surface-0/80 border-b border-border-subtle sticky top-0 z-10 shrink-0 group/hrow"
+                    className={cn("px-4 py-2 grid gap-3 bg-surface-0/80 border-b border-border-subtle sticky top-0 z-10 shrink-0 group/hrow", isMobile && "hidden")}
                     style={{ gridTemplateColumns: gridTemplate }}
                 >
                     {/* Tarefa */}
@@ -547,6 +572,7 @@ export default function Tarefas() {
                                         focusedTaskIndex={focusedTaskIndex}
                                         selectedTaskIds={selectedTaskIds}
                                         statuses={statuses}
+                                        isMobile={isMobile}
                                         onToggleSection={toggleSection}
                                         onToggleSelect={toggleSelectTask}
                                         onToggleStatusPopover={toggleStatusPopover}
@@ -566,8 +592,8 @@ export default function Tarefas() {
                 />
             </Card>
 
-            {/* Keyboard shortcuts button */}
-            <div className="fixed bottom-4 right-4 z-30">
+            {/* Keyboard shortcuts button — desktop only */}
+            <div className={cn("fixed bottom-4 right-4 z-30", isMobile && "hidden")}>
                 {shortcutsOpen && (
                     <>
                         <div className="fixed inset-0" onClick={() => setShortcutsOpen(false)} />

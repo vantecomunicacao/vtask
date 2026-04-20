@@ -7,12 +7,14 @@ import { Button } from '../components/ui/Button';
 import {
     LayoutList, Trello, Flag, MoreHorizontal, Edit2, Trash2, RefreshCw,
     FileText, Plus, Calendar as CalendarIcon, ChevronRight, ExternalLink,
+    ArrowLeft, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { TaskFormModal } from '../components/tasks/TaskFormModal';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal';
 import { ProjectFormModal } from '../components/projects/ProjectFormModal';
+import { DocumentEditor } from '../components/documents/DocumentEditor';
 import { toast } from 'sonner';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,17 +23,24 @@ import { type Document } from '../store/documentStore';
 import { cn } from '../lib/utils';
 
 // ─── Doc tree ────────────────────────────────────────────────────────
-function DocTreeNode({ doc, allDocs, depth, onNavigate }: {
-    doc: Document; allDocs: Document[]; depth: number; onNavigate: (id: string) => void;
+function DocTreeNode({ doc, allDocs, depth, onSelect, onOpenFull, activeDocId }: {
+    doc: Document; allDocs: Document[]; depth: number;
+    onSelect: (id: string) => void;
+    onOpenFull: (id: string) => void;
+    activeDocId: string | null;
 }) {
     const [expanded, setExpanded] = useState(true);
     const children = allDocs.filter(d => d.parent_id === doc.id);
     const hasChildren = children.length > 0;
+    const isActive = doc.id === activeDocId;
 
     return (
         <div>
             <div
-                className="flex items-center gap-1 pr-2 py-1 hover:bg-surface-0 cursor-pointer group transition-colors rounded-lg text-sm"
+                className={cn(
+                    "flex items-center gap-1 pr-2 py-1 cursor-pointer group transition-colors rounded-lg text-sm",
+                    isActive ? "bg-brand-light text-brand" : "hover:bg-surface-0"
+                )}
                 style={{ paddingLeft: `${6 + depth * 14}px` }}
             >
                 <button
@@ -43,22 +52,23 @@ function DocTreeNode({ doc, allDocs, depth, onNavigate }: {
                         : <span className="w-3 inline-block" />
                     }
                 </button>
-                <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => onNavigate(doc.id)}>
-                    <FileText size={13} className="shrink-0 text-muted group-hover:text-brand transition-colors" />
-                    <span className="flex-1 truncate leading-none py-0.5 text-secondary group-hover:text-brand transition-colors">
+                <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => onSelect(doc.id)}>
+                    <FileText size={13} className={cn("shrink-0 transition-colors", isActive ? "text-brand" : "text-muted group-hover:text-brand")} />
+                    <span className={cn("flex-1 truncate leading-none py-0.5 transition-colors", isActive ? "text-brand font-medium" : "text-secondary group-hover:text-brand")}>
                         {doc.title || 'Sem título'}
                     </span>
                 </div>
                 <button
-                    onClick={() => onNavigate(doc.id)}
+                    onClick={e => { e.stopPropagation(); onOpenFull(doc.id); }}
                     className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted hover:text-secondary transition-all shrink-0"
-                    title="Abrir documento"
+                    title="Abrir em tela cheia"
                 >
                     <ExternalLink size={11} />
                 </button>
             </div>
             {hasChildren && expanded && children.map(child => (
-                <DocTreeNode key={child.id} doc={child} allDocs={allDocs} depth={depth + 1} onNavigate={onNavigate} />
+                <DocTreeNode key={child.id} doc={child} allDocs={allDocs} depth={depth + 1}
+                    onSelect={onSelect} onOpenFull={onOpenFull} activeDocId={activeDocId} />
             ))}
         </div>
     );
@@ -90,6 +100,9 @@ export default function ProjetoDetalhe() {
     const navigate = useNavigate();
 
     const [view, setView] = useState<'kanban' | 'list'>('kanban');
+    const [rightPanel, setRightPanel] = useState<'tasks' | 'document'>('tasks');
+    const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+    const [docTreeCollapsed, setDocTreeCollapsed] = useState(false);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
@@ -132,6 +145,11 @@ export default function ProjetoDetalhe() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
+    const openDoc = useCallback((docId: string) => {
+        setSelectedDocId(docId);
+        setRightPanel('document');
+    }, []);
+
     const handleCreateDoc = async () => {
         if (!activeWorkspace || !id) return;
         const newDoc = await createDocument({
@@ -142,7 +160,7 @@ export default function ProjetoDetalhe() {
             folder_id: null,
             parent_id: null,
         });
-        if (newDoc) navigate(`/documentos/${newDoc.id}`);
+        if (newDoc) openDoc(newDoc.id);
     };
 
     const handleDeleteProject = async () => {
@@ -184,21 +202,31 @@ export default function ProjetoDetalhe() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* View toggle */}
-                    <div className="flex bg-surface-0 p-1 rounded-lg border border-border-subtle">
+                    {rightPanel === 'tasks' && (
+                        <div className="flex bg-surface-0 p-1 rounded-lg border border-border-subtle">
+                            <button
+                                onClick={() => setView('kanban')}
+                                className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'kanban' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
+                            >
+                                <Trello size={15} /> Kanban
+                            </button>
+                            <button
+                                onClick={() => setView('list')}
+                                className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'list' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
+                            >
+                                <LayoutList size={15} /> Lista
+                            </button>
+                        </div>
+                    )}
+
+                    {rightPanel === 'document' && (
                         <button
-                            onClick={() => setView('kanban')}
-                            className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'kanban' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
+                            onClick={() => { setRightPanel('tasks'); setDocTreeCollapsed(false); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-secondary hover:text-primary bg-surface-0 border border-border-subtle rounded-lg transition-colors"
                         >
-                            <Trello size={15} /> Kanban
+                            <ArrowLeft size={15} /> Voltar às Tarefas
                         </button>
-                        <button
-                            onClick={() => setView('list')}
-                            className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'list' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
-                        >
-                            <LayoutList size={15} /> Lista
-                        </button>
-                    </div>
+                    )}
 
                     <Button size="sm" className="gap-2" onClick={() => setIsTaskModalOpen(true)}>
                         <span className="text-lg leading-none">+</span> Nova Tarefa
@@ -210,55 +238,104 @@ export default function ProjetoDetalhe() {
             <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
 
                 {/* ── Documents panel ── */}
-                <div className="w-64 shrink-0 flex flex-col bg-surface-card border border-border-subtle rounded-card overflow-hidden">
-                    {/* Panel header */}
-                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-border-subtle shrink-0">
-                        <div className="flex items-center gap-2">
-                            <FileText size={14} className="text-muted" />
-                            <span className="text-xs font-black uppercase tracking-widest text-muted">Documentos</span>
-                            {projectDocs.length > 0 && (
-                                <span className="text-[10px] font-bold bg-surface-0 border border-border-subtle text-muted px-1.5 py-0.5 rounded-full">
-                                    {projectDocs.length}
-                                </span>
-                            )}
+                <div className={cn(
+                    "shrink-0 flex flex-col bg-surface-card border border-border-subtle rounded-card overflow-hidden transition-all duration-200",
+                    docTreeCollapsed ? "w-10" : "w-64"
+                )}>
+                    {docTreeCollapsed ? (
+                        /* Collapsed: just a vertical icon strip */
+                        <div className="flex flex-col items-center gap-2 py-2.5">
+                            <button
+                                onClick={() => setDocTreeCollapsed(false)}
+                                title="Expandir painel de documentos"
+                                className="p-1.5 rounded text-muted hover:text-brand hover:bg-brand-light transition-colors"
+                            >
+                                <PanelLeftOpen size={15} />
+                            </button>
+                            <FileText size={13} className="text-muted" />
                         </div>
-                        <button
-                            onClick={handleCreateDoc}
-                            title="Novo documento"
-                            className="p-1 rounded text-muted hover:text-brand hover:bg-brand-light transition-colors"
-                        >
-                            <Plus size={14} />
-                        </button>
-                    </div>
-
-                    {/* Doc list */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
-                        {projectDocs.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-                                <FileText size={24} className="text-muted" />
-                                <p className="text-xs text-muted">Nenhum documento ainda</p>
-                                <button
-                                    onClick={handleCreateDoc}
-                                    className="text-xs text-brand hover:underline"
-                                >
-                                    Criar primeiro
-                                </button>
+                    ) : (
+                        <>
+                            {/* Panel header */}
+                            <div className="flex items-center justify-between px-3 py-2.5 border-b border-border-subtle shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <FileText size={14} className="text-muted" />
+                                    <span className="text-xs font-black uppercase tracking-widest text-muted">Documentos</span>
+                                    {projectDocs.length > 0 && (
+                                        <span className="text-[10px] font-bold bg-surface-0 border border-border-subtle text-muted px-1.5 py-0.5 rounded-full">
+                                            {projectDocs.length}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-0.5">
+                                    {rightPanel === 'document' && (
+                                        <button
+                                            onClick={() => setDocTreeCollapsed(true)}
+                                            title="Recolher painel"
+                                            className="p-1 rounded text-muted hover:text-brand hover:bg-brand-light transition-colors"
+                                        >
+                                            <PanelLeftClose size={14} />
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={handleCreateDoc}
+                                        title="Novo documento"
+                                        className="p-1 rounded text-muted hover:text-brand hover:bg-brand-light transition-colors"
+                                    >
+                                        <Plus size={14} />
+                                    </button>
+                                </div>
                             </div>
-                        ) : rootDocs.map(doc => (
-                            <DocTreeNode
-                                key={doc.id}
-                                doc={doc}
-                                allDocs={projectDocs}
-                                depth={0}
-                                onNavigate={docId => navigate(`/documentos/${docId}`)}
-                            />
-                        ))}
-                    </div>
+
+                            {/* Doc list */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                                {projectDocs.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+                                        <FileText size={24} className="text-muted" />
+                                        <p className="text-xs text-muted">Nenhum documento ainda</p>
+                                        <button
+                                            onClick={handleCreateDoc}
+                                            className="text-xs text-brand hover:underline"
+                                        >
+                                            Criar primeiro
+                                        </button>
+                                    </div>
+                                ) : rootDocs.map(doc => (
+                                    <DocTreeNode
+                                        key={doc.id}
+                                        doc={doc}
+                                        allDocs={projectDocs}
+                                        depth={0}
+                                        onSelect={openDoc}
+                                        onOpenFull={docId => navigate(`/documentos/${docId}`)}
+                                        activeDocId={selectedDocId}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
 
-                {/* Tasks area */}
+                {/* Right panel: document editor or tasks */}
                 <div className="flex-1 overflow-hidden relative">
-                    {loading ? (
+                    {rightPanel === 'document' && selectedDocId ? (
+                        <div className="h-full bg-surface-card border border-border-subtle rounded-card overflow-hidden flex flex-col">
+                            <DocumentEditor
+                                documentId={selectedDocId}
+                                onClose={() => setRightPanel('tasks')}
+                                onAddSubPage={parentId => {
+                                    createDocument({
+                                        workspace_id: activeWorkspace!.id,
+                                        title: 'Nova página',
+                                        content: { type: 'doc', content: [] },
+                                        project_id: id!,
+                                        folder_id: null,
+                                        parent_id: parentId,
+                                    }).then(newDoc => { if (newDoc) openDoc(newDoc.id); });
+                                }}
+                            />
+                        </div>
+                    ) : loading ? (
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-8 h-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
                         </div>

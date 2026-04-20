@@ -41,6 +41,7 @@ interface TaskRowProps {
     gridTemplate: string;
     doneStatusId: string | undefined;
     statuses: CustomStatus[];
+    isMobile?: boolean;
     onToggleSelect: (id: string) => void;
     onToggleStatusPopover: (e: React.MouseEvent, id: string) => void;
     onOpenDetail: (task: TaskWithAssignee) => void;
@@ -56,6 +57,7 @@ export const TaskRow = React.memo(function TaskRow({
     gridTemplate,
     doneStatusId,
     statuses,
+    isMobile = false,
     onToggleSelect,
     onToggleStatusPopover,
     onOpenDetail,
@@ -107,6 +109,140 @@ export const TaskRow = React.memo(function TaskRow({
     const due = task.due_date ? formatDueDate(task.due_date) : null;
     const currentStatus = statuses.find(s => s.id === task.status_id);
     const statusBorderColor = isCompleted ? '#10b981' : (currentStatus?.color || 'transparent');
+
+    if (isMobile) {
+        return (
+            <Draggable draggableId={task.id} index={index} isDragDisabled>
+                {(provided, snapshot) => (
+                    <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        data-task-id={task.id}
+                        className={cn(
+                            "px-3 py-3 flex items-start gap-3",
+                            snapshot.isDragging && "bg-surface-card shadow-card border border-brand/10 z-50 rounded-lg",
+                            isSelected && "bg-brand/5",
+                            !snapshot.isDragging && !isSelected && isTodayTask && "bg-brand-light/30",
+                            !snapshot.isDragging && !isSelected && !isTodayTask && "active:bg-surface-2/80"
+                        )}
+                        style={{
+                            ...provided.draggableProps.style,
+                            borderLeft: !snapshot.isDragging ? `3px solid ${statusBorderColor}` : undefined
+                        }}
+                        onClick={() => onOpenDetail(task)}
+                    >
+                        {(anySelected || isSelected) && (
+                            <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => onToggleSelect(task.id)}
+                                onClick={e => e.stopPropagation()}
+                                className="w-4 h-4 rounded border-border-subtle text-brand focus:ring-brand cursor-pointer shrink-0 mt-0.5"
+                            />
+                        )}
+                        {/* Status — tap target 44x44, visual 20x20 */}
+                        <button
+                            onClick={e => { e.stopPropagation(); onToggleStatusPopover(e, task.id); }}
+                            className="w-11 h-11 -ml-3 flex items-center justify-center shrink-0"
+                        >
+                            <div className={cn(
+                                "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                                isCompleted ? "bg-brand border-brand text-white" : "border-border-subtle"
+                            )}>
+                                {isCompleted && <CheckCircle2 size={12} />}
+                            </div>
+                        </button>
+
+                        <div className="flex-1 min-w-0">
+                            <span className={cn(
+                                "text-sm font-medium block truncate",
+                                isCompleted && "line-through text-muted",
+                                !isCompleted && "text-primary"
+                            )}>
+                                {task.title}
+                            </span>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                {task.project && (
+                                    <span
+                                        className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border"
+                                        style={{
+                                            backgroundColor: `${task.project.color || '#888'}18`,
+                                            color: task.project.color || '#888',
+                                            borderColor: `${task.project.color || '#888'}35`
+                                        }}
+                                    >
+                                        {task.project.name}
+                                    </span>
+                                )}
+                                {due && (
+                                    <span className={cn("text-xs flex items-center gap-1", due.className)}>
+                                        <CalendarIcon size={10} /> {due.label}
+                                    </span>
+                                )}
+                                {task.priority && (
+                                    <span className={cn(
+                                        "w-2 h-2 rounded-full shrink-0",
+                                        task.priority === 'urgent' ? 'bg-red-500' :
+                                        task.priority === 'high' ? 'bg-orange-500' :
+                                        task.priority === 'medium' ? 'bg-blue-400' : 'bg-slate-300'
+                                    )} />
+                                )}
+                            </div>
+                        </div>
+
+                        <button
+                            ref={menuBtnRef}
+                            onClick={openMenu}
+                            className="w-11 h-11 -mr-2 flex items-center justify-center text-muted shrink-0"
+                        >
+                            <MoreHorizontal size={18} />
+                        </button>
+
+                        {isMenuOpen && createPortal(
+                            <div
+                                ref={menuRef}
+                                style={{ top: menuPos.top, left: menuPos.left }}
+                                className="fixed w-44 bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float z-[9999] py-1 popup-spring"
+                            >
+                                <button
+                                    onClick={e => { e.stopPropagation(); setIsMenuOpen(false); onOpenDetail(task); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
+                                >
+                                    <ExternalLink size={13} className="text-muted" />
+                                    Abrir detalhes
+                                </button>
+                                <button
+                                    onClick={e => { e.stopPropagation(); setIsMenuOpen(false); setIsEditingDate(true); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
+                                >
+                                    <CalendarIcon size={13} className="text-muted" />
+                                    Editar prazo
+                                </button>
+                                <div className="my-1 border-t border-border-subtle" />
+                                <button
+                                    onClick={async e => { e.stopPropagation(); setIsMenuOpen(false); await deleteTask(task.id); }}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors"
+                                >
+                                    <Trash2 size={13} />
+                                    Mover para lixeira
+                                </button>
+                            </div>,
+                            document.body
+                        )}
+
+                        <DatePickerPopover
+                            open={isEditingDate}
+                            onClose={() => setIsEditingDate(false)}
+                            value={task.due_date}
+                            onChange={async val => { await updateTask(task.id, { due_date: val }); }}
+                            anchorRef={menuBtnRef}
+                        />
+                    </div>
+                )}
+            </Draggable>
+        );
+    }
 
     return (
         <Draggable draggableId={task.id} index={index} isDragDisabled={groupBy !== 'status'}>
