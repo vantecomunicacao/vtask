@@ -28,10 +28,31 @@ export function CommentEditor({ value, onChange, onSubmit, placeholder }: Commen
                 HTMLAttributes: { class: 'doc-mention-node' },
                 suggestion: {
                     char: '[[',
-                    items: ({ query }: { query: string }) =>
-                        documentsRef.current
-                            .filter(d => (d.title || '').toLowerCase().includes(query.toLowerCase()))
-                            .slice(0, 10),
+                    items: ({ query }: { query: string }) => {
+                        const all = documentsRef.current;
+                        const q = query.toLowerCase().trim();
+                        return all
+                            .filter(d => !d.deleted_at)
+                            .map(d => ({
+                                ...d,
+                                _parentTitle: d.parent_id
+                                    ? (all.find(p => p.id === d.parent_id)?.title ?? null)
+                                    : null,
+                            }))
+                            .filter(d =>
+                                q === '' ||
+                                (d.title || '').toLowerCase().includes(q) ||
+                                (d._parentTitle || '').toLowerCase().includes(q)
+                            )
+                            .sort((a, b) => {
+                                if (!q) return (a.title || '').localeCompare(b.title || '');
+                                const aExact = (a.title || '').toLowerCase().startsWith(q);
+                                const bExact = (b.title || '').toLowerCase().startsWith(q);
+                                if (aExact && !bExact) return -1;
+                                if (!aExact && bExact) return 1;
+                                return (a.title || '').localeCompare(b.title || '');
+                            });
+                    },
                     render: renderDocItems,
                 },
             }),
