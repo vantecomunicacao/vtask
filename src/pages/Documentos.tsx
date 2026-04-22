@@ -271,9 +271,16 @@ export default function Documentos() {
     // Docs raiz (sem pai)
     const rootDocs = documents.filter(d => !d.parent_id);
 
-    // Busca flat
+    // Busca com breadcrumb de hierarquia
     const searchResults = search.trim()
-        ? documents.filter(d => d.title.toLowerCase().includes(search.toLowerCase()))
+        ? documents
+            .filter(d => d.title.toLowerCase().includes(search.toLowerCase()))
+            .map(d => ({
+                ...d,
+                _parentTitle: d.parent_id
+                    ? (documents.find(p => p.id === d.parent_id)?.title ?? null)
+                    : null,
+            }))
         : null;
 
     // Filtro por projeto (flat list)
@@ -442,8 +449,16 @@ export default function Documentos() {
                                         id === doc.id ? 'bg-brand/10 text-brand font-semibold' : 'text-secondary hover:bg-surface-0'
                                     )}
                                 >
-                                    <FileText size={13} className="shrink-0" />
-                                    <span className="truncate">{doc.title || 'Sem título'}</span>
+                                    <FileText size={13} className="shrink-0 mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                        {doc._parentTitle && (
+                                            <div className="flex items-center gap-0.5 text-[10px] text-muted truncate mb-0.5">
+                                                <span className="truncate">{doc._parentTitle}</span>
+                                                <ChevronRight size={9} className="shrink-0" />
+                                            </div>
+                                        )}
+                                        <span className="truncate block">{doc.title || 'Sem título'}</span>
+                                    </div>
                                 </div>
                             ))
                         )
