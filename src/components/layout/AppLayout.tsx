@@ -1,8 +1,9 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Monitor } from 'lucide-react';
-import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Trash2, BookOpen, Shield, Search, Archive, Menu, X } from 'lucide-react';
+import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Trash2, BookOpen, Shield, Search, Archive, Menu, X, Sun, Moon } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useThemeStore } from '../../store/themeStore';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useTaskStore } from '../../store/taskStore';
@@ -23,8 +24,9 @@ export default function AppLayout() {
     const { user, signOut } = useAuthStore();
     const { activeWorkspace, fetchWorkspaces, showOnboarding } = useWorkspaceStore();
     const { fetchProjects } = useProjectStore();
-    const { fetchCategories } = useTaskStore();
+    const { fetchCategories, subscribeToWorkspace } = useTaskStore();
     const { subscribeToNotifications, unsubscribe } = useNotificationStore();
+    const { darkMode, toggleDarkMode } = useThemeStore();
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
@@ -109,6 +111,11 @@ export default function AppLayout() {
         }
     }, [activeWorkspace, fetchProjects, fetchCategories]);
 
+    useEffect(() => {
+        if (!activeWorkspace) return;
+        return subscribeToWorkspace(activeWorkspace.id);
+    }, [activeWorkspace?.id, subscribeToWorkspace]);
+
     const handleSignOut = async () => {
         await signOut();
         navigate('/login');
@@ -128,6 +135,8 @@ export default function AppLayout() {
 
             {/* Sidebar */}
             <aside
+                id="sidebar"
+                aria-label="Menu de navegação"
                 style={isMobile ? undefined : { width: sidebarWidth, minWidth: sidebarWidth, maxWidth: sidebarWidth }}
                 className={
                     isMobile
@@ -154,6 +163,7 @@ export default function AppLayout() {
                     </div>
                     <button
                         onClick={closeSidebar}
+                        aria-label="Fechar menu"
                         className="md:hidden w-11 h-11 flex items-center justify-center rounded-lg text-secondary hover:bg-surface-0 transition-colors"
                     >
                         <X size={18} />
@@ -161,7 +171,7 @@ export default function AppLayout() {
                 </div>
 
                 <div className="p-4 flex-1 overflow-y-auto">
-                    <nav className="space-y-1">
+                    <nav aria-label="Menu principal" className="space-y-1">
                         <NavLink to="/dashboard" className={navLinkClass} onClick={closeSidebar}>
                             <LayoutDashboard size={18} />
                             Dashboard
@@ -235,6 +245,9 @@ export default function AppLayout() {
                 <header className="h-16 shrink-0 border-b border-border-subtle bg-surface-card/60 backdrop-blur-sm z-10 flex items-center px-4 md:px-8">
                     <button
                         onClick={() => setSidebarOpen(true)}
+                        aria-label="Abrir menu"
+                        aria-expanded={sidebarOpen}
+                        aria-controls="sidebar"
                         className="md:hidden w-11 h-11 -ml-2 mr-1 flex items-center justify-center rounded-lg text-secondary hover:bg-surface-0 transition-colors"
                     >
                         <Menu size={20} />
@@ -248,6 +261,14 @@ export default function AppLayout() {
                             <Search size={13} />
                             <span className="text-xs">Buscar...</span>
                             <kbd className="text-[10px] font-mono bg-surface-1 border border-border-subtle px-1 rounded ml-1">⌘K</kbd>
+                        </button>
+                        <button
+                            onClick={toggleDarkMode}
+                            aria-label={darkMode ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+                            title={darkMode ? 'Tema claro' : 'Tema escuro'}
+                            className="w-9 h-9 flex items-center justify-center rounded-[var(--radius-md)] text-muted hover:text-primary hover:bg-surface-0 transition-colors"
+                        >
+                            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
                         </button>
                         <NotificationPanel />
                         <span className="text-sm text-muted hidden sm:block">{user?.email}</span>

@@ -4,6 +4,7 @@ import { useProjectStore } from '../store/projectStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useNavigate } from 'react-router-dom';
 import { Folder, Calendar, Edit2, Trash2, Archive, CheckCircle2 } from 'lucide-react';
+import { EmptyState } from '../components/ui/EmptyState';
 import { format, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ProjectFormModal } from '../components/projects/ProjectFormModal';
@@ -81,12 +82,13 @@ export default function Projetos() {
                     <div className="w-8 h-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
                 </div>
             ) : activeProjects.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border-subtle rounded-[var(--radius-card)] bg-surface-card/50">
-                    <Folder className="w-12 h-12 text-muted mb-4" />
-                    <h3 className="text-lg font-bold text-primary">Nenhum projeto ativo</h3>
-                    <p className="text-sm text-secondary mb-6">Crie seu primeiro projeto para começar a gerenciar tarefas.</p>
-                    <Button onClick={handleOpenCreate}>Criar Projeto</Button>
-                </div>
+                <EmptyState
+                    variant="bordered"
+                    icon={Folder}
+                    title="Nenhum projeto ativo"
+                    description="Crie seu primeiro projeto para começar a gerenciar tarefas."
+                    action={{ label: 'Criar Projeto', onClick: handleOpenCreate }}
+                />
             ) : (
                 <div className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] overflow-hidden">
                     {/* Header */}

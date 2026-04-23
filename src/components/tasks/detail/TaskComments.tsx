@@ -4,7 +4,7 @@ import type { Database } from '../../../lib/database.types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '../../ui/Button';
-import { MessageSquare, Pencil, Trash2, Check, X } from 'lucide-react';
+import { MessageSquare, Pencil, Trash2, Check, X, GitBranch, User, Calendar, Tag, CheckCircle2, Plus, Type } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { createNotification } from '../../../store/notificationStore';
 import { useTaskStore } from '../../../store/taskStore';
@@ -14,6 +14,38 @@ import { CommentEditor } from './CommentEditor';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type Comment = Database['public']['Tables']['comments']['Row'] & { user?: Profile | null };
+
+type EventIcon = typeof GitBranch;
+
+function parseSystemEvent(raw: string): { icon: EventIcon; html: string } {
+    const text = raw.replace('_SISTEMA_: ', '');
+
+    if (/criou a tarefa/i.test(text))
+        return { icon: Plus, html: text };
+    if (/status/i.test(text))
+        return { icon: GitBranch, html: text };
+    if (/responsável/i.test(text))
+        return { icon: User, html: text };
+    if (/prazo/i.test(text))
+        return { icon: Calendar, html: text };
+    if (/prioridade/i.test(text))
+        return { icon: Tag, html: text };
+    if (/título/i.test(text))
+        return { icon: Type, html: text };
+    if (/concluiu|concluída/i.test(text))
+        return { icon: CheckCircle2, html: text };
+
+    return { icon: GitBranch, html: text };
+}
+
+function renderBold(text: string) {
+    const parts = text.split(/\*\*(.+?)\*\*/g);
+    return parts.map((p, i) =>
+        i % 2 === 1
+            ? <strong key={i} className="font-semibold text-primary">{p}</strong>
+            : <span key={i}>{p}</span>
+    );
+}
 
 interface TaskCommentsProps {
     taskId: string;
@@ -138,6 +170,27 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
                             const isOwn = session?.user.id === c.user_id;
                             const isEditing = editingId === c.id;
 
+                            // ── System event (activity log) ──────────────────
+                            if (isSystem) {
+                                const { icon: Icon, html } = parseSystemEvent(c.content);
+                                return (
+                                    <div key={c.id} className="flex items-start gap-2.5 py-0.5">
+                                        <div className="w-5 h-5 rounded-full bg-surface-0 border border-border-subtle flex items-center justify-center shrink-0 mt-0.5">
+                                            <Icon size={10} className="text-muted" />
+                                        </div>
+                                        <p className="text-xs text-secondary leading-relaxed flex-1 min-w-0">
+                                            <span className="font-medium text-primary">{c.user?.full_name?.split(' ')[0] || 'Alguém'}</span>
+                                            {' '}
+                                            {renderBold(html)}
+                                        </p>
+                                        <span className="text-[10px] text-muted shrink-0 mt-0.5 whitespace-nowrap">
+                                            {format(new Date(c.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                                        </span>
+                                    </div>
+                                );
+                            }
+
+                            // ── User comment ─────────────────────────────────
                             return (
                                 <div key={c.id} className="flex gap-3 group">
                                     <div className="w-7 h-7 rounded-full bg-brand/10 flex items-center justify-center text-brand font-bold text-xs shrink-0 mt-0.5">
@@ -149,12 +202,13 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
                                             <span className="text-[10px] text-muted">
                                                 {format(new Date(c.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                                             </span>
-                                            {!isSystem && isOwn && !isEditing && (
+                                            {isOwn && !isEditing && (
                                                 <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
                                                         onClick={() => handleStartEdit(c)}
                                                         className="p-1 rounded hover:bg-surface-2 text-muted hover:text-secondary transition-colors"
                                                         title="Editar"
+                                                        aria-label="Editar comentário"
                                                     >
                                                         <Pencil size={11} />
                                                     </button>
@@ -162,6 +216,7 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
                                                         onClick={() => handleDelete(c.id)}
                                                         className="p-1 rounded hover:bg-red-50 text-muted hover:text-red-500 transition-colors"
                                                         title="Excluir"
+                                                        aria-label="Excluir comentário"
                                                     >
                                                         <Trash2 size={11} />
                                                     </button>
@@ -195,15 +250,11 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
                                             </div>
                                         ) : (
                                             <div
-                                                className={`text-sm px-2.5 py-2 rounded-lg border inline-block max-w-full break-words ${
-                                                    isSystem
-                                                        ? 'bg-surface-0 border-border-subtle text-muted italic text-[11px]'
-                                                        : 'bg-surface-2/50 border-border-subtle text-secondary'
-                                                } comment-body`}
+                                                className="text-sm px-2.5 py-2 rounded-lg border inline-block max-w-full break-words bg-surface-2/50 border-border-subtle text-secondary comment-body"
                                                 dangerouslySetInnerHTML={{
                                                     __html: c.content.startsWith('<')
-                                                        ? c.content.replace('_SISTEMA_: ', '')
-                                                        : `<p>${c.content.replace('_SISTEMA_: ', '')}</p>`
+                                                        ? c.content
+                                                        : `<p>${c.content}</p>`
                                                 }}
                                             />
                                         )}

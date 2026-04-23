@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import type { Database } from '../../../lib/database.types';
@@ -103,8 +103,8 @@ export function TaskDetailSidebar({
                         >
                             <div className="flex items-center gap-2 truncate">
                                 <div
-                                    className="w-2 h-2 rounded-full shrink-0"
-                                    style={{ backgroundColor: statuses.find(s => s.id === currentTask.status_id)?.color || '#ccc' }}
+                                    className="w-2 h-2 rounded-full shrink-0 bg-[var(--dot-color)]"
+                                    style={{ '--dot-color': statuses.find(s => s.id === currentTask.status_id)?.color || '#ccc' } as React.CSSProperties}
                                 />
                                 <span className="truncate font-medium">
                                     {statuses.find(s => s.id === currentTask.status_id)?.name || 'Selecionar status'}

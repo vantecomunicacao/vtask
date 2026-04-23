@@ -168,7 +168,7 @@ export function KanbanBoard({ tasks, statuses, onTaskClick }: KanbanBoardProps) 
                         <div key={status.id} className="group flex flex-col w-80 shrink-0 bg-surface-0 rounded-[var(--radius-card)]">
                             <div className="px-4 py-3 flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: status.color || '#db4035' }} />
+                                    <div className="w-2.5 h-2.5 rounded-full bg-[var(--dot-color)]" style={{ '--dot-color': status.color || '#db4035' } as React.CSSProperties} />
                                     <h3 className="font-bold text-primary text-sm">{status.name}</h3>
                                 </div>
                                 <span className="text-xs font-medium text-muted bg-surface-1 px-2.5 py-0.5 rounded-pill">

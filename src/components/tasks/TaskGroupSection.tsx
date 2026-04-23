@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Droppable } from '@hello-pangea/dnd';
 import { ChevronRight, Plus, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -171,8 +171,8 @@ export function TaskGroupSection({
                     <ChevronRight size={14} className="text-muted" />
                 </div>
                 <div
-                    className="w-2.5 h-2.5 rounded-full transition-transform duration-200 group-hover/header:scale-125"
-                    style={{ backgroundColor: group.color || '#ccc' }}
+                    className="w-2.5 h-2.5 rounded-full transition-transform duration-200 group-hover/header:scale-125 bg-[var(--dot-color)]"
+                    style={{ '--dot-color': group.color || '#ccc' } as React.CSSProperties}
                 />
                 <span className="text-[10px] font-black text-secondary uppercase tracking-widest">
                     {group.name}

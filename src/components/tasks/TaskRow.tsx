@@ -2,33 +2,21 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Draggable } from '@hello-pangea/dnd';
 import { MoreHorizontal, Calendar as CalendarIcon, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
-import { isToday, isTomorrow, isPast, format } from 'date-fns';
+import { isToday, isPast, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '../../lib/utils';
 import type { TaskWithAssignee, CustomStatus } from '../../store/taskStore';
 import { useTaskStore } from '../../store/taskStore';
 import type { GroupBy } from '../../hooks/useTaskFilters';
 import { DatePickerPopover } from '../ui/DatePicker';
-import { parseDueDate } from '../../lib/dateUtils';
+import { formatDueDate, parseDueDate as parseLocalDate } from '../../lib/dateUtils';
 
-const parseLocalDate = parseDueDate;
-
-// Padrão visual para células de metadados (prazo, criação, prioridade, etc.)
-// Use este componente em qualquer nova coluna para manter consistência.
 function ColCell({ children, className }: { children: React.ReactNode; className?: string }) {
     return (
         <div className={cn("flex items-center gap-1.5 text-xs overflow-hidden", className)}>
             {children}
         </div>
     );
-}
-
-function formatDueDate(due: string) {
-    const date = parseLocalDate(due);
-    if (isToday(date)) return { label: 'Hoje', className: 'text-amber-600 font-semibold' };
-    if (isTomorrow(date)) return { label: 'Amanhã', className: 'text-orange-500' };
-    if (isPast(date)) return { label: format(date, "dd/MM", { locale: ptBR }), className: 'text-red-600 font-bold underline' };
-    return { label: format(date, "dd/MM", { locale: ptBR }), className: 'text-secondary' };
 }
 
 interface TaskRowProps {
@@ -356,6 +344,11 @@ export const TaskRow = React.memo(function TaskRow({
                                 <CalendarIcon size={12} />
                                 <span>Data</span>
                             </button>
+                        )}
+                        {isFocused && (
+                            <kbd className="ml-1 px-1 py-0.5 rounded bg-surface-card border border-border-subtle font-mono text-[9px] text-muted leading-none">
+                                D
+                            </kbd>
                         )}
                         <DatePickerPopover
                             open={isEditingDate}

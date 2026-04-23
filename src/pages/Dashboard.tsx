@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { format, isToday, isPast, isFuture, startOfDay, addDays, formatDistanceToNow } from 'date-fns';
 import { parseDueDate } from '../lib/dateUtils';
+import { CHART_PALETTE } from '../lib/designTokens';
 import { ptBR } from 'date-fns/locale';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal';
 import { useTaskStore, type TaskWithAssignee } from '../store/taskStore';
@@ -243,10 +244,7 @@ function ActivityItem({ task, onClick }: { task: TaskWithAssignee; onClick: () =
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-const PALETTE = [
-    '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6',
-    '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16',
-];
+const PALETTE = CHART_PALETTE;
 
 export default function Dashboard() {
     const { activeWorkspace } = useWorkspaceStore();

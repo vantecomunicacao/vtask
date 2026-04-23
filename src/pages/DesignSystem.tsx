@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState } from 'react';
-import { Layers } from 'lucide-react';
+import { Inbox, Folder, Layers, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { Button } from '../components/ui/Button';
@@ -10,12 +10,15 @@ import { Input } from '../components/ui/Input';
 import { Toggle } from '../components/ui/Toggle';
 import { Dialog } from '../components/ui/Dialog';
 import { Select } from '../components/ui/Select';
+import { EmptyState } from '../components/ui/EmptyState';
+import { FormGrid, FormField, FormActions } from '../components/ui/FormLayout';
+import { typography, modalSizes, CHART_PALETTE } from '../lib/designTokens';
 
-// ─── Inline helpers ───────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function DemoBox({ children, className }: { children: React.ReactNode; className?: string }) {
     return (
-        <div className={cn('p-6 bg-bg-main rounded-xl border border-border-subtle flex flex-wrap gap-3 items-center', className)}>
+        <div className={cn('p-6 bg-surface-0 rounded-card border border-border-subtle flex flex-wrap gap-3 items-center', className)}>
             {children}
         </div>
     );
@@ -25,9 +28,9 @@ function TokenRow({ label, value, preview }: { label: string; value: string; pre
     return (
         <div className="flex items-center gap-4 py-3 border-b border-border-subtle last:border-0">
             <div className="w-12 h-12 shrink-0 flex items-center justify-center">{preview}</div>
-            <div className="flex-1">
-                <p className="text-sm font-bold text-gray-900">{label}</p>
-                <code className="text-xs text-gray-500 font-mono">{value}</code>
+            <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-primary font-mono">{label}</p>
+                <p className="text-xs text-muted">{value}</p>
             </div>
         </div>
     );
@@ -35,7 +38,7 @@ function TokenRow({ label, value, preview }: { label: string; value: string; pre
 
 function CodeBlock({ children }: { children: string }) {
     return (
-        <pre className="text-xs bg-gray-900 text-green-300 p-4 rounded-xl overflow-x-auto leading-relaxed">
+        <pre className="text-xs bg-[#1a1a1a] text-[#a8ff80] p-4 rounded-card overflow-x-auto leading-relaxed custom-scrollbar">
             {children}
         </pre>
     );
@@ -43,7 +46,7 @@ function CodeBlock({ children }: { children: string }) {
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
     return (
-        <h2 className="text-lg font-bold text-gray-900 border-b border-border-subtle pb-3">
+        <h2 className="text-lg font-bold text-primary border-b border-border-subtle pb-3">
             {children}
         </h2>
     );
@@ -51,16 +54,17 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 
 function SubHeading({ children }: { children: React.ReactNode }) {
     return (
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">{children}</h3>
+        <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-4">{children}</h3>
     );
 }
 
-// ─── Sections config ──────────────────────────────────────────────────────────
+// ─── Nav sections ─────────────────────────────────────────────────────────────
 
 const SECTIONS = [
-    { id: 'tokens', label: 'Tokens' },
+    { id: 'tokens',     label: 'Tokens' },
     { id: 'components', label: 'Componentes' },
-    { id: 'patterns', label: 'Padrões de Uso' },
+    { id: 'new',        label: 'Novos (2025)' },
+    { id: 'patterns',   label: 'Padrões' },
     { id: 'contributing', label: 'Contribuir' },
 ] as const;
 
@@ -69,19 +73,14 @@ const SECTIONS = [
 export default function DesignSystem() {
     const [toggle1, setToggle1] = useState(false);
     const [toggle2, setToggle2] = useState(true);
-    const [toggleDisabled] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [dialogWideOpen, setDialogWideOpen] = useState(false);
+    const [dialogSizeOpen, setDialogSizeOpen] = useState(false);
+    const [dialogSheetOpen, setDialogSheetOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [inputVal, setInputVal] = useState('');
     const [fadeKey, setFadeKey] = useState(0);
 
     const inputError = inputVal.length > 0 && inputVal.length < 3 ? 'Mínimo de 3 caracteres' : undefined;
-
-    const handleLoadingDemo = () => {
-        setIsLoading(true);
-        setTimeout(() => setIsLoading(false), 2000);
-    };
 
     const scrollTo = (id: string) => (e: React.MouseEvent) => {
         e.preventDefault();
@@ -91,9 +90,9 @@ export default function DesignSystem() {
     return (
         <div className="flex gap-8 items-start max-w-6xl mx-auto fade-in pb-16">
 
-            {/* ── Sticky sidebar nav ── */}
-            <nav className="w-44 shrink-0 sticky top-16 pt-4 hidden lg:block">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-2">
+            {/* Sticky sidebar nav */}
+            <nav aria-label="Seções do Design System" className="w-44 shrink-0 sticky top-16 pt-4 hidden lg:block">
+                <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-3 px-2">
                     Nesta Página
                 </p>
                 <ul className="space-y-0.5">
@@ -102,7 +101,7 @@ export default function DesignSystem() {
                             <a
                                 href={`#${s.id}`}
                                 onClick={scrollTo(s.id)}
-                                className="flex items-center px-2 py-1.5 text-sm text-gray-600 rounded-md hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                                className="flex items-center px-2 py-1.5 text-sm text-secondary rounded-[var(--radius-md)] hover:bg-surface-0 hover:text-primary transition-colors"
                             >
                                 {s.label}
                             </a>
@@ -111,124 +110,156 @@ export default function DesignSystem() {
                 </ul>
             </nav>
 
-            {/* ── Main content ── */}
+            {/* Main content */}
             <div className="flex-1 min-w-0 space-y-16">
 
                 {/* Page header */}
                 <div>
                     <div className="flex items-center gap-3 mb-2">
                         <Layers size={24} className="text-brand" />
-                        <h1 className="text-2xl font-bold text-gray-900">Design System</h1>
+                        <h1 className={typography.pageTitle}>Design System</h1>
                     </div>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-secondary">
                         Referência interativa dos tokens, componentes e padrões do FlowDesk.
-                        Stack: <code className="bg-gray-100 px-1 rounded text-xs">Figtree</code> ·{' '}
-                        <code className="bg-gray-100 px-1 rounded text-xs">Tailwind v4</code> ·{' '}
-                        <code className="bg-gray-100 px-1 rounded text-xs">React 19</code> ·{' '}
-                        <code className="bg-gray-100 px-1 rounded text-xs">Sonner</code>
+                        Stack: <code className="bg-surface-0 px-1 rounded text-xs font-mono">Figtree</code> ·{' '}
+                        <code className="bg-surface-0 px-1 rounded text-xs font-mono">Tailwind v4</code> ·{' '}
+                        <code className="bg-surface-0 px-1 rounded text-xs font-mono">React 19</code> ·{' '}
+                        <code className="bg-surface-0 px-1 rounded text-xs font-mono">Sonner</code>
                     </p>
                 </div>
 
-                {/* ════════════════════════════════════ TOKENS */}
+                {/* ════════ TOKENS */}
                 <section id="tokens" className="scroll-mt-20 space-y-8">
                     <SectionHeading>Tokens</SectionHeading>
 
-                    {/* Colors */}
+                    {/* ── Color palette ── */}
                     <div>
-                        <SubHeading>Cores</SubHeading>
+                        <SubHeading>Paleta de Cores — Superfícies</SubHeading>
                         <Card>
                             <CardContent className="pt-6">
-                                <TokenRow
-                                    label="--color-brand"
-                                    value="#db4035 — Vermelho principal, CTAs, links ativos"
-                                    preview={<div className="w-10 h-10 rounded-md bg-brand" />}
-                                />
-                                <TokenRow
-                                    label="--color-brand-light"
-                                    value="#fdf3f2 — Fundo de itens ativos, badges admin"
-                                    preview={<div className="w-10 h-10 rounded-md bg-brand-light border border-border-subtle" />}
-                                />
-                                <TokenRow
-                                    label="--color-bg-main"
-                                    value="#fafaf8 — Background principal das páginas"
-                                    preview={<div className="w-10 h-10 rounded-md bg-bg-main border border-border-subtle" />}
-                                />
-                                <TokenRow
-                                    label="--color-bg-sidebar"
-                                    value="#f5f3ef — Background da sidebar e painéis laterais"
-                                    preview={<div className="w-10 h-10 rounded-md bg-bg-sidebar border border-border-subtle" />}
-                                />
-                                <TokenRow
-                                    label="--color-border-subtle"
-                                    value="#e8e5e0 — Bordas de cards, divisores, inputs"
-                                    preview={<div className="w-10 h-10 rounded-md border-4 border-border-subtle bg-white" />}
-                                />
-                                <TokenRow
-                                    label="Body text"
-                                    value="#1a1a1a — Texto principal do corpo"
-                                    preview={<div className="w-10 h-10 rounded-md" style={{ backgroundColor: '#1a1a1a' }} />}
-                                />
+                                <TokenRow label="--color-surface-0"    value="#ece9e4 — células vazias, depressões, hover sutil"  preview={<div className="w-10 h-10 rounded-md bg-surface-0 border border-border-subtle" />} />
+                                <TokenRow label="--color-surface-1"    value="#f5f3ef — fundo da sidebar e páginas"                preview={<div className="w-10 h-10 rounded-md bg-surface-1 border border-border-subtle" />} />
+                                <TokenRow label="--color-surface-2"    value="#fafaf8 — background alternativo"                    preview={<div className="w-10 h-10 rounded-md bg-surface-2 border border-border-subtle" />} />
+                                <TokenRow label="--color-surface-card" value="#ffffff — cards, modais, containers principais"      preview={<div className="w-10 h-10 rounded-md bg-surface-card border border-border-subtle" />} />
                             </CardContent>
                         </Card>
                     </div>
 
-                    {/* Typography */}
                     <div>
-                        <SubHeading>Tipografia — Figtree</SubHeading>
+                        <SubHeading>Paleta de Cores — Brand</SubHeading>
                         <Card>
-                            <CardContent className="pt-6 space-y-5">
-                                <div className="flex items-baseline gap-4 py-2 border-b border-border-subtle">
-                                    <p className="text-2xl font-bold text-gray-900 flex-1">Título de Página</p>
-                                    <code className="text-xs text-gray-400 font-mono shrink-0">text-2xl font-bold</code>
-                                </div>
-                                <div className="flex items-baseline gap-4 py-2 border-b border-border-subtle">
-                                    <p className="text-lg font-bold text-gray-900 flex-1">Título de Seção</p>
-                                    <code className="text-xs text-gray-400 font-mono shrink-0">text-lg font-bold</code>
-                                </div>
-                                <div className="flex items-baseline gap-4 py-2 border-b border-border-subtle">
-                                    <p className="text-base font-semibold text-gray-900 flex-1">Subtítulo / Card Title</p>
-                                    <code className="text-xs text-gray-400 font-mono shrink-0">text-base font-semibold</code>
-                                </div>
-                                <div className="flex items-baseline gap-4 py-2 border-b border-border-subtle">
-                                    <p className="text-sm font-medium text-gray-700 flex-1">Texto de corpo / Labels</p>
-                                    <code className="text-xs text-gray-400 font-mono shrink-0">text-sm font-medium</code>
-                                </div>
-                                <div className="flex items-baseline gap-4 py-2 border-b border-border-subtle">
-                                    <p className="text-sm text-gray-500 flex-1">Texto secundário / Descrições</p>
-                                    <code className="text-xs text-gray-400 font-mono shrink-0">text-sm text-gray-500</code>
-                                </div>
-                                <div className="flex items-baseline gap-4 py-2 border-b border-border-subtle">
-                                    <p className="text-xs text-gray-500 flex-1">Caption / Metadata</p>
-                                    <code className="text-xs text-gray-400 font-mono shrink-0">text-xs text-gray-500</code>
-                                </div>
-                                <div className="flex items-baseline gap-4 py-2">
-                                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex-1">LABEL DE SEÇÃO</p>
-                                    <code className="text-xs text-gray-400 font-mono shrink-0">text-[11px] uppercase tracking-widest</code>
-                                </div>
+                            <CardContent className="pt-6">
+                                <TokenRow label="--color-brand"       value="#db4035 — CTAs, links ativos, indicadores urgentes"  preview={<div className="w-10 h-10 rounded-md bg-brand" />} />
+                                <TokenRow label="--color-brand-light" value="#fdf3f2 — fundo de badges, hover de items ativos"    preview={<div className="w-10 h-10 rounded-md bg-brand-light border border-brand/20" />} />
+                                <TokenRow label="--color-brand-dark"  value="#b8342a — hover do botão primário"                    preview={<div className="w-10 h-10 rounded-md" style={{ backgroundColor: '#b8342a' }} />} />
                             </CardContent>
                         </Card>
                     </div>
 
-                    {/* Spacing */}
                     <div>
-                        <SubHeading>Espaçamento (escala Tailwind usada no projeto)</SubHeading>
+                        <SubHeading>Paleta de Cores — Texto e Bordas</SubHeading>
                         <Card>
                             <CardContent className="pt-6">
-                                <div className="flex items-end gap-6 flex-wrap">
-                                    {[
-                                        { n: 2, label: 'p-2', px: 8 },
-                                        { n: 3, label: 'p-3', px: 12 },
-                                        { n: 4, label: 'p-4', px: 16 },
-                                        { n: 6, label: 'p-6', px: 24 },
-                                        { n: 8, label: 'p-8', px: 32 },
-                                    ].map(({ label, px }) => (
-                                        <div key={label} className="flex flex-col items-center gap-2">
-                                            <div
-                                                className="bg-brand/20 border border-brand/40 rounded-md"
-                                                style={{ width: `${px}px`, height: `${px}px` }}
-                                            />
-                                            <code className="text-[10px] text-gray-500">{label}</code>
-                                            <span className="text-[10px] text-gray-400">{px}px</span>
+                                <TokenRow label="--color-text-primary"   value="#1c1a18 — texto principal"                        preview={<div className="w-10 h-10 rounded-md flex items-center justify-center text-xl font-bold text-primary">Aa</div>} />
+                                <TokenRow label="--color-text-secondary" value="#6b6860 — labels, descrições"                     preview={<div className="w-10 h-10 rounded-md flex items-center justify-center text-xl font-bold text-secondary">Aa</div>} />
+                                <TokenRow label="--color-text-muted"     value="#a09d98 — placeholders, metadata"                 preview={<div className="w-10 h-10 rounded-md flex items-center justify-center text-xl font-bold text-muted">Aa</div>} />
+                                <TokenRow label="--color-border-subtle"  value="#e8e5e0 — bordas de cards e divisores"            preview={<div className="w-10 h-10 rounded-md border-4 border-border-subtle" />} />
+                                <TokenRow label="--color-border"         value="rgba(0,0,0,0.11) — bordas padrão"                 preview={<div className="w-10 h-10 rounded-md border-4 border-border" />} />
+                                <TokenRow label="--color-border-strong"  value="rgba(0,0,0,0.18) — bordas de ênfase"             preview={<div className="w-10 h-10 rounded-md border-4 border-border-strong" />} />
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* ── Chart palette ── */}
+                    <div>
+                        <SubHeading>CHART_PALETTE — Gráficos e Visualizações</SubHeading>
+                        <Card>
+                            <CardContent className="pt-6">
+                                <p className="text-xs text-secondary mb-4 font-mono">
+                                    import {'{ CHART_PALETTE }'} from '../lib/designTokens'
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {CHART_PALETTE.map((color, i) => (
+                                        <div key={color} className="flex flex-col items-center gap-1.5">
+                                            <div className="w-10 h-10 rounded-card shadow-float" style={{ backgroundColor: color }} />
+                                            <code className="text-[9px] font-mono text-muted">[{i}]</code>
+                                        </div>
+                                    ))}
+                                </div>
+                                <CodeBlock>{`const CHART_PALETTE = [
+  '#6366f1', '#f59e0b', '#10b981', '#ef4444',
+  '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16',
+]`}</CodeBlock>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* ── Typography ── */}
+                    <div>
+                        <SubHeading>Tipografia — Escala Semântica</SubHeading>
+                        <Card>
+                            <CardContent className="pt-6 space-y-1">
+                                <p className="text-xs text-secondary mb-4 font-mono">
+                                    import {'{ typography }'} from '../lib/designTokens'
+                                </p>
+                                {(Object.entries(typography) as [string, string][]).map(([key, classes]) => (
+                                    <div key={key} className="flex items-baseline gap-4 py-3 border-b border-border-subtle last:border-0">
+                                        <div className={cn('flex-1', classes)}>
+                                            {key === 'pageTitle'    && 'Título de Página'}
+                                            {key === 'sectionTitle' && 'Título de Seção'}
+                                            {key === 'cardTitle'    && 'Título de Card'}
+                                            {key === 'body'         && 'Texto de corpo'}
+                                            {key === 'label'        && 'LABEL DE CAMPO'}
+                                            {key === 'micro'        && 'MICRO LABEL'}
+                                        </div>
+                                        <code className="text-[10px] text-muted font-mono shrink-0 hidden sm:block">
+                                            typography.{key}
+                                        </code>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* ── Radius & Shadows ── */}
+                    <div>
+                        <SubHeading>Border Radius & Sombras</SubHeading>
+                        <Card>
+                            <CardContent className="pt-6 space-y-0">
+                                <TokenRow label="--radius-xs"   value="4px — tags, dots"                                 preview={<div className="w-10 h-10 bg-brand rounded-[4px]" />} />
+                                <TokenRow label="--radius-sm"   value="6px — badges, status pills"                       preview={<div className="w-10 h-10 bg-brand rounded-[6px]" />} />
+                                <TokenRow label="--radius-md"   value="8px — buttons, inputs"                            preview={<div className="w-10 h-10 bg-brand rounded-[8px]" />} />
+                                <TokenRow label="--radius-card" value="8px — cards, containers, modais"                  preview={<div className="w-10 h-10 bg-brand rounded-card" />} />
+                                <TokenRow label="--radius-lg"   value="12px — bottom sheet, large containers"            preview={<div className="w-10 h-10 bg-brand rounded-[12px]" />} />
+                                <TokenRow label="--radius-pill" value="9999px — pill buttons, avatars"                   preview={<div className="w-10 h-10 bg-brand rounded-full" />} />
+                                <TokenRow label="shadow-float"  value="0 0 0 1px rgba(0,0,0,0.10) — popovers, dropdowns" preview={<div className="w-10 h-10 bg-surface-card rounded-card shadow-float" />} />
+                                <TokenRow label="shadow-modal"  value="0 0 0 1px rgba(0,0,0,0.12) — modais"             preview={<div className="w-10 h-10 bg-surface-card rounded-card shadow-modal" />} />
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* ── Modal sizes ── */}
+                    <div>
+                        <SubHeading>modalSizes — Larguras de Modal</SubHeading>
+                        <Card>
+                            <CardContent className="pt-6">
+                                <p className="text-xs text-secondary mb-4 font-mono">
+                                    import {'{ modalSizes }'} from '../lib/designTokens' — use via prop{' '}
+                                    <code>size</code> no Dialog
+                                </p>
+                                <div className="space-y-2">
+                                    {(Object.entries(modalSizes) as [string, string][]).map(([key, cls]) => (
+                                        <div key={key} className="flex items-center gap-3 py-2 border-b border-border-subtle last:border-0">
+                                            <code className="text-xs font-mono text-brand w-12">{key}</code>
+                                            <div className="flex-1 bg-surface-0 rounded-sm h-4 overflow-hidden">
+                                                <div
+                                                    className="h-full bg-brand/20 rounded-sm"
+                                                    style={{
+                                                        width: key === 'sm' ? '30%' : key === 'md' ? '42%' : key === 'lg' ? '58%' : key === 'xl' ? '72%' : '85%'
+                                                    }}
+                                                />
+                                            </div>
+                                            <code className="text-xs font-mono text-muted">{cls}</code>
                                         </div>
                                     ))}
                                 </div>
@@ -236,108 +267,108 @@ export default function DesignSystem() {
                         </Card>
                     </div>
 
-                    {/* Radius + Animations */}
+                    {/* ── Animations ── */}
                     <div>
-                        <SubHeading>Border Radius & Animações</SubHeading>
+                        <SubHeading>Animações</SubHeading>
                         <Card>
                             <CardContent className="pt-6 space-y-4">
-                                <TokenRow
-                                    label="--radius-card"
-                                    value="12px — Cards, modais, caixas de conteúdo"
-                                    preview={<div className="w-10 h-10 bg-brand rounded-[12px]" />}
-                                />
-                                <TokenRow
-                                    label="rounded-full"
-                                    value="9999px — Badges, avatares, pills"
-                                    preview={<div className="w-10 h-10 bg-brand-light border-2 border-brand rounded-full" />}
-                                />
-                                <div className="flex items-center gap-4 pt-2">
+                                <div className="flex items-center gap-4 border-b border-border-subtle pb-4">
                                     <div>
-                                        <p className="text-sm font-bold text-gray-900">.fade-in</p>
-                                        <code className="text-xs text-gray-500 font-mono">opacity 0→1, 150ms ease-in-out</code>
+                                        <p className="text-sm font-bold text-primary">.fade-in</p>
+                                        <code className="text-xs text-muted font-mono">opacity 0→1, 200ms ease-in</code>
                                     </div>
-                                    <Button size="sm" variant="ghost" onClick={() => setFadeKey(k => k + 1)}>
-                                        Preview
-                                    </Button>
-                                    <div key={fadeKey} className="fade-in px-3 py-1 bg-brand-light text-brand text-xs rounded-full font-bold">
-                                        Animado!
+                                    <Button size="sm" variant="ghost" onClick={() => setFadeKey(k => k + 1)}>Preview</Button>
+                                    <div key={fadeKey} className="fade-in px-3 py-1 bg-brand-light text-brand text-xs rounded-full font-bold">Animado!</div>
+                                </div>
+                                <div className="border-b border-border-subtle pb-4">
+                                    <p className="text-sm font-bold text-primary">.popup-spring</p>
+                                    <code className="text-xs text-muted font-mono">scale 0.95→1 + opacity, 250ms cubic-bezier spring — modais desktop</code>
+                                </div>
+                                <div className="border-b border-border-subtle pb-4">
+                                    <p className="text-sm font-bold text-primary">.slide-up-spring</p>
+                                    <code className="text-xs text-muted font-mono">translateY 100%→0, 350ms cubic-bezier spring — bottom sheet mobile</code>
+                                </div>
+                                <div className="border-b border-border-subtle pb-4">
+                                    <p className="text-sm font-bold text-primary">.skeleton-pulse</p>
+                                    <code className="text-xs text-muted font-mono">opacity pulse, 1.5s infinite — loading skeletons</code>
+                                    <div className="mt-2 flex gap-2">
+                                        <div className="skeleton-pulse h-4 w-32 rounded" />
+                                        <div className="skeleton-pulse h-4 w-20 rounded" />
                                     </div>
                                 </div>
-                                <div className="pt-2 border-t border-border-subtle">
-                                    <p className="text-sm font-bold text-gray-900">.slide-up-spring</p>
-                                    <code className="text-xs text-gray-500 font-mono">translateY 100%→0, 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275)</code>
-                                    <p className="text-xs text-gray-400 mt-1">Usado em modais e overlays de entrada.</p>
+                                <div>
+                                    <p className="text-sm font-bold text-primary">prefers-reduced-motion</p>
+                                    <code className="text-xs text-muted font-mono">todas as animações desabilitadas automaticamente — não há necessidade de condicionais</code>
                                 </div>
                             </CardContent>
                         </Card>
                     </div>
                 </section>
 
-                {/* ════════════════════════════════════ COMPONENTS */}
+                {/* ════════ COMPONENTS */}
                 <section id="components" className="scroll-mt-20 space-y-8">
                     <SectionHeading>Componentes UI</SectionHeading>
 
-                    {/* ── Button ── */}
+                    {/* Button */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Button</CardTitle>
-                            <p className="text-xs text-gray-500 font-mono">src/components/ui/Button.tsx</p>
+                            <p className="text-xs text-muted font-mono">src/components/ui/Button.tsx</p>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-secondary">
                                 <code>variant</code>: primary | ghost | danger &nbsp;·&nbsp;
                                 <code>size</code>: sm | md | lg | icon &nbsp;·&nbsp;
                                 <code>isLoading</code>?: boolean
                             </p>
-                            <div className="space-y-2">
-                                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Variantes</p>
+                            <div className="space-y-3">
+                                <SubHeading>Variantes</SubHeading>
                                 <DemoBox>
                                     <Button variant="primary">Primary</Button>
                                     <Button variant="ghost">Ghost</Button>
                                     <Button variant="danger">Danger</Button>
                                 </DemoBox>
-                            </div>
-                            <div className="space-y-2">
-                                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Tamanhos</p>
+                                <SubHeading>Tamanhos</SubHeading>
                                 <DemoBox className="items-end">
                                     <Button size="sm">Small</Button>
                                     <Button size="md">Medium</Button>
                                     <Button size="lg">Large</Button>
-                                    <Button size="icon"><Layers size={18} /></Button>
+                                    <Button size="icon" aria-label="Ícone"><Layers size={18} /></Button>
                                 </DemoBox>
-                            </div>
-                            <div className="space-y-2">
-                                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Estados</p>
+                                <SubHeading>Estados</SubHeading>
                                 <DemoBox>
-                                    <Button isLoading={isLoading} onClick={handleLoadingDemo}>
-                                        {isLoading ? 'Carregando...' : 'Testar isLoading (2s)'}
+                                    <Button isLoading={isLoading} onClick={() => { setIsLoading(true); setTimeout(() => setIsLoading(false), 2000); }}>
+                                        {isLoading ? 'Salvando...' : 'Testar isLoading (2s)'}
                                     </Button>
                                     <Button disabled>Disabled</Button>
+                                    <Button variant="ghost" disabled>Ghost Disabled</Button>
                                 </DemoBox>
                             </div>
-                            <CodeBlock>{`<Button variant="primary" size="md">Label</Button>
+                            <CodeBlock>{`<Button variant="primary" size="md">Salvar</Button>
 <Button variant="ghost" size="sm">Cancelar</Button>
-<Button isLoading={loading} onClick={handleSave}>Salvar</Button>`}</CodeBlock>
+<Button variant="danger">Excluir</Button>
+<Button isLoading={loading} onClick={handleSave}>Salvar</Button>
+<Button size="icon" aria-label="Configurações"><Settings size={18} /></Button>`}</CodeBlock>
                         </CardContent>
                     </Card>
 
-                    {/* ── Card ── */}
+                    {/* Card */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Card</CardTitle>
-                            <p className="text-xs text-gray-500 font-mono">src/components/ui/Card.tsx</p>
+                            <p className="text-xs text-muted font-mono">src/components/ui/Card.tsx</p>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-secondary">
                                 Sub-componentes: <code>Card</code> · <code>CardHeader</code> · <code>CardTitle</code> · <code>CardContent</code>
                             </p>
-                            <DemoBox className="bg-bg-sidebar">
+                            <DemoBox className="bg-surface-1">
                                 <Card className="w-full max-w-sm">
                                     <CardHeader>
                                         <CardTitle>Título do Card</CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <p className="text-sm text-gray-600">Conteúdo do card aqui. Borda radius-card (12px).</p>
+                                        <p className="text-sm text-secondary">Conteúdo do card. Border-radius = radius-card.</p>
                                     </CardContent>
                                 </Card>
                             </DemoBox>
@@ -350,16 +381,13 @@ export default function DesignSystem() {
                         </CardContent>
                     </Card>
 
-                    {/* ── Badge ── */}
+                    {/* Badge */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Badge</CardTitle>
-                            <p className="text-xs text-gray-500 font-mono">src/components/ui/Badge.tsx</p>
+                            <p className="text-xs text-muted font-mono">src/components/ui/Badge.tsx</p>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="text-xs text-gray-500">
-                                <code>variant</code>: admin | editor | viewer (default)
-                            </p>
                             <DemoBox>
                                 <Badge variant="admin">Admin</Badge>
                                 <Badge variant="editor">Editor</Badge>
@@ -371,34 +399,26 @@ export default function DesignSystem() {
                         </CardContent>
                     </Card>
 
-                    {/* ── Input ── */}
+                    {/* Input */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Input</CardTitle>
-                            <p className="text-xs text-gray-500 font-mono">src/components/ui/Input.tsx</p>
+                            <p className="text-xs text-muted font-mono">src/components/ui/Input.tsx</p>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="text-xs text-gray-500">
-                                Estende <code>InputHTMLAttributes</code> · prop extra: <code>error</code>?: string
-                            </p>
                             <DemoBox className="flex-col items-start gap-4">
                                 <div className="w-full max-w-sm space-y-1">
-                                    <label className="text-sm font-medium text-gray-700">Normal</label>
+                                    <label className="text-sm font-medium text-secondary">Normal</label>
                                     <Input placeholder="Placeholder..." />
                                 </div>
                                 <div className="w-full max-w-sm space-y-1">
-                                    <label className="text-sm font-medium text-gray-700">
-                                        Com erro ao vivo — <span className="text-gray-400 font-normal">digite 1-2 chars</span>
+                                    <label className="text-sm font-medium text-secondary">
+                                        Com erro — <span className="text-muted font-normal">digite 1–2 chars</span>
                                     </label>
-                                    <Input
-                                        value={inputVal}
-                                        onChange={e => setInputVal(e.target.value)}
-                                        placeholder="Mínimo 3 caracteres..."
-                                        error={inputError}
-                                    />
+                                    <Input value={inputVal} onChange={e => setInputVal(e.target.value)} placeholder="Mínimo 3 caracteres..." error={inputError} />
                                 </div>
                                 <div className="w-full max-w-sm space-y-1">
-                                    <label className="text-sm font-medium text-gray-400">Disabled</label>
+                                    <label className="text-sm font-medium text-muted">Disabled</label>
                                     <Input disabled placeholder="Campo desabilitado" />
                                 </div>
                             </DemoBox>
@@ -408,22 +428,18 @@ export default function DesignSystem() {
                         </CardContent>
                     </Card>
 
-                    {/* ── Select ── */}
+                    {/* Select */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Select</CardTitle>
-                            <p className="text-xs text-gray-500 font-mono">src/components/ui/Select.tsx</p>
+                            <p className="text-xs text-muted font-mono">src/components/ui/Select.tsx</p>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="text-xs text-gray-500">
-                                Estende <code>SelectHTMLAttributes</code> · props extras: <code>label</code> e <code>error</code>
-                            </p>
                             <DemoBox className="flex-col items-start gap-4">
                                 <div className="w-full max-w-sm">
                                     <Select label="Selecione uma opção">
                                         <option value="1">Opção 1</option>
                                         <option value="2">Opção 2</option>
-                                        <option value="3">Opção 3</option>
                                     </Select>
                                 </div>
                                 <div className="w-full max-w-sm">
@@ -439,187 +455,236 @@ export default function DesignSystem() {
                         </CardContent>
                     </Card>
 
-                    {/* ── Date Input ── */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Date Input</CardTitle>
-                            <p className="text-xs text-gray-500 font-mono">Usa o componente Input com type="date"</p>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <p className="text-xs text-gray-500">
-                                Estilização do seletor nativo para manter consistência com o tema off-white.
-                            </p>
-                            <DemoBox>
-                                <div className="w-full max-w-sm space-y-1">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Prazo</label>
-                                    <Input type="date" className="cursor-pointer" />
-                                </div>
-                            </DemoBox>
-                            <CodeBlock>{`<Input type="date" label="Vencimento" />`}</CodeBlock>
-                        </CardContent>
-                    </Card>
-
-                    {/* ── Toggle ── */}
+                    {/* Toggle */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Toggle</CardTitle>
-                            <p className="text-xs text-gray-500 font-mono">src/components/ui/Toggle.tsx</p>
+                            <p className="text-xs text-muted font-mono">src/components/ui/Toggle.tsx</p>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="text-xs text-gray-500">
-                                Props: <code>checked</code>: boolean · <code>onCheckedChange</code>: (checked: boolean) {'=>'} void
-                            </p>
                             <DemoBox className="flex-col items-start gap-4">
                                 <div className="flex items-center gap-3">
                                     <Toggle checked={toggle1} onCheckedChange={setToggle1} />
-                                    <span className="text-sm text-gray-700">
-                                        Estado: <strong>{toggle1 ? 'Ligado' : 'Desligado'}</strong>
-                                    </span>
+                                    <span className="text-sm text-secondary">Estado: <strong className="text-primary">{toggle1 ? 'Ligado' : 'Desligado'}</strong></span>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <Toggle checked={toggle2} onCheckedChange={setToggle2} />
-                                    <span className="text-sm text-gray-700">Começa ligado</span>
+                                    <span className="text-sm text-secondary">Começa ligado</span>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <Toggle checked={toggleDisabled} onCheckedChange={() => {}} disabled />
-                                    <span className="text-sm text-gray-400">Disabled</span>
+                                    <Toggle checked={false} onCheckedChange={() => {}} disabled />
+                                    <span className="text-sm text-muted">Disabled</span>
                                 </div>
                             </DemoBox>
-                            <CodeBlock>{`const [enabled, setEnabled] = useState(false);
-
-<Toggle checked={enabled} onCheckedChange={setEnabled} />`}</CodeBlock>
+                            <CodeBlock>{`<Toggle checked={enabled} onCheckedChange={setEnabled} />`}</CodeBlock>
                         </CardContent>
                     </Card>
 
-                    {/* ── Dialog ── */}
+                    {/* Dialog */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Dialog</CardTitle>
-                            <p className="text-xs text-gray-500 font-mono">src/components/ui/Dialog.tsx</p>
+                            <p className="text-xs text-muted font-mono">src/components/ui/Dialog.tsx</p>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="text-xs text-gray-500">
-                                Props: <code>isOpen</code> · <code>onClose</code> · <code>title</code> · <code>children</code> · <code>maxWidth</code>?: string (default: max-w-md)
+                            <p className="text-xs text-secondary">
+                                Props: <code>isOpen</code> · <code>onClose</code> · <code>title</code> ·{' '}
+                                <code>size?</code>: sm | md | lg | xl | full · <code>sheet?</code>: boolean ·{' '}
+                                <code>headerActions?</code>
                             </p>
-                            <p className="text-xs text-gray-400">
-                                Fecha com ESC ou clique fora. Bloqueia scroll do body. Acessível (role="dialog", aria-modal).
+                            <p className="text-xs text-muted">
+                                Fecha com ESC ou clique fora. Bloqueia scroll do body. Focus trap. <code>sheet=true</code> → bottom sheet no mobile, modal no desktop.
                             </p>
                             <DemoBox>
-                                <Button variant="ghost" onClick={() => setDialogOpen(true)}>
-                                    Abrir Dialog (md)
-                                </Button>
-                                <Button variant="ghost" onClick={() => setDialogWideOpen(true)}>
-                                    Abrir Dialog Largo (2xl)
-                                </Button>
+                                <Button variant="ghost" onClick={() => setDialogOpen(true)}>Dialog (sm)</Button>
+                                <Button variant="ghost" onClick={() => setDialogSizeOpen(true)}>Dialog (lg)</Button>
+                                <Button variant="ghost" onClick={() => setDialogSheetOpen(true)}>Sheet (mobile)</Button>
                             </DemoBox>
-                            <CodeBlock>{`const [open, setOpen] = useState(false);
+                            <CodeBlock>{`// Modal simples
+<Dialog isOpen={open} onClose={() => setOpen(false)} title="Título" size="sm">
+  <p>Conteúdo</p>
+</Dialog>
 
-<Button onClick={() => setOpen(true)}>Abrir</Button>
-
-<Dialog isOpen={open} onClose={() => setOpen(false)} title="Título">
-  <p>Conteúdo do modal.</p>
-  <div className="flex gap-2 justify-end mt-4">
-    <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-    <Button onClick={handleConfirm}>Confirmar</Button>
-  </div>
+// Bottom sheet no mobile, modal no desktop
+<Dialog isOpen={open} onClose={() => setOpen(false)} title="Detalhe" size="full" sheet>
+  <p>Conteúdo</p>
 </Dialog>`}</CodeBlock>
                         </CardContent>
                     </Card>
 
-                    {/* ── CommandPalette ── */}
+                    {/* Toaster */}
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">CommandPalette</CardTitle>
-                            <p className="text-xs text-gray-500 font-mono">src/components/ui/CommandPalette.tsx</p>
+                            <CardTitle className="text-base">Toast</CardTitle>
+                            <p className="text-xs text-muted font-mono">sonner · src/components/ui/Toaster.tsx</p>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="text-xs text-gray-500">
-                                Gerencia estado interno. Montado globalmente em <code>App.tsx</code>.
-                                Abre com{' '}
-                                <kbd className="bg-gray-100 border border-gray-300 px-1.5 py-0.5 rounded text-xs font-mono">Ctrl</kbd> +{' '}
-                                <kbd className="bg-gray-100 border border-gray-300 px-1.5 py-0.5 rounded text-xs font-mono">K</kbd> /{' '}
-                                <kbd className="bg-gray-100 border border-gray-300 px-1.5 py-0.5 rounded text-xs font-mono">Cmd</kbd> +{' '}
-                                <kbd className="bg-gray-100 border border-gray-300 px-1.5 py-0.5 rounded text-xs font-mono">K</kbd>
-                            </p>
                             <DemoBox>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => {
-                                        document.dispatchEvent(
-                                            new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })
-                                        );
-                                    }}
-                                >
-                                    Abrir Command Palette
-                                </Button>
-                            </DemoBox>
-                            <CodeBlock>{`// Já montado em App.tsx — não instanciar novamente
-// Para abrir programaticamente:
-document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))`}</CodeBlock>
-                        </CardContent>
-                    </Card>
-
-                    {/* ── Toaster ── */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Toaster / Toast</CardTitle>
-                            <p className="text-xs text-gray-500 font-mono">src/components/ui/Toaster.tsx · sonner</p>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <p className="text-xs text-gray-500">
-                                O <code>{'<Toaster />'}</code> está montado globalmente em <code>App.tsx</code>.
-                                Para disparar notificações, importe <code>toast</code> de <code>sonner</code>.
-                            </p>
-                            <DemoBox>
-                                <Button onClick={() => toast.success('Operação realizada com sucesso!')}>
-                                    toast.success
-                                </Button>
-                                <Button variant="ghost" onClick={() => toast.error('Algo deu errado. Tente novamente.')}>
-                                    toast.error
-                                </Button>
-                                <Button variant="ghost" onClick={() => toast.info('Informação para o usuário.')}>
-                                    toast.info
-                                </Button>
+                                <Button onClick={() => toast.success('Operação realizada com sucesso!')}>success</Button>
+                                <Button variant="ghost" onClick={() => toast.error('Algo deu errado.')}>error</Button>
+                                <Button variant="ghost" onClick={() => toast.info('Informação.')}>info</Button>
+                                <Button variant="ghost" onClick={() => toast('Mensagem neutra.')}>default</Button>
                             </DemoBox>
                             <CodeBlock>{`import { toast } from 'sonner';
 
-toast.success('Salvo com sucesso!');
-toast.error('Erro ao salvar. Tente novamente.');
-toast.info('3 tarefas pendentes para hoje.');`}</CodeBlock>
+toast.success('Salvo!');
+toast.error('Erro ao salvar.');
+toast.info('3 tarefas pendentes.');
+
+// Com ação de desfazer
+toast.success('Movido!', {
+  action: { label: 'Desfazer', onClick: handleUndo }
+});`}</CodeBlock>
                         </CardContent>
                     </Card>
                 </section>
 
-                {/* ════════════════════════════════════ PATTERNS */}
+                {/* ════════ NOVOS COMPONENTES */}
+                <section id="new" className="scroll-mt-20 space-y-8">
+                    <SectionHeading>Novos Componentes (2025)</SectionHeading>
+
+                    {/* EmptyState */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">EmptyState</CardTitle>
+                            <p className="text-xs text-muted font-mono">src/components/ui/EmptyState.tsx</p>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <p className="text-xs text-secondary">
+                                <code>icon</code>: LucideIcon · <code>title</code> · <code>description</code>? ·{' '}
+                                <code>action</code>? · <code>variant</code>: default | bordered
+                            </p>
+                            <div className="space-y-3">
+                                <SubHeading>variant="default" — listas e páginas inline</SubHeading>
+                                <DemoBox className="flex-col">
+                                    <EmptyState
+                                        icon={Inbox}
+                                        title="Nenhuma tarefa encontrada"
+                                        description="Tente ajustar seus filtros ou crie uma nova tarefa."
+                                    />
+                                </DemoBox>
+                                <SubHeading>variant="bordered" — container principal vazio</SubHeading>
+                                <div className="h-56 flex">
+                                    <EmptyState
+                                        variant="bordered"
+                                        icon={Folder}
+                                        title="Nenhum projeto ativo"
+                                        description="Crie seu primeiro projeto para começar."
+                                        action={{ label: 'Criar Projeto', onClick: () => toast.info('Clicou em Criar Projeto') }}
+                                    />
+                                </div>
+                                <SubHeading>Com action (variant="default")</SubHeading>
+                                <DemoBox className="flex-col">
+                                    <EmptyState
+                                        icon={CheckCircle2}
+                                        title="Tudo em dia!"
+                                        description="Você não tem tarefas atrasadas."
+                                        action={{ label: 'Ver todas as tarefas', onClick: () => toast.info('Navegar para tarefas') }}
+                                    />
+                                </DemoBox>
+                            </div>
+                            <CodeBlock>{`import { EmptyState } from '../components/ui/EmptyState';
+import { Inbox } from 'lucide-react';
+
+// Inline (listas)
+<EmptyState
+  icon={Inbox}
+  title="Nenhuma tarefa"
+  description="Crie uma nova tarefa para começar."
+/>
+
+// Container principal
+<EmptyState
+  variant="bordered"
+  icon={Folder}
+  title="Nenhum projeto"
+  action={{ label: 'Criar Projeto', onClick: handleCreate }}
+/>`}</CodeBlock>
+                        </CardContent>
+                    </Card>
+
+                    {/* FormLayout */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">FormGrid · FormField · FormActions</CardTitle>
+                            <p className="text-xs text-muted font-mono">src/components/ui/FormLayout.tsx</p>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <p className="text-xs text-secondary">
+                                <code>FormGrid</code>: grid de 1–3 colunas · <code>FormField</code>: label + conteúdo + error + hint ·{' '}
+                                <code>FormActions</code>: rodapé com borda
+                            </p>
+                            <DemoBox className="flex-col items-start">
+                                <div className="w-full max-w-lg space-y-4">
+                                    <FormGrid cols={2}>
+                                        <FormField label="Nome" required>
+                                            <Input placeholder="Ex: João Silva" />
+                                        </FormField>
+                                        <FormField label="E-mail" error="Formato inválido">
+                                            <Input type="email" placeholder="email@empresa.com" error="Formato inválido" />
+                                        </FormField>
+                                        <FormField label="Descrição" colSpan={2} hint="Máximo 200 caracteres">
+                                            <Input placeholder="Breve descrição..." />
+                                        </FormField>
+                                    </FormGrid>
+                                    <FormActions>
+                                        <Button variant="ghost">Cancelar</Button>
+                                        <Button>Salvar</Button>
+                                    </FormActions>
+                                </div>
+                            </DemoBox>
+                            <CodeBlock>{`import { FormGrid, FormField, FormActions } from '../components/ui/FormLayout';
+
+<form onSubmit={handleSubmit} className="space-y-4">
+  <FormGrid cols={2}>
+    <FormField label="Nome" required error={errors.name?.message}>
+      <Input {...register('name')} />
+    </FormField>
+    <FormField label="E-mail" hint="Usado para login">
+      <Input type="email" {...register('email')} />
+    </FormField>
+    <FormField label="Bio" colSpan={2}>
+      <textarea {...register('bio')} rows={3} />
+    </FormField>
+  </FormGrid>
+  <FormActions>
+    <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+    <Button type="submit" isLoading={loading}>Salvar</Button>
+  </FormActions>
+</form>`}</CodeBlock>
+                        </CardContent>
+                    </Card>
+                </section>
+
+                {/* ════════ PATTERNS */}
                 <section id="patterns" className="scroll-mt-20 space-y-8">
                     <SectionHeading>Padrões de Uso</SectionHeading>
 
-                    {/* Pattern 1: Form */}
+                    {/* Pattern: Configurações com Toggle */}
                     <div>
-                        <SubHeading>Formulário com validação</SubHeading>
+                        <SubHeading>Configurações com Toggle</SubHeading>
                         <Card>
-                            <CardContent className="pt-6">
-                                <div className="max-w-sm space-y-4">
-                                    <div className="space-y-1">
-                                        <label className="text-sm font-medium text-gray-700">Nome</label>
-                                        <Input placeholder="Nome completo" />
+                            <CardHeader><CardTitle>Notificações</CardTitle></CardHeader>
+                            <CardContent className="divide-y divide-border-subtle">
+                                {[
+                                    { label: 'Notificações por e-mail', desc: 'Receba alertas de novas tarefas', state: toggle1, set: setToggle1 },
+                                    { label: 'Resumo semanal', desc: 'Todo domingo às 08h', state: toggle2, set: setToggle2 },
+                                ].map(item => (
+                                    <div key={item.label} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
+                                        <div>
+                                            <p className="text-sm font-medium text-primary">{item.label}</p>
+                                            <p className="text-xs text-muted">{item.desc}</p>
+                                        </div>
+                                        <Toggle checked={item.state} onCheckedChange={item.set} />
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className="text-sm font-medium text-gray-700">E-mail</label>
-                                        <Input type="email" placeholder="email@empresa.com" />
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button className="flex-1">Salvar</Button>
-                                        <Button variant="ghost">Cancelar</Button>
-                                    </div>
-                                </div>
+                                ))}
                             </CardContent>
                         </Card>
                     </div>
 
-                    {/* Pattern 2: List with actions */}
+                    {/* Pattern: Lista com ações */}
                     <div>
-                        <SubHeading>Lista de itens com ações</SubHeading>
+                        <SubHeading>Lista de Itens com Ações</SubHeading>
                         <Card>
                             <CardHeader>
                                 <div className="flex items-center justify-between">
@@ -633,16 +698,13 @@ toast.info('3 tarefas pendentes para hoje.');`}</CodeBlock>
                                         { name: 'Ana Silva', role: 'editor' as const },
                                         { name: 'Bruno Costa', role: 'viewer' as const },
                                     ].map(member => (
-                                        <div
-                                            key={member.name}
-                                            className="flex items-center justify-between p-3 border border-border-subtle rounded-lg"
-                                        >
+                                        <div key={member.name} className="flex items-center justify-between p-3 border border-border-subtle rounded-card">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center text-brand font-bold text-sm">
                                                     {member.name.substring(0, 2).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-bold text-gray-900">{member.name}</p>
+                                                    <p className="text-sm font-bold text-primary">{member.name}</p>
                                                     <Badge variant={member.role} className="mt-0.5">{member.role}</Badge>
                                                 </div>
                                             </div>
@@ -656,103 +718,30 @@ toast.info('3 tarefas pendentes para hoje.');`}</CodeBlock>
                             </CardContent>
                         </Card>
                     </div>
-
-                    {/* Pattern 3: Settings with Toggle */}
-                    <div>
-                        <SubHeading>Configurações com Toggle</SubHeading>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Notificações</CardTitle>
-                            </CardHeader>
-                            <CardContent className="divide-y divide-border-subtle">
-                                {[
-                                    { label: 'Notificações por e-mail', desc: 'Receba alertas de novas tarefas', state: toggle1, set: setToggle1 },
-                                    { label: 'Resumo semanal', desc: 'Todo domingo, às 08h', state: toggle2, set: setToggle2 },
-                                ].map(item => (
-                                    <div key={item.label} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                                            <p className="text-xs text-gray-500">{item.desc}</p>
-                                        </div>
-                                        <Toggle checked={item.state} onCheckedChange={item.set} />
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    </div>
                 </section>
 
-                {/* ════════════════════════════════════ CONTRIBUTING */}
+                {/* ════════ CONTRIBUTING */}
                 <section id="contributing" className="scroll-mt-20 space-y-8">
                     <SectionHeading>Contribuir</SectionHeading>
 
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Como adicionar um novo componente</CardTitle>
-                        </CardHeader>
+                        <CardHeader><CardTitle>Como adicionar um novo componente</CardTitle></CardHeader>
                         <CardContent className="space-y-6">
-                            <ol className="space-y-4 list-decimal list-inside text-sm text-gray-700">
-                                <li>
-                                    <strong>Crie o arquivo</strong> em{' '}
-                                    <code className="bg-gray-100 px-1 rounded font-mono text-xs">src/components/ui/MeuComponente.tsx</code>
-                                </li>
-                                <li>
-                                    <strong>Use <code className="bg-gray-100 px-1 rounded font-mono text-xs">forwardRef</code></strong> e estenda
-                                    o elemento HTML nativo quando possível (ex: <code className="bg-gray-100 px-1 rounded font-mono text-xs">HTMLButtonElement</code>).
-                                </li>
-                                <li>
-                                    <strong>Utilize <code className="bg-gray-100 px-1 rounded font-mono text-xs">cn()</code></strong> de{' '}
-                                    <code className="bg-gray-100 px-1 rounded font-mono text-xs">../../lib/utils</code> para mesclar classes condicionalmente.
-                                </li>
-                                <li>
-                                    <strong>Exporte uma interface tipada</strong> (ex:{' '}
-                                    <code className="bg-gray-100 px-1 rounded font-mono text-xs">MeuComponenteProps</code>) antes do componente.
-                                </li>
-                                <li>
-                                    <strong>Use os tokens do design system</strong> —{' '}
-                                    <code className="bg-gray-100 px-1 rounded font-mono text-xs">bg-brand</code>,{' '}
-                                    <code className="bg-gray-100 px-1 rounded font-mono text-xs">border-border-subtle</code>,{' '}
-                                    <code className="bg-gray-100 px-1 rounded font-mono text-xs">rounded-[var(--radius-card)]</code>, etc.
-                                </li>
-                                <li>
-                                    <strong>Documente</strong> adicionando um Card na seção Componentes desta página.
-                                </li>
+                            <ol className="space-y-4 list-decimal list-inside text-sm text-secondary">
+                                <li><strong className="text-primary">Crie</strong> em <code className="bg-surface-0 px-1 rounded font-mono text-xs">src/components/ui/MeuComponente.tsx</code></li>
+                                <li><strong className="text-primary">Use <code className="bg-surface-0 px-1 rounded font-mono text-xs">cn()</code></strong> de <code className="bg-surface-0 px-1 rounded font-mono text-xs">../../lib/utils</code></li>
+                                <li><strong className="text-primary">Use os tokens</strong> — <code className="bg-surface-0 px-1 rounded font-mono text-xs">bg-brand</code>, <code className="bg-surface-0 px-1 rounded font-mono text-xs">text-primary</code>, <code className="bg-surface-0 px-1 rounded font-mono text-xs">border-border-subtle</code></li>
+                                <li><strong className="text-primary">Use constantes</strong> de <code className="bg-surface-0 px-1 rounded font-mono text-xs">src/lib/designTokens.ts</code> para typography, modalSizes e CHART_PALETTE</li>
+                                <li><strong className="text-primary">Documente</strong> adicionando um Card na seção "Novos" desta página</li>
                             </ol>
 
-                            <CodeBlock>{`// src/components/ui/MeuComponente.tsx
-import * as React from 'react';
-import { cn } from '../../lib/utils';
-
-export interface MeuComponenteProps extends React.HTMLAttributes<HTMLDivElement> {
-    variant?: 'default' | 'outline';
-}
-
-export function MeuComponente({
-    className,
-    variant = 'default',
-    ...props
-}: MeuComponenteProps) {
-    return (
-        <div
-            className={cn(
-                'rounded-[var(--radius-card)] border border-border-subtle',
-                variant === 'outline' && 'bg-transparent',
-                variant === 'default' && 'bg-white',
-                className
-            )}
-            {...props}
-        />
-    );
-}`}</CodeBlock>
-
-                            <div className="p-4 bg-brand-light border border-red-200 rounded-xl">
-                                <p className="text-xs text-brand font-semibold mb-1">Checklist antes do PR</p>
+                            <div className="p-4 bg-brand-light border border-brand/20 rounded-card">
+                                <p className="text-xs text-brand font-semibold mb-2">Checklist antes do PR</p>
                                 <ul className="text-xs text-brand/80 space-y-1 list-disc list-inside">
-                                    <li>Variantes e estados documentados nesta página</li>
-                                    <li>Demo interativo funcionando</li>
-                                    <li>Compatível com Tailwind v4 (sem tailwind.config.ts)</li>
-                                    <li>0 erros ESLint — <code>npm run lint</code></li>
-                                    <li>Build limpo — <code>npm run build</code></li>
+                                    <li>Estados documentados nesta página (default, loading, disabled, error)</li>
+                                    <li>Usa tokens CSS e não cores hardcoded</li>
+                                    <li>Botões de ícone têm <code>aria-label</code></li>
+                                    <li><code>0</code> erros — <code>npm run lint && npm run build</code></li>
                                 </ul>
                             </div>
                         </CardContent>
@@ -761,29 +750,34 @@ export function MeuComponente({
 
             </div>
 
-            {/* ── Dialog portals ── */}
-            <Dialog isOpen={dialogOpen} onClose={() => setDialogOpen(false)} title="Exemplo de Dialog">
-                <p className="text-sm text-gray-600 mb-4">
-                    Este é o corpo do dialog. Pode conter formulários, informações ou confirmações de ação.
+            {/* Dialog portals */}
+            <Dialog isOpen={dialogOpen} onClose={() => setDialogOpen(false)} title="Dialog — size sm (padrão)" size="sm">
+                <p className="text-sm text-secondary mb-4">
+                    Modal centralizado padrão. Fecha com ESC ou clique no overlay.
                 </p>
-                <div className="flex gap-2 justify-end">
+                <FormActions>
                     <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
                     <Button onClick={() => setDialogOpen(false)}>Confirmar</Button>
-                </div>
+                </FormActions>
             </Dialog>
-            <Dialog
-                isOpen={dialogWideOpen}
-                onClose={() => setDialogWideOpen(false)}
-                title="Dialog Largo (max-w-2xl)"
-                maxWidth="max-w-2xl"
-            >
-                <p className="text-sm text-gray-600 mb-4">
-                    Útil para formulários complexos, listas longas ou detalhes de itens.
-                    Use a prop <code className="bg-gray-100 px-1 rounded text-xs">maxWidth</code> para controlar a largura.
+
+            <Dialog isOpen={dialogSizeOpen} onClose={() => setDialogSizeOpen(false)} title="Dialog — size lg" size="lg">
+                <p className="text-sm text-secondary mb-4">
+                    Modal largo. Use para formulários complexos ou conteúdo rich.
                 </p>
-                <div className="flex gap-2 justify-end">
-                    <Button variant="ghost" onClick={() => setDialogWideOpen(false)}>Fechar</Button>
-                </div>
+                <FormActions>
+                    <Button variant="ghost" onClick={() => setDialogSizeOpen(false)}>Fechar</Button>
+                </FormActions>
+            </Dialog>
+
+            <Dialog isOpen={dialogSheetOpen} onClose={() => setDialogSheetOpen(false)} title="Dialog — sheet" size="lg" sheet>
+                <p className="text-sm text-secondary mb-4">
+                    Em mobile: bottom sheet com drag handle, slide-up-spring e max-h 85vh.<br />
+                    Em desktop: modal centralizado normal.
+                </p>
+                <FormActions>
+                    <Button variant="ghost" onClick={() => setDialogSheetOpen(false)}>Fechar</Button>
+                </FormActions>
             </Dialog>
         </div>
     );

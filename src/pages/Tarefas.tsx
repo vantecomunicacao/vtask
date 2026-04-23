@@ -5,6 +5,7 @@ import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ArrowUp, ArrowDown, ArrowUpDown, Calendar as CalendarIcon, Clock, Inbox, List, Keyboard } from 'lucide-react';
+import { EmptyState } from '../components/ui/EmptyState';
 import { supabase } from '../lib/supabase';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useTaskStore, type TaskWithAssignee } from '../store/taskStore';
@@ -41,7 +42,26 @@ const MIN_COL_W: Record<ColId, number> = { title: 150, project: 80, due: 80, cre
 const RESIZABLE_COLS = new Set<ColId>(['title', 'project', 'due', 'created', 'assignee', 'priority']);
 
 // ─── Skeleton Component ────────────────────────
-function TaskSkeleton({ gridTemplate }: { gridTemplate: string }) {
+function TaskSkeleton({ gridTemplate, isMobile }: { gridTemplate: string; isMobile: boolean }) {
+    if (isMobile) {
+        return (
+            <div className="px-3 flex flex-col divide-y divide-border-subtle">
+                {[...Array(6)].map((_, i) => (
+                    <div key={i} className="py-3 flex items-start gap-3 stagger-item" style={{ animationDelay: `${i * 60}ms` }}>
+                        <div className="skeleton-pulse w-5 h-5 rounded-full shrink-0 mt-0.5" />
+                        <div className="flex-1 space-y-2">
+                            <div className="skeleton-pulse h-4 rounded w-3/4" />
+                            <div className="flex gap-2">
+                                <div className="skeleton-pulse h-3 w-16 rounded" />
+                                <div className="skeleton-pulse h-3 w-12 rounded" />
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
     return (
         <div className="px-4 flex flex-col divide-y divide-border-subtle">
             {[...Array(6)].map((_, i) => (
@@ -63,29 +83,27 @@ function TaskSkeleton({ gridTemplate }: { gridTemplate: string }) {
     );
 }
 
-function EmptyState({ groupName, hasFilters }: { groupName?: string; hasFilters: boolean }) {
+function TaskEmptyState({ groupName, hasFilters }: { groupName?: string; hasFilters: boolean }) {
+    if (hasFilters) return (
+        <EmptyState
+            icon={Inbox}
+            title="Nenhum resultado encontrado"
+            description="Tente ajustar seus filtros ou termos de busca para encontrar o que procura."
+        />
+    );
+    if (groupName) return (
+        <EmptyState
+            icon={Inbox}
+            title={`Nenhuma tarefa em "${groupName}"`}
+            description="Arraste tarefas de outros grupos para cá ou crie uma nova."
+        />
+    );
     return (
-        <div className="py-12 flex flex-col items-center justify-center gap-3 fade-in">
-            <div className="w-14 h-14 rounded-card bg-surface-0 flex items-center justify-center">
-                <Inbox size={24} className="text-muted" />
-            </div>
-            {hasFilters ? (
-                <>
-                    <p className="text-sm font-semibold text-secondary">Nenhum resultado encontrado</p>
-                    <p className="text-xs text-muted max-w-xs text-center">Tente ajustar seus filtros ou termos de busca para encontrar o que procura.</p>
-                </>
-            ) : groupName ? (
-                <>
-                    <p className="text-sm font-semibold text-secondary">Nenhuma tarefa em "{groupName}"</p>
-                    <p className="text-xs text-muted">Arraste tarefas de outros grupos para cá ou crie uma nova.</p>
-                </>
-            ) : (
-                <>
-                    <p className="text-sm font-semibold text-secondary">Nenhuma tarefa criada ainda</p>
-                    <p className="text-xs text-muted">Clique em "Novo" para criar sua primeira tarefa! 🚀</p>
-                </>
-            )}
-        </div>
+        <EmptyState
+            icon={Inbox}
+            title="Nenhuma tarefa criada ainda"
+            description='Clique em "Novo" para criar sua primeira tarefa!'
+        />
     );
 }
 
@@ -198,7 +216,7 @@ export default function Tarefas() {
     }, [searchParams, tasks]);
 
     useEffect(() => {
-        return () => { animationTimersRef.current.forEach(clearTimeout); };
+        return () => { animationTimersRef.current.forEach(clearTimeout); animationTimersRef.current = []; };
     }, []);
 
     // Hide filters bar on scroll down, reveal on scroll up (mobile only)
@@ -554,9 +572,9 @@ export default function Tarefas() {
                 <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col" ref={taskListRef}>
                     <div className="flex-1">
                         {loading ? (
-                            <TaskSkeleton gridTemplate={gridTemplate} />
+                            <TaskSkeleton gridTemplate={gridTemplate} isMobile={isMobile} />
                         ) : filteredTasks.length === 0 ? (
-                            <EmptyState hasFilters={hasFilters} />
+                            <TaskEmptyState hasFilters={hasFilters} />
                         ) : (
                             <DragDropContext onDragEnd={onDragEnd}>
                                 {groupedTasks.map(group => (

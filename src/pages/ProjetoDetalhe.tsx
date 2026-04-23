@@ -280,6 +280,7 @@ export default function ProjetoDetalhe() {
                                     <button
                                         onClick={handleCreateDoc}
                                         title="Novo documento"
+                                        aria-label="Novo documento"
                                         className="p-1 rounded text-muted hover:text-brand hover:bg-brand-light transition-colors"
                                     >
                                         <Plus size={14} />

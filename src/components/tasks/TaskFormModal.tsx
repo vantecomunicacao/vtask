@@ -3,6 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog } from '../ui/Dialog';
+import { FormActions } from '../ui/FormLayout';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
@@ -11,6 +12,7 @@ import { MiniRichEditor } from '../ui/MiniRichEditor';
 import { supabase } from '../../lib/supabase';
 import { useTaskStore } from '../../store/taskStore';
 import { useProjectStore } from '../../store/projectStore';
+import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { Database } from '../../lib/database.types';
@@ -43,6 +45,7 @@ export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTa
     const { fetchTasks, fetchWorkspaceTasks, statuses, taskCategories } = useTaskStore();
     const { activeWorkspace } = useWorkspaceStore();
     const { projects } = useProjectStore();
+    const { session } = useAuthStore();
     const [loading, setLoading] = useState(false);
     const [users, setUsers] = useState<Profile[]>([]);
     const [editorKey, setEditorKey] = useState(0);
@@ -83,7 +86,7 @@ export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTa
     const onSubmit = async (data: TaskFormData) => {
         setLoading(true);
         try {
-            const { error } = await supabase.from('tasks').insert({
+            const { data: inserted, error } = await supabase.from('tasks').insert({
                 project_id: data.project_id,
                 title: data.title,
                 description: data.description,
@@ -94,9 +97,17 @@ export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTa
                 recurrence: data.recurrence || 'none',
                 category_id: data.category_id || null,
                 position: 0
-            });
+            }).select('id').single();
 
             if (error) throw error;
+
+            if (inserted?.id && session?.user.id) {
+                await supabase.from('comments').insert({
+                    task_id: inserted.id,
+                    user_id: session.user.id,
+                    content: '_SISTEMA_: criou a tarefa',
+                });
+            }
 
             toast.success('Tarefa criada com sucesso!');
 
@@ -122,7 +133,7 @@ export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTa
     };
 
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} title="Nova Tarefa" maxWidth="max-w-2xl">
+        <Dialog isOpen={isOpen} onClose={onClose} title="Nova Tarefa" size="lg">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
                 <Input
@@ -272,14 +283,14 @@ export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTa
                     </div>
                 </div>
 
-                <div className="pt-4 flex justify-end gap-3 border-t border-border-subtle mt-6">
+                <FormActions className="mt-6">
                     <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
                         Cancelar
                     </Button>
                     <Button type="submit" isLoading={loading}>
                         Criar Tarefa
                     </Button>
-                </div>
+                </FormActions>
 
             </form>
         </Dialog>

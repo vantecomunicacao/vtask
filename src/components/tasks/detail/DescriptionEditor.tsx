@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
@@ -130,6 +130,18 @@ export function DescriptionEditor({
         },
     });
 
+    // Counter incremented by editor.on('update') — used as auto-save trigger.
+    // Avoids calling editor.getJSON() as a useEffect dependency, which would
+    // create a new object on every render and cause an infinite re-render loop.
+    const [editorVersion, setEditorVersion] = useState(0);
+    const incVersion = useCallback(() => setEditorVersion(v => v + 1), []);
+
+    useEffect(() => {
+        if (!editor) return;
+        editor.on('update', incVersion);
+        return () => { editor.off('update', incVersion); };
+    }, [editor, incVersion]);
+
     // Blur saves via ref so the handler always has fresh task/onUpdateTask
     useEffect(() => {
         if (!editor) return;
@@ -181,17 +193,17 @@ export function DescriptionEditor({
         return () => window.removeEventListener('editor-upload-image', handler);
     }, [!!editor, task.id]);
 
-    // Auto-save on content change while editing
+    // Auto-save 1s after each keystroke while editing
     useEffect(() => {
         if (!editor || !isEditingDesc) return;
         const timeoutId = setTimeout(() => {
             const jsonStr = JSON.stringify(editor.getJSON());
-            if (jsonStr !== task.description) {
-                onUpdateTask({ description: jsonStr });
+            if (jsonStr !== taskRef.current.description) {
+                onUpdateTaskRef.current({ description: jsonStr });
             }
         }, 1000);
         return () => clearTimeout(timeoutId);
-    }, [editor?.getJSON(), isEditingDesc]);
+    }, [editor, editorVersion, isEditingDesc]);
 
     if (!editor) return null;
 

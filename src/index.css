@@ -486,3 +486,85 @@
 .tiptap-editor-container .ProseMirror ul[data-type="taskList"] li > div {
   flex: 1;
 }
+
+/* Quebra de página manual (inserida via botão) */
+.tiptap-editor-container .ProseMirror div[data-page-break] {
+  position: relative;
+  margin: 1.5rem 0;
+  height: 0;
+  border: none;
+  pointer-events: none;
+  user-select: none;
+}
+.tiptap-editor-container .ProseMirror div[data-page-break]::before {
+  content: '';
+  display: block;
+  border-top: 2px dashed var(--color-border-subtle, #e5e7eb);
+}
+.tiptap-editor-container .ProseMirror div[data-page-break]::after {
+  content: 'Quebra de página';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--color-surface-card, #fff);
+  color: var(--color-muted, #9ca3af);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 0.6rem;
+  white-space: nowrap;
+}
+
+/* ─────────────────────────────────────── */
+/* Modo página A4 — guias automáticas      */
+/* ─────────────────────────────────────── */
+/*
+  A4 a 96dpi = 1123px de altura.
+  Margens 20mm (top + bottom) = 151px.
+  Área de conteúdo por página ≈ 972px.
+  O editor tem py-10 (40px) que equivale às margens do documento;
+  o offset inicial de 40px é absorvido pelo padding do container.
+*/
+.tiptap-editor-container.page-view-mode .ProseMirror {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent calc(972px - 1px),
+    #d1cdc7 calc(972px - 1px),
+    #d1cdc7 972px,
+    #f5f3ef 972px,
+    #f5f3ef calc(972px + 24px),
+    transparent calc(972px + 24px)
+  );
+  background-size: 100% 996px; /* 972 conteúdo + 24 gap entre páginas */
+}
+
+/* Label "Página N" nas guias — via wrapper */
+.tiptap-editor-container.page-view-mode {
+  position: relative;
+}
+
+/* Sombra sutil nas bordas de página para dar sensação de folha */
+.tiptap-editor-container.page-view-mode .ProseMirror::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  right: -24px;
+  top: -8px;
+  bottom: -8px;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent calc(972px - 1px),
+    transparent calc(972px - 1px),
+    transparent 972px,
+    rgba(0,0,0,0.04) 972px,
+    rgba(0,0,0,0.04) calc(972px + 24px),
+    transparent calc(972px + 24px)
+  );
+  background-size: 100% 996px;
+  pointer-events: none;
+  z-index: 0;
+}

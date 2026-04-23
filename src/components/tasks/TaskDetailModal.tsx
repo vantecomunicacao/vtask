@@ -74,7 +74,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
         // Build audit log entries
         const changeLogs: string[] = [];
         if (updates.status_id && updates.status_id !== currentTask.status_id) {
-            const newStatus = statuses.find(s => s.id === updates.status_id)?.name;
+            const newStatus = statuses.find(s => s.id === updates.status_id)?.name ?? 'desconhecido';
             changeLogs.push(`Alterou o status para **${newStatus}**`);
         }
         if (updates.assignee_id !== undefined && updates.assignee_id !== currentTask.assignee_id) {
@@ -82,7 +82,17 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
             changeLogs.push(`Alterou o responsável para **${newAssignee}**`);
         }
         if (updates.priority && updates.priority !== currentTask.priority) {
-            changeLogs.push(`Alterou a prioridade para **${updates.priority}**`);
+            const labels: Record<string, string> = { low: 'Baixa', medium: 'Média', high: 'Alta', urgent: 'Urgente' };
+            changeLogs.push(`Alterou a prioridade para **${labels[updates.priority] ?? updates.priority}**`);
+        }
+        if (updates.title && updates.title !== currentTask.title) {
+            changeLogs.push(`Alterou o título para **${updates.title}**`);
+        }
+        if (updates.due_date !== undefined && updates.due_date !== currentTask.due_date) {
+            const label = updates.due_date
+                ? `**${updates.due_date.substring(0, 10)}**`
+                : '**sem prazo**';
+            changeLogs.push(`Alterou o prazo para ${label}`);
         }
 
         setSaving(true);
@@ -149,7 +159,8 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
         <Dialog
             isOpen={isOpen}
             onClose={onClose}
-            maxWidth="max-w-5xl"
+            size="full"
+            sheet
             title={
                 isEditingTitle ? (
                     <input
@@ -188,6 +199,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                     }}
                     className="p-1.5 rounded-[var(--radius-sm)] text-muted hover:text-brand hover:bg-brand-light transition-colors"
                     title="Mover para lixeira"
+                    aria-label="Mover tarefa para a lixeira"
                 >
                     <Trash2 size={16} />
                 </button>

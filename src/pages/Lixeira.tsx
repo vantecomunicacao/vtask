@@ -3,6 +3,7 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { useDocumentStore, type Document } from '../store/documentStore';
 import { useTaskStore, type TaskWithAssignee } from '../store/taskStore';
 import { Trash2, RotateCcw, FileText, CheckSquare, AlertTriangle, Inbox } from 'lucide-react';
+import { EmptyState } from '../components/ui/EmptyState';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '../lib/utils';
@@ -148,7 +149,7 @@ export default function Lixeira() {
                 </div>
             ) : tab === 'tarefas' ? (
                 tasks.length === 0 ? (
-                    <EmptyTrash label="Nenhuma tarefa na lixeira" />
+                    <EmptyState icon={Inbox} title="Nenhuma tarefa na lixeira" />
                 ) : (
                     <div className="space-y-2">
                         {tasks.map(task => (
@@ -166,7 +167,7 @@ export default function Lixeira() {
                 )
             ) : (
                 documents.length === 0 ? (
-                    <EmptyTrash label="Nenhum documento na lixeira" />
+                    <EmptyState icon={Inbox} title="Nenhum documento na lixeira" />
                 ) : (
                     <div className="space-y-2">
                         {documents.map(doc => (
@@ -234,13 +235,3 @@ function TrashItem({
     );
 }
 
-function EmptyTrash({ label }: { label: string }) {
-    return (
-        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-surface-0 flex items-center justify-center">
-                <Inbox size={26} className="text-muted" />
-            </div>
-            <p className="text-sm text-muted">{label}</p>
-        </div>
-    );
-}

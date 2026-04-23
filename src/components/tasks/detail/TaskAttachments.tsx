@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import type { Database } from '../../../lib/database.types';
 import { Paperclip, Trash2 } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
 type TaskAttachment = Database['public']['Tables']['task_attachments']['Row'];
 
@@ -101,9 +102,15 @@ export const TaskAttachments = forwardRef<TaskAttachmentsRef, TaskAttachmentsPro
                                             <button
                                                 onClick={async () => {
                                                     if (confirm('Excluir anexo?')) {
-                                                        await supabase.storage.from('task_attachments').remove([att.file_path]);
-                                                        await supabase.from('task_attachments').delete().eq('id', att.id);
-                                                        reload();
+                                                        try {
+                                                            const { error: storageError } = await supabase.storage.from('task_attachments').remove([att.file_path]);
+                                                            if (storageError) throw storageError;
+                                                            const { error: dbError } = await supabase.from('task_attachments').delete().eq('id', att.id);
+                                                            if (dbError) throw dbError;
+                                                            reload();
+                                                        } catch {
+                                                            toast.error('Erro ao excluir anexo');
+                                                        }
                                                     }
                                                 }}
                                                 className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-brand transition-all"

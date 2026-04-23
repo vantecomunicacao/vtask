@@ -4,6 +4,7 @@ import { useProjectStore } from '../store/projectStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { Link } from 'react-router-dom';
 import { Archive, CheckCircle2, Folder, RotateCcw, Trash2 } from 'lucide-react';
+import { EmptyState } from '../components/ui/EmptyState';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -87,11 +88,12 @@ export default function Arquivados() {
                     <div className="w-8 h-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
                 </div>
             ) : filtered.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border-subtle rounded-[var(--radius-card)] bg-surface-card/50">
-                    <Archive className="w-12 h-12 text-muted mb-4" />
-                    <h3 className="text-lg font-bold text-primary">Nenhum projeto arquivado</h3>
-                    <p className="text-sm text-secondary">Projetos arquivados ou concluídos aparecem aqui.</p>
-                </div>
+                <EmptyState
+                    variant="bordered"
+                    icon={Archive}
+                    title="Nenhum projeto arquivado"
+                    description="Projetos arquivados ou concluídos aparecem aqui."
+                />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filtered.map(project => (

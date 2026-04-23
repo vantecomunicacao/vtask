@@ -20,6 +20,20 @@ export type TaskWithAssignee = Task & {
 
 const CACHE_TTL_MS = 30_000;
 
+// Module-level channel ref — kept outside Zustand so it doesn't trigger re-renders
+let _realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+const TASK_JOIN = '*, project:projects(id, name, color), assignee:profiles(*), category:task_categories(id, name, color)';
+
+async function fetchFullTask(taskId: string): Promise<TaskWithAssignee | null> {
+    const { data } = await supabase
+        .from('tasks')
+        .select(TASK_JOIN)
+        .eq('id', taskId)
+        .single();
+    return (data as TaskWithAssignee | null);
+}
+
 interface TaskState {
     tasks: TaskWithAssignee[];
     statuses: CustomStatus[];
@@ -48,6 +62,7 @@ interface TaskState {
     permanentDeleteTask: (taskId: string) => Promise<void>;
     fetchTrashedTasks: (workspaceId: string) => Promise<TaskWithAssignee[]>;
     toggleTaskCompletion: (taskId: string, isCompleted: boolean) => Promise<void>;
+    subscribeToWorkspace: (workspaceId: string) => () => void;
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -412,6 +427,59 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
         if (error) { set({ error: error.message }); return []; }
         return (data as TaskWithAssignee[]) || [];
+    },
+
+    subscribeToWorkspace: (workspaceId: string) => {
+        // Tear down any existing channel before creating a new one
+        if (_realtimeChannel) {
+            supabase.removeChannel(_realtimeChannel);
+            _realtimeChannel = null;
+        }
+
+        const channel = supabase
+            .channel(`tasks:ws:${workspaceId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'tasks' },
+                async (payload) => {
+                    const raw = payload.new as Task;
+                    if (raw.deleted_at) return;
+                    const task = await fetchFullTask(raw.id);
+                    if (!task) return;
+                    set(s => ({ tasks: [...s.tasks.filter(t => t.id !== task.id), task] }));
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'tasks' },
+                async (payload) => {
+                    const raw = payload.new as Task;
+                    // Soft-deleted → remove from list
+                    if (raw.deleted_at) {
+                        set(s => ({ tasks: s.tasks.filter(t => t.id !== raw.id) }));
+                        return;
+                    }
+                    const task = await fetchFullTask(raw.id);
+                    if (!task) return;
+                    set(s => ({ tasks: s.tasks.map(t => t.id === task.id ? task : t) }));
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: 'DELETE', schema: 'public', table: 'tasks' },
+                (payload) => {
+                    const raw = payload.old as Task;
+                    set(s => ({ tasks: s.tasks.filter(t => t.id !== raw.id) }));
+                }
+            )
+            .subscribe();
+
+        _realtimeChannel = channel;
+
+        return () => {
+            supabase.removeChannel(channel);
+            _realtimeChannel = null;
+        };
     },
 
     toggleTaskCompletion: async (taskId: string, isCompleted: boolean) => {
