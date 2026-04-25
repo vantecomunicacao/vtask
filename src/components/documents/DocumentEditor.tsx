@@ -25,6 +25,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Callout } from './extensions/Callout';
 import { Details } from './extensions/Details';
 import { DocMention } from './extensions/DocMention';
+import { PageBreak } from './extensions/PageBreak';
 import { ColoredBlockquote, BLOCKQUOTE_COLORS, type BlockquoteColor } from './extensions/ColoredBlockquote';
 import { createRenderDocItems } from './DocMentionSuggestion';
 import { Button } from '../ui/Button';
@@ -36,7 +37,7 @@ import {
     CheckSquare, Code, Image as ImageIcon, Trash2, Minus,
     FileText, Plus, Undo, Redo, Palette, Highlighter, FolderOpen,
     History, Download, ChevronDown, Check, ChevronLeft,
-    Quote, Eraser,
+    Quote, Eraser, SplitSquareHorizontal, BookOpen,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { TextSubstitutions } from '../../lib/tiptapExtensions';
@@ -176,6 +177,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
     const [saving, setSaving] = useState(false);
     const [wordCount, setWordCount] = useState(0);
     const [showVersionPanel, setShowVersionPanel] = useState(false);
+    const [pageViewMode, setPageViewMode] = useState(false);
     const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
     const [highlightPickerOpen, setHighlightPickerOpen] = useState<'toolbar' | 'bubble' | null>(null);
     const [blockquotePickerOpen, setBlockquotePickerOpen] = useState<'toolbar' | 'bubble' | null>(null);
@@ -241,6 +243,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
             CodeBlockLowlight.configure({ lowlight }),
             Callout,
             Details,
+            PageBreak,
             DocMention.configure({
                 HTMLAttributes: {
                     class: 'doc-mention-node',
@@ -360,16 +363,12 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
         return () => window.removeEventListener('keydown', handler);
     }, [handleSave]);
 
-    // ─── Exportar PDF ─────────────────────────────────────────────
-    const handleExportPdf = useCallback(() => {
-        if (!editor) return;
-        const docTitle = title || 'Documento';
-        const html = editor.getHTML();
-
-        const printStyles = `
+    // ─── Estilos comuns de impressão ─────────────────────────────
+    const buildPrintHTML = useCallback((docTitle: string, html: string, autoprint = false) => {
+        const contentStyles = `
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; box-sizing: border-box; }
             body { font-family: "Figtree", ui-sans-serif, system-ui, sans-serif;
-                   max-width: 800px; margin: 40px auto; padding: 0 40px;
-                   color: #1c1a18; font-size: 16px; line-height: 1.6; }
+                   color: #1c1a18; font-size: 16px; line-height: 1.6; margin: 0; }
             h1 { font-size: 2.25rem; font-weight: 800; margin: 1.5rem 0 0.5rem; color: #1c1a18; }
             h2 { font-size: 1.6rem; font-weight: 700; margin: 1.25rem 0 0.4rem; color: #1c1a18; }
             h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.35rem; color: #1c1a18; }
@@ -379,41 +378,78 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
             li { margin-bottom: 0.25rem; }
             table { border-collapse: collapse; width: 100%; margin: 1.5rem 0; }
             td, th { border: 1px solid #e8e5e0; padding: 8px 12px; text-align: left; }
-            th { background: #f5f3ef; font-weight: 600; font-size: 0.875rem; }
-            pre { background: #1c1a18; color: #f5f3ef; padding: 1rem 1.25rem;
+            th { background: #f5f3ef !important; font-weight: 600; font-size: 0.875rem; }
+            pre { background: #1c1a18 !important; color: #f5f3ef !important; padding: 1rem 1.25rem;
                   border-radius: 8px; overflow-x: auto; font-size: 0.875rem;
                   font-family: monospace; line-height: 1.6; }
-            code:not(pre code) { background: #ece9e4; color: #db4035; padding: 0.1em 0.35em;
+            code:not(pre code) { background: #ece9e4 !important; color: #db4035 !important; padding: 0.1em 0.35em;
                                  border-radius: 4px; font-size: 0.875em; }
             blockquote { border-left: 3px solid #db4035; padding: 0.75rem 1rem;
-                         background: #fdf3f2; margin: 1.5rem 0; font-style: italic; color: #6b6860; }
+                         background: #fdf3f2 !important; margin: 1.5rem 0; font-style: italic; color: #6b6860; }
+            mark { padding: 0.1em 0.2em; border-radius: 3px; }
             img { max-width: 100%; height: auto; border-radius: 6px; }
             hr { border: none; border-top: 1px solid #e8e5e0; margin: 1.5rem 0; }
-            @media print { body { margin: 0; padding: 20px; } }
+            div[data-page-break] { page-break-after: always; break-after: page; height: 0; margin: 0; padding: 0; border: none; }
         `;
 
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            alert('Permita popups neste site para exportar o PDF.');
-            return;
-        }
+        const previewBar = autoprint ? '' : `
+            <div id="preview-bar">
+                <span class="doc-title">${docTitle}</span>
+                <button onclick="window.print()">⬇ Baixar PDF / Imprimir</button>
+                <button class="close-btn" onclick="window.close()">Fechar</button>
+            </div>`;
 
-        printWindow.document.write(`<!DOCTYPE html>
+        const previewStyles = autoprint ? `
+            body { width: 210mm; margin: 20mm auto; padding: 0; }
+            @media print { body { margin: 0; padding: 10mm 20mm; width: 100%; } }
+        ` : `
+            html { background: #e8e5e0; min-height: 100%; }
+            body { width: 210mm; margin: 80px auto 60px; padding: 20mm; background: white;
+                   box-shadow: 0 4px 24px rgba(0,0,0,0.18); }
+            #preview-bar { position: fixed; top: 0; left: 0; right: 0; height: 52px; background: #1c1a18;
+                display: flex; align-items: center; justify-content: space-between;
+                padding: 0 24px; z-index: 999;
+                font-family: ui-sans-serif, system-ui, sans-serif; gap: 12px; }
+            #preview-bar .doc-title { color: rgba(255,255,255,0.6); font-size: 13px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+            #preview-bar button { background: #db4035; color: white; border: none; padding: 7px 16px;
+                border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; }
+            #preview-bar button:hover { background: #c0392b; }
+            #preview-bar .close-btn { background: transparent; color: rgba(255,255,255,0.55); }
+            #preview-bar .close-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+            @media print {
+                #preview-bar { display: none !important; }
+                html { background: white; padding: 0; }
+                body { width: 100%; margin: 0; padding: 0; box-shadow: none; }
+            }
+        `;
+
+        return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <title>${docTitle}</title>
-  <style>${printStyles}</style>
+  <style>${contentStyles}${previewStyles}</style>
 </head>
 <body>
+  ${previewBar}
   <h1 style="border-bottom:2px solid #e8e5e0;padding-bottom:0.5rem;margin-bottom:1.5rem;">${docTitle}</h1>
   ${html}
+  ${autoprint ? '<script>window.onload=()=>{window.print();window.close();}<\/script>' : ''}
 </body>
-</html>`);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 350);
-    }, [editor, title]);
+</html>`;
+    }, []);
+
+    // ─── Preview (abre janela sem auto-imprimir) ──────────────────
+    const handleExportPdf = useCallback(() => {
+        if (!editor) return;
+        const docTitle = title || 'Documento';
+        const w = window.open('', '_blank', 'width=960,height=860');
+        if (!w) { alert('Permita popups neste site para abrir o preview.'); return; }
+        w.document.write(buildPrintHTML(docTitle, editor.getHTML(), false));
+        w.document.close();
+        w.focus();
+    }, [editor, title, buildPrintHTML]);
 
     // Limpa timer ao desmontar
     useEffect(() => () => clearTimeout(saveTimerRef.current), []);
@@ -529,8 +565,15 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                                 <History size={17} />
                             </button>
                             <button
+                                onClick={() => setPageViewMode(v => !v)}
+                                title={pageViewMode ? 'Ocultar guias de página' : 'Mostrar guias A4'}
+                                className={`p-2 rounded-[var(--radius-md)] transition-colors ${pageViewMode ? 'bg-brand/10 text-brand' : 'text-muted hover:bg-surface-0 hover:text-secondary'}`}
+                            >
+                                <BookOpen size={17} />
+                            </button>
+                            <button
                                 onClick={handleExportPdf}
-                                title="Exportar como PDF"
+                                title="Visualizar / Exportar PDF"
                                 className="p-2 text-muted hover:bg-surface-0 hover:text-secondary rounded-[var(--radius-md)] transition-colors"
                             >
                                 <Download size={17} />
@@ -787,6 +830,9 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                 <TB onClick={() => editor?.chain().focus().setHorizontalRule().run()} title="Divisor">
                     <Minus size={17} />
                 </TB>
+                <TB onClick={() => editor?.chain().focus().setPageBreak().run()} title="Quebra de página">
+                    <SplitSquareHorizontal size={17} />
+                </TB>
 
                 {/* Imagem */}
                 <label className="p-1.5 rounded-[var(--radius-sm)] transition-all text-secondary hover:bg-surface-card hover:shadow-[var(--shadow-card)] cursor-pointer" title="Inserir imagem">
@@ -817,7 +863,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
             <div className="flex-1 flex overflow-hidden">
             <div className="flex-1 overflow-y-auto bg-surface-card custom-scrollbar">
                 <div className="max-w-3xl mx-auto py-10 px-8">
-                    <EditorContent editor={editor} className="tiptap-editor-container" />
+                    <EditorContent editor={editor} className={cn("tiptap-editor-container", pageViewMode && "page-view-mode")} />
 
                     {/* Sub-páginas */}
                     <div className="mt-12 pt-8 border-t border-border-subtle">

@@ -40,13 +40,11 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
     const commentsRef = useRef<TaskCommentsRef>(null);
     const attachmentsRef = useRef<TaskAttachmentsRef>(null);
 
-    // Load documents for mention support
     useEffect(() => {
         if (!isOpen || !activeWorkspace || documents.length > 0) return;
         fetchDocuments(activeWorkspace.id);
     }, [isOpen, activeWorkspace, documents.length, fetchDocuments]);
 
-    // Load members + sync title when modal opens or task changes
     useEffect(() => {
         if (!isOpen || !task) return;
         const liveTask = tasks.find(t => t.id === task.id);
@@ -71,7 +69,6 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
         if (!task) return;
         const currentTask = (tasks.find(t => t.id === task.id) as TaskWithAssignee | undefined) ?? task;
 
-        // Build audit log entries
         const changeLogs: string[] = [];
         if (updates.status_id && updates.status_id !== currentTask.status_id) {
             const newStatus = statuses.find(s => s.id === updates.status_id)?.name ?? 'desconhecido';
@@ -134,7 +131,6 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                 }
             }
 
-            // Insert system audit comments
             for (const log of changeLogs) {
                 await supabase.from('comments').insert({
                     task_id: task.id,
@@ -159,8 +155,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
         <Dialog
             isOpen={isOpen}
             onClose={onClose}
-            size="full"
-            sheet
+            size="xl"
             title={
                 isEditingTitle ? (
                     <input
@@ -207,7 +202,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
         >
             <div className="flex flex-col md:flex-row gap-6">
                 {/* Main content */}
-                <div className="flex-1 space-y-6">
+                <div className="flex-1 min-w-0 space-y-6">
                     {/* Description */}
                     <div>
                         <div className="flex items-center justify-between mb-2">

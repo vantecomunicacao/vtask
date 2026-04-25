@@ -189,19 +189,37 @@ export function DatePicker({
     disabled,
 }: DatePickerProps) {
     const [open, setOpen] = useState(false);
+    const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0, width: 0 });
     const [viewDate, setViewDate] = useState<Date>(() =>
         value ? parseISO(value) : new Date()
     );
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (value) setViewDate(parseISO(value));
     }, [value]);
 
+    const openPopover = () => {
+        if (!triggerRef.current) return;
+        const r = triggerRef.current.getBoundingClientRect();
+        const POPOVER_H = 320;
+        const top = r.bottom + window.scrollY + 6 + POPOVER_H > window.innerHeight
+            ? r.top - POPOVER_H - 6
+            : r.bottom + 6;
+        setPopoverPos({ top, left: r.left, width: r.width });
+        setOpen(true);
+    };
+
     useEffect(() => {
         if (!open) return;
         const handler = (e: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+            const target = e.target as Node;
+            if (
+                popoverRef.current && !popoverRef.current.contains(target) &&
+                triggerRef.current && !triggerRef.current.contains(target)
+            ) {
                 setOpen(false);
             }
         };
@@ -247,9 +265,10 @@ export function DatePicker({
 
             {/* Trigger */}
             <button
+                ref={triggerRef}
                 type="button"
                 disabled={disabled}
-                onClick={() => setOpen(o => !o)}
+                onClick={() => open ? setOpen(false) : openPopover()}
                 className={cn(
                     'flex h-10 w-full items-center gap-2 rounded-[var(--radius-md)] border bg-surface-card px-3 text-sm transition-colors',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20',
@@ -281,14 +300,12 @@ export function DatePicker({
 
             {error && <span className="mt-1 block text-xs text-brand">{error}</span>}
 
-            {/* Popover */}
-            {open && (
+            {/* Popover — renderizado via portal para escapar de overflow:hidden/auto */}
+            {open && createPortal(
                 <div
-                    className={cn(
-                        'absolute z-50 top-[calc(100%+6px)] left-0 right-0 min-w-[240px]',
-                        'bg-surface-card rounded-[var(--radius-card)] shadow-float border border-border-subtle',
-                        'overflow-hidden popover-enter',
-                    )}
+                    ref={popoverRef}
+                    style={{ position: 'fixed', top: popoverPos.top, left: popoverPos.left, width: Math.max(popoverPos.width, 240), zIndex: 9999 }}
+                    className="bg-surface-card rounded-[var(--radius-card)] shadow-float border border-border-subtle overflow-hidden popover-enter"
                 >
                     {/* Shortcuts */}
                     <div className="flex gap-1 p-2 border-b border-border-subtle">
@@ -367,7 +384,8 @@ export function DatePicker({
                             );
                         })}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

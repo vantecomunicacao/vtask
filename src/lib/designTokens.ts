@@ -13,6 +13,7 @@ export const modalSizes = {
     lg:   'max-w-2xl',
     xl:   'max-w-4xl',
     full: 'max-w-5xl',
+    task: 'max-w-[680px]',
 } as const;
 
 export type ModalSize = keyof typeof modalSizes;

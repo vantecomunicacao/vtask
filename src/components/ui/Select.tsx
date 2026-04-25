@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
 import { ChevronDown, Check } from 'lucide-react';
 
@@ -22,11 +23,13 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
         const [isOpen, setIsOpen] = React.useState(false);
         const [focusedIndex, setFocusedIndex] = React.useState(-1);
         const [internalOptions, setInternalOptions] = React.useState<SelectOption[]>([]);
+        const [popoverPos, setPopoverPos] = React.useState({ top: 0, left: 0, width: 0 });
         const containerRef = React.useRef<HTMLDivElement>(null);
+        const triggerRef = React.useRef<HTMLDivElement>(null);
+        const listboxRef = React.useRef<HTMLDivElement>(null);
         const listboxId = React.useId();
         const labelId = React.useId();
 
-        // Parse children to options if options array is not provided (Backwards Compatibility)
         React.useEffect(() => {
             if (options) {
                 setInternalOptions(options);
@@ -45,10 +48,13 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
             }
         }, [options, children]);
 
-        // Clicar fora para fechar
         React.useEffect(() => {
             const handleClickOutside = (event: MouseEvent) => {
-                if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                const target = event.target as Node;
+                if (
+                    listboxRef.current && !listboxRef.current.contains(target) &&
+                    containerRef.current && !containerRef.current.contains(target)
+                ) {
                     setIsOpen(false);
                 }
             };
@@ -60,47 +66,47 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
 
         const handleOpen = () => {
             if (props.disabled) return;
+            if (isOpen) { setIsOpen(false); return; }
+
+            if (triggerRef.current) {
+                const r = triggerRef.current.getBoundingClientRect();
+                const spaceBelow = window.innerHeight - r.bottom;
+                const LISTBOX_MAX_H = 260;
+                const top = spaceBelow < LISTBOX_MAX_H && r.top > LISTBOX_MAX_H
+                    ? r.top - LISTBOX_MAX_H - 4
+                    : r.bottom + 4;
+                setPopoverPos({ top, left: r.left, width: r.width });
+            }
+
             const selectedIdx = internalOptions.findIndex(opt => String(opt.value) === String(value));
             setFocusedIndex(selectedIdx >= 0 ? selectedIdx : 0);
-            setIsOpen(prev => !prev);
+            setIsOpen(true);
         };
 
         const handleSelect = (val: string | number) => {
-            if (onChange) {
-                onChange({ target: { value: String(val) } });
-            }
+            if (onChange) onChange({ target: { value: String(val) } });
             setIsOpen(false);
             setFocusedIndex(-1);
         };
 
         const handleKeyDown = (e: React.KeyboardEvent) => {
             if (props.disabled) return;
-
             switch (e.key) {
                 case 'Enter':
                 case ' ':
                     e.preventDefault();
-                    if (isOpen && focusedIndex >= 0) {
-                        handleSelect(internalOptions[focusedIndex].value);
-                    } else {
-                        handleOpen();
-                    }
+                    if (isOpen && focusedIndex >= 0) handleSelect(internalOptions[focusedIndex].value);
+                    else handleOpen();
                     break;
                 case 'ArrowDown':
                     e.preventDefault();
-                    if (!isOpen) {
-                        handleOpen();
-                    } else {
-                        setFocusedIndex(prev => Math.min(prev + 1, internalOptions.length - 1));
-                    }
+                    if (!isOpen) handleOpen();
+                    else setFocusedIndex(prev => Math.min(prev + 1, internalOptions.length - 1));
                     break;
                 case 'ArrowUp':
                     e.preventDefault();
-                    if (!isOpen) {
-                        handleOpen();
-                    } else {
-                        setFocusedIndex(prev => Math.max(prev - 1, 0));
-                    }
+                    if (!isOpen) handleOpen();
+                    else setFocusedIndex(prev => Math.max(prev - 1, 0));
                     break;
                 case 'Escape':
                     e.preventDefault();
@@ -113,14 +119,18 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
         };
 
         return (
-            <div className={cn('space-y-1 relative', containerClassName)} ref={containerRef}>
+            <div className={cn('space-y-1', containerClassName)} ref={containerRef}>
                 {label && (
                     <label id={labelId} className="block text-xs font-bold text-secondary uppercase tracking-widest">
                         {label}
                     </label>
                 )}
                 <div
-                    ref={ref}
+                    ref={(node) => {
+                        (triggerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+                        if (typeof ref === 'function') ref(node);
+                        else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+                    }}
                     role="combobox"
                     aria-haspopup="listbox"
                     aria-expanded={isOpen}
@@ -144,15 +154,17 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                             {selectedOption ? selectedOption.label : 'Selecione...'}
                         </span>
                     </div>
-                    <ChevronDown size={14} className={cn('text-muted transition-transform duration-200', isOpen && 'rotate-180')} />
+                    <ChevronDown size={14} className={cn('text-muted transition-transform duration-200 shrink-0', isOpen && 'rotate-180')} />
                 </div>
 
-                {isOpen && (
+                {isOpen && createPortal(
                     <div
+                        ref={listboxRef}
                         id={listboxId}
                         role="listbox"
                         aria-label={typeof label === 'string' ? label : undefined}
-                        className="absolute z-50 w-full mt-1 bg-surface-card border border-border-subtle rounded-card shadow-float overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                        style={{ position: 'fixed', top: popoverPos.top, left: popoverPos.left, width: popoverPos.width, zIndex: 9999 }}
+                        className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
                     >
                         <div className="max-h-60 overflow-y-auto py-1">
                             {internalOptions.length === 0 ? (
@@ -185,7 +197,8 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                                 })
                             )}
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
 
                 {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
