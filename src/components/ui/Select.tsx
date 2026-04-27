@@ -163,6 +163,7 @@ export const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                         id={listboxId}
                         role="listbox"
                         aria-label={typeof label === 'string' ? label : undefined}
+                        data-select-portal=""
                         style={{ position: 'fixed', top: popoverPos.top, left: popoverPos.left, width: popoverPos.width, zIndex: 9999 }}
                         className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
                     >

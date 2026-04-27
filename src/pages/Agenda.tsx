@@ -201,13 +201,13 @@ export default function Agenda() {
                 <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-surface-0 shrink-0">
                     <h2 className="text-lg font-bold text-primary capitalize">{periodLabel}</h2>
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={goPrev} className="bg-surface-card">
+                        <Button variant="ghost" size="icon" onClick={goPrev} aria-label="Período anterior" className="bg-surface-card">
                             <ChevronLeft size={18} />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={goToday} className="bg-surface-card">
                             Hoje
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={goNext} className="bg-surface-card">
+                        <Button variant="ghost" size="icon" onClick={goNext} aria-label="Próximo período" className="bg-surface-card">
                             <ChevronRight size={18} />
                         </Button>
                     </div>
@@ -370,7 +370,7 @@ export default function Agenda() {
                             <span className="text-xs font-semibold text-secondary">
                                 {format(new Date(overflowDay.key + 'T12:00:00'), "d 'de' MMMM", { locale: ptBR })}
                             </span>
-                            <button onClick={() => setOverflowDay(null)} className="text-muted hover:text-primary transition-colors">
+                            <button onClick={() => setOverflowDay(null)} aria-label="Fechar" className="text-muted hover:text-primary transition-colors">
                                 <X size={13} />
                             </button>
                         </div>

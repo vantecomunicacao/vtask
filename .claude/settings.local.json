@@ -69,7 +69,20 @@
       "Bash(taskkill /F /IM node.exe)",
       "Bash(grep -E \"\\\\.sql$\")",
       "Bash(find ./supabase -name \"*.sql\" -exec grep -l \"projects\" {} \\\\;)",
-      "Read(//c/Users/leofb/AppData/Local/Temp/claude/c--Users-leofb-OneDrive-Documentos-Projetos-Antigravity-vflow-tarefas/080b1dd1-52cf-4154-aa55-ab5112a3fb3a/tasks/**)"
+      "Read(//c/Users/leofb/AppData/Local/Temp/claude/c--Users-leofb-OneDrive-Documentos-Projetos-Antigravity-vflow-tarefas/080b1dd1-52cf-4154-aa55-ab5112a3fb3a/tasks/**)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Read(//c/Users/leofb/OneDrive/Documentos/**)",
+      "Bash(node -e \"const l = require\\('lucide-react'\\); console.log\\('SplitSquareHorizontal' in l, 'ScissorsLineDashed' in l, 'FileSplit' in l, 'Scissors' in l\\)\")",
+      "Bash(python3 -c \"import sys, json; lines = sys.stdin.read\\(\\).strip\\(\\).split\\('\\\\n'\\); [print\\(json.loads\\(l\\).get\\('content',''\\)[:500] if isinstance\\(json.loads\\(l\\).get\\('content',''\\), str\\) else str\\(json.loads\\(l\\).get\\('content',''\\)\\)[:500]\\) for l in lines[-5:] if l.strip\\(\\)]\")",
+      "Read(//c/Users/leofb/.claude/projects/c--Users-leofb-OneDrive-Documentos-Projetos-Antigravity-vflow-tarefas/**)",
+      "Bash(python3)",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(npm run *)",
+      "Read(//c/c/Users/leofb/OneDrive/Documentos/Projetos Antigravity/vflow-tarefas/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)"
     ]
   }
 }

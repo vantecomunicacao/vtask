@@ -6,14 +6,14 @@ export function useKeyboardShortcuts() {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Ignorar atalhos se o usuário estiver digitando em um input/textarea
-            if (
-                document.activeElement?.tagName === 'INPUT' ||
-                document.activeElement?.tagName === 'TEXTAREA' ||
-                document.activeElement?.getAttribute('contenteditable') === 'true'
-            ) {
-                return;
-            }
+            const el = document.activeElement as HTMLElement | null;
+            if (!el) return;
+            // Ignorar se estiver digitando em qualquer campo de texto ou editor
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return;
+            if (el.getAttribute('contenteditable') === 'true') return;
+            if (el.closest('[contenteditable="true"]')) return;
+            // Ignorar se foco estiver dentro de um dialog/modal aberto
+            if (el.closest('[role="dialog"]')) return;
 
             // G T -> Ir para Tarefas
             if (e.key.toLowerCase() === 't') {

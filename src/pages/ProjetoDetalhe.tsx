@@ -7,7 +7,7 @@ import { Button } from '../components/ui/Button';
 import {
     LayoutList, Trello, Flag, MoreHorizontal, Edit2, Trash2, RefreshCw,
     FileText, Plus, Calendar as CalendarIcon, ChevronRight, ExternalLink,
-    ArrowLeft, PanelLeftClose, PanelLeftOpen,
+    ArrowLeft, PanelLeftClose, PanelLeftOpen, Search, X,
 } from 'lucide-react';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -103,6 +103,7 @@ export default function ProjetoDetalhe() {
     const [rightPanel, setRightPanel] = useState<'tasks' | 'document'>('tasks');
     const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
     const [docTreeCollapsed, setDocTreeCollapsed] = useState(false);
+    const [docSearch, setDocSearch] = useState('');
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
@@ -110,6 +111,9 @@ export default function ProjetoDetalhe() {
 
     const project = projects.find(p => p.id === id);
     const projectDocs = documents.filter(d => d.project_id === id);
+    const filteredDocs = docSearch.trim()
+        ? projectDocs.filter(d => (d.title || '').toLowerCase().includes(docSearch.toLowerCase()))
+        : null;
     const rootDocs = projectDocs.filter(d => !d.parent_id || !projectDocs.find(p => p.id === d.parent_id));
 
     const openTask = useCallback((task: TaskWithAssignee) => {
@@ -125,10 +129,12 @@ export default function ProjetoDetalhe() {
     useEffect(() => { if (error) toast.error(error); }, [error]);
 
     useEffect(() => {
-        const taskId = searchParams.get('task');
-        if (!taskId || tasks.length === 0) return;
-        const found = tasks.find(t => t.id === taskId);
-        if (found) setSelectedTask(found);
+        (async () => {
+            const taskId = searchParams.get('task');
+            if (!taskId || tasks.length === 0) return;
+            const found = tasks.find(t => t.id === taskId);
+            if (found) setSelectedTask(found);
+        })();
     }, [searchParams, tasks]);
 
     useEffect(() => { if (id) fetchTasks(id); }, [id, fetchTasks]);
@@ -137,7 +143,12 @@ export default function ProjetoDetalhe() {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+            const el = document.activeElement as HTMLElement | null;
+            if (!el) return;
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return;
+            if (el.getAttribute('contenteditable') === 'true') return;
+            if (el.closest('[contenteditable="true"]')) return;
+            if (el.closest('[role="dialog"]')) return;
             if (e.key.toLowerCase() === 'v') setView(prev => prev === 'list' ? 'kanban' : 'list');
             if (e.key.toLowerCase() === 'c') setIsTaskModalOpen(true);
         };
@@ -288,19 +299,51 @@ export default function ProjetoDetalhe() {
                                 </div>
                             </div>
 
+                            {/* Search */}
+                            <div className="px-2 pt-2 pb-1 shrink-0">
+                                <div className="relative">
+                                    <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                                    <input
+                                        value={docSearch}
+                                        onChange={e => setDocSearch(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Escape') setDocSearch(''); }}
+                                        placeholder="Buscar documento..."
+                                        className="w-full pl-6 pr-6 py-1 text-xs bg-surface-0 border border-border-subtle rounded-lg outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/30"
+                                    />
+                                    {docSearch && (
+                                        <button onClick={() => setDocSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-secondary">
+                                            <X size={10} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
                             {/* Doc list */}
                             <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                                 {projectDocs.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
                                         <FileText size={24} className="text-muted" />
                                         <p className="text-xs text-muted">Nenhum documento ainda</p>
-                                        <button
-                                            onClick={handleCreateDoc}
-                                            className="text-xs text-brand hover:underline"
-                                        >
+                                        <button onClick={handleCreateDoc} className="text-xs text-brand hover:underline">
                                             Criar primeiro
                                         </button>
                                     </div>
+                                ) : filteredDocs ? (
+                                    filteredDocs.length === 0 ? (
+                                        <p className="text-xs text-muted text-center py-4">Nenhum resultado</p>
+                                    ) : filteredDocs.map(doc => (
+                                        <div
+                                            key={doc.id}
+                                            onClick={() => { openDoc(doc.id); setDocSearch(''); }}
+                                            className={cn(
+                                                'flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors',
+                                                selectedDocId === doc.id ? 'bg-brand-light text-brand' : 'text-secondary hover:bg-surface-0 hover:text-brand'
+                                            )}
+                                        >
+                                            <FileText size={12} className="shrink-0 text-muted" />
+                                            <span className="truncate text-xs">{doc.title || 'Sem título'}</span>
+                                        </div>
+                                    ))
                                 ) : rootDocs.map(doc => (
                                     <DocTreeNode
                                         key={doc.id}

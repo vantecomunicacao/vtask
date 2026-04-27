@@ -219,7 +219,7 @@ export function DocumentsSidebarSection() {
                             )}
                         </div>
                     )}
-                    <button onClick={handleCreate} title="Nova página" className="p-1 rounded-lg hover:bg-surface-0 text-muted hover:text-primary transition-colors">
+                    <button onClick={handleCreate} title="Nova página" aria-label="Nova página" className="p-1 rounded-lg hover:bg-surface-0 text-muted hover:text-primary transition-colors">
                         <FilePlus size={13} />
                     </button>
                 </div>

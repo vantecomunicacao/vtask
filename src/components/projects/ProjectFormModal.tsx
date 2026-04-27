@@ -6,6 +6,7 @@ import { Dialog } from '../ui/Dialog';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
+import { FormField, FormActions } from '../ui/FormLayout';
 import { supabase } from '../../lib/supabase';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useProjectStore, type ProjectWithClient } from '../../store/projectStore';
@@ -106,27 +107,25 @@ export function ProjectFormModal({ isOpen, onClose, project }: ProjectFormModalP
     };
 
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} title={project ? 'Editar Projeto' : 'Novo Projeto'} maxWidth="max-w-lg">
+        <Dialog isOpen={isOpen} onClose={onClose} title={project ? 'Editar Projeto' : 'Novo Projeto'} size="md">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-                <div className="space-y-1">
-                    <label className="block text-sm font-medium text-secondary">Nome do Projeto</label>
+                <FormField label="Nome do Projeto" error={errors.name?.message} required>
                     <Input
                         placeholder="Ex: Rebranding Vante"
                         {...register('name')}
                         error={errors.name?.message}
                     />
-                </div>
+                </FormField>
 
-                <div className="space-y-1">
-                    <label className="block text-sm font-medium text-secondary">Descrição</label>
+                <FormField label="Descrição">
                     <textarea
                         {...register('description')}
                         rows={3}
                         placeholder="Opcional. Breve descrição sobre o projeto."
                         className="w-full px-3 py-2 border border-border-subtle rounded-[var(--radius-md)] placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/40 sm:text-sm text-primary"
                     />
-                </div>
+                </FormField>
 
                 <Controller
                     name="due_date"
@@ -141,9 +140,8 @@ export function ProjectFormModal({ isOpen, onClose, project }: ProjectFormModalP
                     )}
                 />
 
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium text-secondary">Cor do Projeto</label>
-                    <div className="flex flex-wrap gap-2">
+                <FormField label="Cor do Projeto">
+                    <div className="flex flex-wrap gap-2 pt-0.5">
                         {COLORS.map(color => (
                             <button
                                 key={color}
@@ -155,16 +153,16 @@ export function ProjectFormModal({ isOpen, onClose, project }: ProjectFormModalP
                             />
                         ))}
                     </div>
-                </div>
+                </FormField>
 
-                <div className="pt-4 flex justify-end gap-3 border-t border-border-subtle">
+                <FormActions>
                     <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
                         Cancelar
                     </Button>
                     <Button type="submit" isLoading={loading}>
                         {project ? 'Salvar Alterações' : 'Criar Projeto'}
                     </Button>
-                </div>
+                </FormActions>
 
             </form>
         </Dialog>

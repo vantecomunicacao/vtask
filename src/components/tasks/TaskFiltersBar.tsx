@@ -62,6 +62,7 @@ export function TaskFiltersBar({
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             const t = e.target as Node;
+            if ((t as Element).closest?.('[data-select-portal]')) return;
             if (filtersDropRef.current && !filtersDropRef.current.contains(t) &&
                 filtersBtnRef.current && !filtersBtnRef.current.contains(t)) {
                 setIsFiltersOpen(false);

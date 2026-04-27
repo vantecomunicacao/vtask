@@ -37,6 +37,7 @@ export function VersionHistoryPanel({ documentId, currentTitle, onRestore, onClo
                 </div>
                 <button
                     onClick={onClose}
+                    aria-label="Fechar histórico"
                     className="p-1 rounded-[var(--radius-sm)] text-muted hover:text-primary hover:bg-surface-card transition-colors"
                 >
                     <X size={15} />

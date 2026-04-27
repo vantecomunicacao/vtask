@@ -220,10 +220,10 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
                                     placeholder="Nome da pasta"
                                     className="flex-1 text-xs px-2 py-1 rounded border border-brand/40 bg-surface-0 outline-none"
                                 />
-                                <button onClick={handleCreateFolder} className="p-1 text-brand hover:bg-brand-light rounded transition-colors">
+                                <button onClick={handleCreateFolder} aria-label="Confirmar pasta" className="p-1 text-brand hover:bg-brand-light rounded transition-colors">
                                     <Check size={12} />
                                 </button>
-                                <button onClick={() => { setCreatingFolder(false); setNewFolderName(''); }} className="p-1 text-muted hover:bg-surface-2 rounded transition-colors">
+                                <button onClick={() => { setCreatingFolder(false); setNewFolderName(''); }} aria-label="Cancelar" className="p-1 text-muted hover:bg-surface-2 rounded transition-colors">
                                     <X size={12} />
                                 </button>
                             </div>
