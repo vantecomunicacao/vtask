@@ -13,12 +13,12 @@ import { cn } from '../../lib/utils';
 // ─── Nó da árvore ────────────────────────────────────────────────
 function DocTreeItem({
     doc, allDocs, depth, activeId, onSelect, onAddChild, onDelete,
-    dragging, dropTarget, onDragStart, onDragOver, onDragLeave, onDrop,
+    dragging, dropTarget, onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
 }: {
     doc: Document; allDocs: Document[]; depth: number; activeId: string | undefined;
     onSelect: (id: string) => void; onAddChild: (parentId: string) => void;
     onDelete: (doc: Document) => void; dragging: string | null; dropTarget: string | null;
-    onDragStart: (id: string) => void; onDragOver: (id: string) => void;
+    onDragStart: (id: string) => void; onDragEnd: () => void; onDragOver: (id: string) => void;
     onDragLeave: () => void; onDrop: (targetId: string) => void;
 }) {
     const children = allDocs.filter(d => d.parent_id === doc.id);
@@ -40,7 +40,7 @@ function DocTreeItem({
                 style={{ paddingLeft: `${6 + depth * 14}px`, minHeight: '32px' }}
                 draggable
                 onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; onDragStart(doc.id); }}
-                onDragEnd={() => onDragLeave()}
+                onDragEnd={() => onDragEnd()}
                 onDragOver={e => { e.preventDefault(); e.stopPropagation(); onDragOver(doc.id); }}
                 onDragLeave={e => { e.stopPropagation(); onDragLeave(); }}
                 onDrop={e => { e.preventDefault(); e.stopPropagation(); onDrop(doc.id); }}
@@ -69,7 +69,7 @@ function DocTreeItem({
                 <DocTreeItem key={child.id} doc={child} allDocs={allDocs} depth={depth + 1}
                     activeId={activeId} onSelect={onSelect} onAddChild={onAddChild} onDelete={onDelete}
                     dragging={dragging} dropTarget={dropTarget} onDragStart={onDragStart}
-                    onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
+                    onDragEnd={onDragEnd} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
                 />
             ))}
         </div>
@@ -152,7 +152,10 @@ export function DocumentsSidebarSection() {
         return isDescendant(node.parent_id, ancestorId);
     }, [documents]);
 
+    const [rootDropHover, setRootDropHover] = useState(false);
+
     const handleDragStart = useCallback((id: string) => { setDragging(id); setDropTarget(null); }, []);
+    const handleDragEnd = useCallback(() => { setDragging(null); setDropTarget(null); setRootDropHover(false); }, []);
     const handleDragOver = useCallback((targetId: string) => {
         if (!dragging || targetId === dragging || isDescendant(targetId, dragging)) return;
         setDropTarget(targetId);
@@ -171,14 +174,19 @@ export function DocumentsSidebarSection() {
 
     return (
         <div className="mt-4 border-t border-border-subtle pt-3">
-            {/* Header */}
-            <div className="flex items-center justify-between px-3 mb-1">
+            {/* Header — also a root drop target when dragging */}
+            <div
+                className={cn("flex items-center justify-between px-3 mb-1 rounded-lg transition-colors", rootDropHover && "bg-brand/10 ring-2 ring-brand/30")}
+                onDragOver={e => { if (!dragging) return; e.preventDefault(); e.stopPropagation(); setRootDropHover(true); }}
+                onDragLeave={() => setRootDropHover(false)}
+                onDrop={async e => { e.preventDefault(); e.stopPropagation(); if (dragging) { await moveDocument(dragging, null); setDragging(null); setDropTarget(null); } setRootDropHover(false); }}
+            >
                 <button
                     onClick={() => setExpanded(v => !v)}
-                    className="flex items-center gap-1.5 text-[10px] font-black text-muted uppercase tracking-widest hover:text-secondary transition-colors"
+                    className={cn("flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors", rootDropHover ? "text-brand" : "text-muted hover:text-secondary")}
                 >
                     <ChevronRight size={11} className={cn("transition-transform duration-200", expanded && "rotate-90")} />
-                    Documentos
+                    {rootDropHover ? "↓ Soltar para tornar raiz" : "Documentos"}
                 </button>
                 <div className="flex items-center gap-0.5">
                     {projects.length > 0 && (
@@ -275,7 +283,7 @@ export function DocumentsSidebarSection() {
                                 ? <p className="text-xs text-muted px-2 py-2 text-center">Nenhum documento neste projeto</p>
                                 : filteredByProject.map(doc => (
                                     <div key={doc.id} onClick={() => navigate(`/documentos/${doc.id}`)}
-                                        className={cn('flex items-center gap-2 px-2 py-1 rounded-lg cursor-pointer text-sm transition-all', activeDocId === doc.id ? 'bg-brand/10 text-brand font-semibold' : 'text-secondary hover:bg-surface-0')}
+                                        className={cn('flex items-center gap-2 px-2 py-1 rounded-lg cursor-pointer text-sm transition-all', activeDocId === doc.id ? 'bg-brand/10 text-brand font-semibond' : 'text-secondary hover:bg-surface-0')}
                                     >
                                         <FileText size={12} className="shrink-0" />
                                         <span className="truncate text-xs">{doc.title || 'Sem título'}</span>
@@ -288,27 +296,18 @@ export function DocumentsSidebarSection() {
                                 <Plus size={12} /> Criar primeira página
                             </button>
                         ) : (
-                            <>
-                                {rootDocs.map(doc => (
-                                    <DocTreeItem key={doc.id} doc={doc} allDocs={documents} depth={0}
-                                        activeId={activeDocId} onSelect={id => navigate(`/documentos/${id}`)}
-                                        onAddChild={handleAddChild} onDelete={handleDelete}
-                                        dragging={dragging} dropTarget={dropTarget}
-                                        onDragStart={handleDragStart} onDragOver={handleDragOver}
-                                        onDragLeave={handleDragLeave} onDrop={handleDrop}
-                                    />
-                                ))}
-                                {dragging && (
-                                    <div className="mt-1 p-2 rounded-lg border-2 border-dashed border-brand/30 text-[11px] text-brand/60 text-center"
-                                        onDragOver={e => { e.preventDefault(); setDropTarget(null); }}
-                                        onDrop={async e => { e.preventDefault(); if (dragging) { await moveDocument(dragging, null); setDragging(null); setDropTarget(null); } }}
-                                    >
-                                        Soltar aqui para nível raiz
-                                    </div>
-                                )}
-                            </>
+                            rootDocs.map(doc => (
+                                <DocTreeItem key={doc.id} doc={doc} allDocs={documents} depth={0}
+                                    activeId={activeDocId} onSelect={id => navigate(`/documentos/${id}`)}
+                                    onAddChild={handleAddChild} onDelete={handleDelete}
+                                    dragging={dragging} dropTarget={dropTarget}
+                                    onDragStart={handleDragStart} onDragEnd={handleDragEnd}
+                                    onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+                                />
+                            ))
                         )}
                     </div>
+
                 </div>
             )}
         </div>

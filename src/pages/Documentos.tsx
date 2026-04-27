@@ -25,6 +25,7 @@ function DocTreeItem({
     dragging,
     dropTarget,
     onDragStart,
+    onDragEnd,
     onDragOver,
     onDragLeave,
     onDrop,
@@ -40,6 +41,7 @@ function DocTreeItem({
     dragging: string | null;
     dropTarget: string | null;
     onDragStart: (id: string) => void;
+    onDragEnd: () => void;
     onDragOver: (id: string) => void;
     onDragLeave: () => void;
     onDrop: (targetId: string) => void;
@@ -64,7 +66,7 @@ function DocTreeItem({
                 style={{ paddingLeft: `${6 + depth * 14}px`, minHeight: isMobile ? '44px' : undefined }}
                 draggable={true}
                 onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(doc.id); }}
-                onDragEnd={() => onDragLeave()}
+                onDragEnd={() => onDragEnd()}
                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); onDragOver(doc.id); }}
                 onDragLeave={(e) => { e.stopPropagation(); onDragLeave(); }}
                 onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDrop(doc.id); }}
@@ -124,6 +126,7 @@ function DocTreeItem({
                     dragging={dragging}
                     dropTarget={dropTarget}
                     onDragStart={onDragStart}
+                    onDragEnd={onDragEnd}
                     onDragOver={onDragOver}
                     onDragLeave={onDragLeave}
                     onDrop={onDrop}
@@ -166,6 +169,7 @@ export default function Documentos() {
     const projectDropdownRef = useRef<HTMLDivElement>(null);
     const [dragging, setDragging] = useState<string | null>(null);
     const [dropTarget, setDropTarget] = useState<string | null>(null);
+    const [rootDropHover, setRootDropHover] = useState(false);
     const searchRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -236,6 +240,12 @@ export default function Documentos() {
         setDropTarget(targetId);
     }, [dragging, isDescendant]);
 
+    const handleDragEnd = useCallback(() => {
+        setDragging(null);
+        setDropTarget(null);
+        setRootDropHover(false);
+    }, []);
+
     const handleDragLeave = useCallback(() => {
         setDropTarget(null);
     }, []);
@@ -297,9 +307,16 @@ export default function Documentos() {
             {/* ── Sidebar de Páginas — oculta no mobile quando editor está aberto ── */}
             {(!isMobile || !id) && (
             <div className={cn("shrink-0 flex flex-col border-r border-border-subtle bg-surface-2/40 overflow-hidden", isMobile ? "w-full" : "w-60")}>
-                {/* Header */}
-                <div className="px-3 pt-4 pb-2 flex items-center justify-between shrink-0">
-                    <span className="text-[11px] font-bold text-muted uppercase tracking-widest">Páginas</span>
+                {/* Header — root drop target while dragging */}
+                <div
+                    className={cn("px-3 pt-4 pb-2 flex items-center justify-between shrink-0 rounded-lg transition-colors", rootDropHover && "bg-brand/10")}
+                    onDragOver={e => { if (!dragging) return; e.preventDefault(); e.stopPropagation(); setRootDropHover(true); }}
+                    onDragLeave={() => setRootDropHover(false)}
+                    onDrop={async e => { e.preventDefault(); e.stopPropagation(); if (dragging) { await moveDocument(dragging, null); setDragging(null); setDropTarget(null); } setRootDropHover(false); }}
+                >
+                    <span className={cn("text-[11px] font-bold uppercase tracking-widest transition-colors", rootDropHover ? "text-brand" : "text-muted")}>
+                        {rootDropHover ? "↓ Soltar para tornar raiz" : "Páginas"}
+                    </span>
                     <div className="flex items-center gap-1">
                         {/* Project filter button */}
                         {projects.length > 0 && (
@@ -510,22 +527,13 @@ export default function Documentos() {
                                     dragging={dragging}
                                     dropTarget={dropTarget}
                                     onDragStart={handleDragStart}
+                                    onDragEnd={handleDragEnd}
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
                                     isMobile={isMobile}
                                 />
                             ))}
-                            {/* Root drop zone — shown while dragging */}
-                            {dragging && (
-                                <div
-                                    className="mt-2 p-2 rounded-lg border-2 border-dashed border-brand/30 text-[11px] text-brand/60 text-center transition-colors hover:border-brand/60 hover:text-brand"
-                                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDropTarget(null); }}
-                                    onDrop={async (e) => { e.preventDefault(); e.stopPropagation(); await handleRootDrop(e); }}
-                                >
-                                    Soltar aqui para nível raiz
-                                </div>
-                            )}
                         </>
                     )}
                 </div>

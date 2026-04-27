@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import {
     ChevronDown, ChevronRight, FolderPlus, Folder, FolderOpen,
-    MoreHorizontal, Pencil, Trash2, Archive, X, Check,
+    MoreHorizontal, Pencil, Trash2, Archive, X, Check, FileText, Plus,
 } from 'lucide-react';
-import { useProjectStore } from '../../store/projectStore';
+import { useProjectStore, type ProjectWithClient } from '../../store/projectStore';
 import { useProjectFolderStore } from '../../store/projectFolderStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useDocumentStore } from '../../store/documentStore';
+import { cn } from '../../lib/utils';
 
 interface Props {
     projectsExpanded: boolean;
@@ -21,14 +23,83 @@ interface MenuAnchor {
     left: number;
 }
 
+interface ProjectItemProps {
+    p: ProjectWithClient;
+    navClass: ({ isActive }: { isActive: boolean }) => string;
+    expandedProjects: Set<string>;
+    toggleProject: (id: string) => void;
+    onCreateDoc: (projectId: string) => void;
+    menuBtn: React.ReactNode;
+}
+
+function ProjectItem({ p, navClass, expandedProjects, toggleProject, onCreateDoc, menuBtn }: ProjectItemProps) {
+    const { documents } = useDocumentStore();
+    const isExpanded = expandedProjects.has(p.id);
+    const projectDocs = documents.filter(d => d.project_id === p.id && !d.deleted_at);
+
+    return (
+        <div>
+            <div className="group/proj flex items-center">
+                <button
+                    onClick={e => { e.stopPropagation(); toggleProject(p.id); }}
+                    className="p-0.5 ml-1 rounded text-muted hover:text-secondary shrink-0 transition-colors"
+                    title={isExpanded ? 'Recolher documentos' : 'Expandir documentos'}
+                >
+                    <ChevronRight size={12} className={cn('transition-transform duration-150', isExpanded && 'rotate-90')} />
+                </button>
+                <NavLink to={`/projetos/${p.id}`} className={navClass} onClick={e => e.stopPropagation()}>
+                    <span style={p.color ? { color: p.color } : { color: '#9ca3af' }} className="font-bold">#</span>
+                    <span className="truncate">{p.name}</span>
+                </NavLink>
+                {menuBtn}
+            </div>
+            {isExpanded && (
+                <div className="ml-7 pl-2 border-l border-border-subtle space-y-0.5 py-0.5">
+                    {projectDocs.length === 0 && (
+                        <p className="px-2 py-1 text-xs text-muted italic">Sem documentos</p>
+                    )}
+                    {projectDocs.map(doc => (
+                        <NavLink
+                            key={doc.id}
+                            to={`/documentos/${doc.id}`}
+                            className={({ isActive }) => cn(
+                                'flex items-center gap-1.5 px-2 py-1 text-xs rounded-[var(--radius-md)] transition-colors truncate',
+                                isActive ? 'text-brand bg-brand-light' : 'text-secondary hover:bg-surface-0'
+                            )}
+                        >
+                            <FileText size={11} className="shrink-0" />
+                            <span className="truncate">{doc.title || 'Sem título'}</span>
+                        </NavLink>
+                    ))}
+                    <button
+                        onClick={() => onCreateDoc(p.id)}
+                        className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted hover:text-brand w-full rounded-[var(--radius-md)] hover:bg-surface-0 transition-colors"
+                    >
+                        <Plus size={11} /> Novo documento
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }: Props) {
     const { projects, moveToFolder } = useProjectStore();
     const { folders, fetchFolders, createFolder, renameFolder, deleteFolder } = useProjectFolderStore();
     const { activeWorkspace } = useWorkspaceStore();
+    const { createDocument } = useDocumentStore();
+    const navigate = useNavigate();
 
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
         try {
             const saved = localStorage.getItem('fd_expanded_project_folders');
+            return saved ? new Set(JSON.parse(saved)) : new Set<string>();
+        } catch { return new Set<string>(); }
+    });
+
+    const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => {
+        try {
+            const saved = localStorage.getItem('fd_expanded_projects');
             return saved ? new Set(JSON.parse(saved)) : new Set<string>();
         } catch { return new Set<string>(); }
     });
@@ -51,9 +122,12 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
     }, [expandedFolders]);
 
     useEffect(() => {
+        localStorage.setItem('fd_expanded_projects', JSON.stringify([...expandedProjects]));
+    }, [expandedProjects]);
+
+    useEffect(() => {
         const handler = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
-            // fecha se clicar fora de qualquer menu portal
             if (!target.closest('[data-sidebar-menu]')) {
                 setFolderMenu(null);
                 setProjectMenu(null);
@@ -76,7 +150,6 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
         e.stopPropagation();
         if (projectMenu?.id === id) { setProjectMenu(null); return; }
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        // abre à esquerda do botão para não sair da tela
         setProjectMenu({ id, top: rect.bottom + 4, left: rect.right - 176 });
         setFolderMenu(null);
     };
@@ -87,6 +160,22 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
             if (next.has(id)) next.delete(id); else next.add(id);
             return next;
         });
+    };
+
+    const toggleProject = (id: string) => {
+        setExpandedProjects(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const handleCreateDoc = async (projectId: string) => {
+        const doc = await createDocument({ title: '', content: null, project_id: projectId, workspace_id: activeWorkspace!.id, folder_id: null, parent_id: null });
+        if (doc) {
+            setExpandedProjects(prev => new Set([...prev, projectId]));
+            navigate(`/documentos/${doc.id}`);
+        }
     };
 
     const activeProjects = projects.filter(p => p.status === 'active');
@@ -119,7 +208,6 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
     const rootNavClass = ({ isActive }: { isActive: boolean }) =>
         `flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] transition-colors flex-1 min-w-0 ${isActive ? 'text-brand bg-brand-light' : 'text-secondary hover:bg-surface-0'}`;
 
-    // Folder menu — rendered via portal
     const folderMenuPortal = folderMenu && createPortal(
         <div
             data-sidebar-menu
@@ -142,7 +230,6 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
         document.body
     );
 
-    // Project menu — rendered via portal
     const currentProjectInFolder = projectMenu ? activeProjects.find(p => p.id === projectMenu.id) : null;
     const projectMenuPortal = projectMenu && createPortal(
         <div
@@ -298,19 +385,24 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
                                                                     ref={provided.innerRef}
                                                                     {...provided.draggableProps}
                                                                     {...provided.dragHandleProps}
-                                                                    className={`group/proj flex items-center ${snapshot.isDragging ? 'opacity-60' : ''}`}
+                                                                    className={snapshot.isDragging ? 'opacity-60' : ''}
                                                                 >
-                                                                    <NavLink to={`/projetos/${p.id}`} className={projectNavClass}>
-                                                                        <span style={p.color ? { color: p.color } : { color: '#9ca3af' }} className="font-bold">#</span>
-                                                                        <span className="truncate">{p.name}</span>
-                                                                    </NavLink>
-                                                                    <button
-                                                                        data-sidebar-menu
-                                                                        onClick={e => openProjectMenu(e, p.id)}
-                                                                        className="opacity-0 group-hover/proj:opacity-100 p-0.5 mr-1 rounded hover:bg-surface-2 text-muted transition-all shrink-0"
-                                                                    >
-                                                                        <MoreHorizontal size={12} />
-                                                                    </button>
+                                                                    <ProjectItem
+                                                                        p={p}
+                                                                        navClass={projectNavClass}
+                                                                        expandedProjects={expandedProjects}
+                                                                        toggleProject={toggleProject}
+                                                                        onCreateDoc={handleCreateDoc}
+                                                                        menuBtn={
+                                                                            <button
+                                                                                data-sidebar-menu
+                                                                                onClick={e => openProjectMenu(e, p.id)}
+                                                                                className="opacity-0 group-hover/proj:opacity-100 p-0.5 mr-1 rounded hover:bg-surface-2 text-muted transition-all shrink-0"
+                                                                            >
+                                                                                <MoreHorizontal size={12} />
+                                                                            </button>
+                                                                        }
+                                                                    />
                                                                 </div>
                                                             )}
                                                         </Draggable>
@@ -345,21 +437,24 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
                                                     ref={provided.innerRef}
                                                     {...provided.draggableProps}
                                                     {...provided.dragHandleProps}
-                                                    className={`group/proj flex items-center ${snapshot.isDragging ? 'opacity-60' : ''}`}
+                                                    className={snapshot.isDragging ? 'opacity-60' : ''}
                                                 >
-                                                    <NavLink to={`/projetos/${p.id}`} className={rootNavClass}>
-                                                        <span style={p.color ? { color: p.color } : { color: '#9ca3af' }} className="font-bold">#</span>
-                                                        <span className="truncate">{p.name}</span>
-                                                    </NavLink>
-                                                    {folders.length > 0 && (
-                                                        <button
-                                                            data-sidebar-menu
-                                                            onClick={e => openProjectMenu(e, p.id)}
-                                                            className="opacity-0 group-hover/proj:opacity-100 p-0.5 mr-1 rounded hover:bg-surface-2 text-muted transition-all shrink-0"
-                                                        >
-                                                            <MoreHorizontal size={12} />
-                                                        </button>
-                                                    )}
+                                                    <ProjectItem
+                                                        p={p}
+                                                        navClass={rootNavClass}
+                                                        expandedProjects={expandedProjects}
+                                                        toggleProject={toggleProject}
+                                                        onCreateDoc={handleCreateDoc}
+                                                        menuBtn={folders.length > 0 ? (
+                                                            <button
+                                                                data-sidebar-menu
+                                                                onClick={e => openProjectMenu(e, p.id)}
+                                                                className="opacity-0 group-hover/proj:opacity-100 p-0.5 mr-1 rounded hover:bg-surface-2 text-muted transition-all shrink-0"
+                                                            >
+                                                                <MoreHorizontal size={12} />
+                                                            </button>
+                                                        ) : null}
+                                                    />
                                                 </div>
                                             )}
                                         </Draggable>
