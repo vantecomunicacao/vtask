@@ -160,7 +160,7 @@ export function DescriptionEditor({
     const [textColorPickerPos, setTextColorPickerPos] = useState({ top: 0, left: 0 });
     const [blockquotePickerPos, setBlockquotePickerPos] = useState({ top: 0, left: 0 });
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const imageUploadRef = useRef<(file: File) => void>();
+    const imageUploadRef = useRef<((file: File) => void) | undefined>(undefined);
 
     const documentsRef = useRef(documents);
     useEffect(() => { documentsRef.current = documents; }, [documents]);
