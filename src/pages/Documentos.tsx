@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'sonner';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useDocumentStore, type Document } from '../store/documentStore';
@@ -157,7 +158,7 @@ export default function Documentos() {
     const navigate = useNavigate();
     const { id } = useParams();
     const { activeWorkspace } = useWorkspaceStore();
-    const { documents, fetchDocuments, createDocument, createSubDocument, deleteDocument, moveDocument, loading } = useDocumentStore();
+    const { documents, fetchDocuments, createDocument, createSubDocument, deleteDocument, restoreDocument, moveDocument, loading } = useDocumentStore();
     const { projects, fetchProjects } = useProjectStore();
 
     const isMobile = useIsMobile();
@@ -211,15 +212,14 @@ export default function Documentos() {
     }, [activeWorkspace, createSubDocument, navigate]);
 
     const handleDelete = useCallback(async (doc: Document) => {
-        const hasChildren = documents.some(d => d.parent_id === doc.id);
-        const msg = hasChildren
-            ? `Excluir "${doc.title}" e todas as sub-páginas?`
-            : `Excluir "${doc.title}"?`;
-        if (window.confirm(msg)) {
-            await deleteDocument(doc.id);
-            if (id === doc.id) navigate('/documentos');
-        }
-    }, [documents, deleteDocument, id, navigate]);
+        const docTitle = doc.title || 'Documento';
+        await deleteDocument(doc.id);
+        if (id === doc.id) navigate('/documentos');
+        toast.success(`"${docTitle}" movido para a lixeira`, {
+            duration: 6000,
+            action: { label: 'Desfazer', onClick: async () => { await restoreDocument(doc.id); toast.success('Documento restaurado'); } },
+        });
+    }, [documents, deleteDocument, restoreDocument, id, navigate]);
 
     // ─── Drag-and-drop helpers ────────────────────────────────────
     const isDescendant = useCallback((nodeId: string, ancestorId: string): boolean => {

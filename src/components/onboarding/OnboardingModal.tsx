@@ -89,7 +89,7 @@ export function OnboardingModal() {
                     {step === 0 && (
                         <div className="space-y-5">
                             <div>
-                                <h2 className="text-xl font-bold text-primary">Bem-vindo ao FlowDesk!</h2>
+                                <h2 className="text-xl font-bold text-primary">Bem-vindo ao VTask!</h2>
                                 <p className="text-sm text-secondary mt-1">Seu workspace foi criado. Vamos deixá-lo com a sua cara.</p>
                             </div>
                             <div>

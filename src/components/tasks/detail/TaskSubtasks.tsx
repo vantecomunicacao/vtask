@@ -47,19 +47,19 @@ export function TaskSubtasks({ taskId, statuses, taskCategories, members }: Task
     return (
         <div>
             <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-primary flex items-center gap-2">
                     <CheckSquare size={16} className="text-brand" /> Subtarefas
                 </h3>
-                <button className="text-xs font-medium text-gray-500 hover:text-brand">Adicionar</button>
+                <button className="text-xs font-medium text-secondary hover:text-brand">Adicionar</button>
             </div>
 
             {subtasks.length > 0 && (
                 <div className="mb-4">
-                    <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1.5 font-bold uppercase tracking-wider">
+                    <div className="flex items-center justify-between text-[10px] text-muted mb-1.5 font-bold uppercase tracking-wider">
                         <span>Progresso das subtarefas</span>
                         <span>{subtasks.filter(s => s.status_id === doneStatusId).length}/{subtasks.length}</span>
                     </div>
-                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200/50">
+                    <div className="w-full h-1.5 bg-surface-0 rounded-full overflow-hidden border border-border-subtle">
                         <div
                             className="h-full bg-brand transition-all duration-500"
                             style={{ width: `${(subtasks.filter(s => s.status_id === doneStatusId).length / subtasks.length) * 100}%` }}
@@ -69,7 +69,7 @@ export function TaskSubtasks({ taskId, statuses, taskCategories, members }: Task
             )}
 
             {subtasks.length === 0 ? (
-                <div className="text-sm text-gray-500 italic bg-gray-50/50 border border-dashed border-border-subtle rounded-lg p-4 text-center">
+                <div className="text-sm text-muted italic bg-surface-0/50 border border-dashed border-border-subtle rounded-lg p-4 text-center">
                     Nenhuma subtarefa ainda.
                 </div>
             ) : (
@@ -102,7 +102,7 @@ export function TaskSubtasks({ taskId, statuses, taskCategories, members }: Task
                                         <select
                                             value={st.assignee_id || ''}
                                             onChange={(e) => handleUpdateSubtask(st.id, { assignee_id: e.target.value || null })}
-                                            className="text-[10px] bg-transparent border-none p-0 text-gray-500 focus:ring-0 cursor-pointer hover:text-brand font-medium"
+                                            className="text-[10px] bg-transparent border-none p-0 text-muted focus:ring-0 cursor-pointer hover:text-brand font-medium"
                                         >
                                             <option value="">Sem resp.</option>
                                             {members.map(m => (
@@ -115,7 +115,7 @@ export function TaskSubtasks({ taskId, statuses, taskCategories, members }: Task
                                             type="date"
                                             value={st.due_date || ''}
                                             onChange={(e) => handleUpdateSubtask(st.id, { due_date: e.target.value || null })}
-                                            className="text-[10px] bg-transparent border-none p-0 text-gray-400 focus:ring-0 w-20 cursor-pointer hover:text-brand font-bold"
+                                            className="text-[10px] bg-transparent border-none p-0 text-muted focus:ring-0 w-20 cursor-pointer hover:text-brand font-bold"
                                         />
                                     </div>
                                 </div>

@@ -276,6 +276,7 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
                             setNewComment(tmp.textContent || '');
                         }}
                         onSubmit={handleAddComment}
+                        taskId={taskId}
                     />
                     <Button onClick={handleAddComment} disabled={!newComment.trim() || submitting} isLoading={submitting}>
                         Enviar

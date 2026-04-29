@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { useDocumentStore, type Document } from '../../store/documentStore';
 import { useProjectStore } from '../../store/projectStore';
@@ -81,7 +82,7 @@ export function DocumentsSidebarSection() {
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const { activeWorkspace } = useWorkspaceStore();
-    const { documents, fetchDocuments, createDocument, createSubDocument, deleteDocument, moveDocument, loading } = useDocumentStore();
+    const { documents, fetchDocuments, createDocument, createSubDocument, deleteDocument, restoreDocument, moveDocument, loading } = useDocumentStore();
     const { projects, fetchProjects } = useProjectStore();
 
     const activeDocId = pathname.startsWith('/documentos/') ? pathname.split('/documentos/')[1] : undefined;
@@ -137,13 +138,14 @@ export function DocumentsSidebarSection() {
     }, [activeWorkspace, createSubDocument, navigate]);
 
     const handleDelete = useCallback(async (doc: Document) => {
-        const hasChildren = documents.some(d => d.parent_id === doc.id);
-        const msg = hasChildren ? `Excluir "${doc.title}" e todas as sub-páginas?` : `Excluir "${doc.title}"?`;
-        if (window.confirm(msg)) {
-            await deleteDocument(doc.id);
-            if (activeDocId === doc.id) navigate('/documentos');
-        }
-    }, [documents, deleteDocument, activeDocId, navigate]);
+        const docTitle = doc.title || 'Documento';
+        await deleteDocument(doc.id);
+        if (activeDocId === doc.id) navigate('/documentos');
+        toast.success(`"${docTitle}" movido para a lixeira`, {
+            duration: 6000,
+            action: { label: 'Desfazer', onClick: async () => { await restoreDocument(doc.id); toast.success('Documento restaurado'); } },
+        });
+    }, [documents, deleteDocument, restoreDocument, activeDocId, navigate]);
 
     const isDescendant = useCallback((nodeId: string, ancestorId: string): boolean => {
         const node = documents.find(d => d.id === nodeId);

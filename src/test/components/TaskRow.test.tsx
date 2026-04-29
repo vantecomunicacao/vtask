@@ -85,8 +85,8 @@ describe('TaskRow', () => {
         });
 
         it('exibe badge de projeto quando task.project está definido', () => {
-            renderTaskRow({ project: { id: 'p1', name: 'FlowDesk', color: '#3b82f6' } });
-            expect(screen.getByText('FlowDesk')).toBeInTheDocument();
+            renderTaskRow({ project: { id: 'p1', name: 'VTask', color: '#3b82f6' } });
+            expect(screen.getByText('VTask')).toBeInTheDocument();
         });
 
         it('exibe "—" quando task.project é null', () => {

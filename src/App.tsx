@@ -32,7 +32,7 @@ function AppRoutes() {
             <div className="flex h-screen w-full items-center justify-center bg-surface-1">
                 <div className="flex flex-col items-center gap-2">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent" />
-                    <span className="text-sm font-medium text-secondary">Carregando vFlow...</span>
+                    <span className="text-sm font-medium text-secondary">Carregando VTask...</span>
                 </div>
             </div>
         }>

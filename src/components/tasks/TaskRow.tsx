@@ -5,6 +5,7 @@ import { MoreHorizontal, Calendar as CalendarIcon, CheckCircle2, ExternalLink, T
 import { isToday, isPast, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '../../lib/utils';
+import { toast } from 'sonner';
 import type { TaskWithAssignee, CustomStatus } from '../../store/taskStore';
 import { useTaskStore } from '../../store/taskStore';
 import type { GroupBy } from '../../hooks/useTaskFilters';
@@ -52,6 +53,7 @@ export const TaskRow = React.memo(function TaskRow({
 }: TaskRowProps) {
     const updateTask = useTaskStore(s => s.updateTask);
     const deleteTask = useTaskStore(s => s.deleteTask);
+    const restoreTask = useTaskStore(s => s.restoreTask);
     const [isEditingDate, setIsEditingDate] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -209,7 +211,15 @@ export const TaskRow = React.memo(function TaskRow({
                                 </button>
                                 <div className="my-1 border-t border-border-subtle" />
                                 <button
-                                    onClick={async e => { e.stopPropagation(); setIsMenuOpen(false); await deleteTask(task.id); }}
+                                    onClick={async e => {
+                                        e.stopPropagation(); setIsMenuOpen(false);
+                                        const id = task.id; const title = task.title;
+                                        await deleteTask(id);
+                                        toast.success(`"${title}" movida para a lixeira`, {
+                                            duration: 6000,
+                                            action: { label: 'Desfazer', onClick: async () => { await restoreTask(id); toast.success('Tarefa restaurada'); } },
+                                        });
+                                    }}
                                     className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors"
                                 >
                                     <Trash2 size={13} />
@@ -442,7 +452,15 @@ export const TaskRow = React.memo(function TaskRow({
                                 </button>
                                 <div className="my-1 border-t border-border-subtle" />
                                 <button
-                                    onClick={async (e) => { e.stopPropagation(); setIsMenuOpen(false); await deleteTask(task.id); }}
+                                    onClick={async (e) => {
+                                        e.stopPropagation(); setIsMenuOpen(false);
+                                        const id = task.id; const title = task.title;
+                                        await deleteTask(id);
+                                        toast.success(`"${title}" movida para a lixeira`, {
+                                            duration: 6000,
+                                            action: { label: 'Desfazer', onClick: async () => { await restoreTask(id); toast.success('Tarefa restaurada'); } },
+                                        });
+                                    }}
                                     className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors"
                                 >
                                     <Trash2 size={13} />

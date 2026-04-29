@@ -645,7 +645,7 @@ export default function Configuracoes() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-sm text-secondary mb-4">Referência de componentes, tokens de cor, tipografia e estilos usados no FlowDesk.</p>
+                                <p className="text-sm text-secondary mb-4">Referência de componentes, tokens de cor, tipografia e estilos usados no VTask.</p>
                                 <a
                                     href="/design-system"
                                     target="_blank"

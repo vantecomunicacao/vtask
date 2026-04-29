@@ -10,7 +10,7 @@ import {
     Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare,
     Table, Image, Code, Quote, Type, Minus,
     Info, AlertTriangle, CheckCircle, AlertCircle, StickyNote,
-    ChevronRight, FileText,
+    ChevronRight, FileText, Paperclip,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -191,6 +191,24 @@ export const suggestionItems: SlashCommandItem[] = [
             input.onchange = (e) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
                 if (file) window.dispatchEvent(new CustomEvent('editor-upload-image', { detail: { file } }));
+            };
+            input.click();
+        },
+    },
+    {
+        title: 'PDF',
+        description: 'Anexar PDF como link (máx. 10 MB).',
+        searchTerms: ['pdf', 'arquivo', 'anexo', 'file', 'upload', 'documento'],
+        icon: Paperclip,
+        category: 'Blocos',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).run();
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/pdf';
+            input.onchange = (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file) window.dispatchEvent(new CustomEvent('editor-upload-pdf', { detail: { file } }));
             };
             input.click();
         },

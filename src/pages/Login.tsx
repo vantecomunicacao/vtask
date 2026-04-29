@@ -48,7 +48,7 @@ export default function Login() {
                 </div>
                 <Card>
                     <CardHeader className="text-center">
-                        <CardTitle className="text-xl">Bem-vindo ao FlowDesk</CardTitle>
+                        <CardTitle className="text-xl">Bem-vindo ao VTask</CardTitle>
                         <p className="text-sm text-secondary mt-2">Faça login na sua conta da agência</p>
                     </CardHeader>
                     <CardContent>

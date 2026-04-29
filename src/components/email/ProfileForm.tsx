@@ -132,7 +132,7 @@ export function ProfileForm({
                         onChange={e => set({ ai_prompt: e.target.value })}
                         rows={4}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 resize-none"
-                        placeholder="Ex: Nome: Vflow, E-mail: contato@vflow.com. Somos uma empresa de tecnologia focada em automação..."
+                        placeholder="Ex: Nome: VTask, E-mail: contato@vtask.com. Somos uma empresa de tecnologia focada em automação..."
                     />
                 </div>
 

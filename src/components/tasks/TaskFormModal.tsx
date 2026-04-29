@@ -15,6 +15,7 @@ import { useProjectStore } from '../../store/projectStore';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { TaskDetailModal } from './TaskDetailModal';
 import type { Database } from '../../lib/database.types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -42,12 +43,13 @@ interface TaskFormModalProps {
 }
 
 export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTaskCreated }: TaskFormModalProps) {
-    const { fetchTasks, fetchWorkspaceTasks, statuses, taskCategories } = useTaskStore();
+    const { fetchTasks, fetchWorkspaceTasks, statuses, taskCategories, tasks } = useTaskStore();
     const { activeWorkspace } = useWorkspaceStore();
     const { projects } = useProjectStore();
     const { session } = useAuthStore();
     const [loading, setLoading] = useState(false);
     const [users, setUsers] = useState<Profile[]>([]);
+    const [openTaskId, setOpenTaskId] = useState<string | null>(null);
     const [editorKey, setEditorKey] = useState(0);
 
     const { control, register, handleSubmit, formState: { errors }, reset, setValue } = useForm<TaskFormData>({
@@ -109,8 +111,6 @@ export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTa
                 });
             }
 
-            toast.success('Tarefa criada com sucesso!');
-
             // Atualiza o estado da store
             if (projectId) {
                 await fetchTasks(projectId);
@@ -121,9 +121,18 @@ export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTa
             // Callback para páginas que precisam recarregar
             onTaskCreated?.();
 
+            const createdId = inserted?.id;
             reset();
             setEditorKey(k => k + 1);
             onClose();
+
+            toast.success('Tarefa criada!', {
+                action: createdId ? {
+                    label: 'Abrir tarefa',
+                    onClick: () => setOpenTaskId(createdId),
+                } : undefined,
+                duration: 6000,
+            });
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : 'Erro ao criar tarefa';
             toast.error(msg);
@@ -132,7 +141,17 @@ export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTa
         }
     };
 
+    const openTask = openTaskId ? tasks.find(t => t.id === openTaskId) ?? null : null;
+
     return (
+        <>
+        {openTask && (
+            <TaskDetailModal
+                isOpen
+                onClose={() => setOpenTaskId(null)}
+                task={openTask}
+            />
+        )}
         <Dialog isOpen={isOpen} onClose={onClose} title="Nova Tarefa" size="lg">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
@@ -294,5 +313,6 @@ export function TaskFormModal({ isOpen, onClose, projectId, defaultDueDate, onTa
 
             </form>
         </Dialog>
+        </>
     );
 }

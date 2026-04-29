@@ -1,159 +1,31 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import { createPortal } from 'react-dom';
 import { BubbleMenu } from '@tiptap/react/menus';
-import StarterKit from '@tiptap/starter-kit';
-import Placeholder from '@tiptap/extension-placeholder';
-import { ResizableImage } from './extensions/ResizableImage';
-import { Table } from '@tiptap/extension-table';
-import { TableRow } from '@tiptap/extension-table-row';
-import { TableHeader } from '@tiptap/extension-table-header';
-import { TableCell } from '@tiptap/extension-table-cell';
-import { TaskList } from '@tiptap/extension-task-list';
-import { TaskItem } from '@tiptap/extension-task-item';
-import { Link } from '@tiptap/extension-link';
-import { Color } from '@tiptap/extension-color';
-import { TextStyle } from '@tiptap/extension-text-style';
-import { Highlight } from '@tiptap/extension-highlight';
-import { TextAlign } from '@tiptap/extension-text-align';
-import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
-import { common, createLowlight } from 'lowlight';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentStore } from '../../store/documentStore';
 import { useProjectStore } from '../../store/projectStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { Callout } from './extensions/Callout';
-import { Details } from './extensions/Details';
-import { DocMention } from './extensions/DocMention';
-import { PageBreak } from './extensions/PageBreak';
-import { ColoredBlockquote, BLOCKQUOTE_COLORS, type BlockquoteColor } from './extensions/ColoredBlockquote';
-import { createRenderDocItems } from './DocMentionSuggestion';
 import { Button } from '../ui/Button';
-import { SlashCommands, suggestionItems, renderItems } from './SlashCommands';
+import { toast } from 'sonner';
+import { EditorToolbar, HighlightSwatches, BlockquotePicker } from '../ui/EditorToolbar';
+import { createEditorExtensions } from '../../lib/editorExtensions';
 import {
-    Save, Bold, Italic, Strikethrough, List, ListOrdered,
-    Heading1, Heading2, Heading3, Link as LinkIcon,
-    AlignLeft, AlignCenter, AlignRight, Table as TableIcon,
-    CheckSquare, Code, Image as ImageIcon, Trash2, Minus,
-    FileText, Plus, Undo, Redo, Palette, Highlighter, FolderOpen,
+    Save, Trash2, FileText, Plus, FolderOpen,
     History, Download, ChevronDown, Check, ChevronLeft,
-    Quote, Eraser, SplitSquareHorizontal, BookOpen,
+    BookOpen, Bold, Italic, Strikethrough, Link as LinkIcon,
+    Highlighter, Palette, Quote, Eraser,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { TextSubstitutions } from '../../lib/tiptapExtensions';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import type { DocumentVersion } from '../../store/documentStore';
 
-const lowlight = createLowlight(common);
-
-// ─── Helper: botão da toolbar ─────────────────────────────────────
-function TB({
-    onClick, active, title, children,
-}: {
-    onClick: () => void;
-    active?: boolean;
-    title?: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <button
-            onMouseDown={e => { e.preventDefault(); onClick(); }}
-            title={title}
-            className={`p-1.5 rounded-[var(--radius-sm)] transition-all ${active ? 'text-brand bg-surface-card shadow-[var(--shadow-card)]' : 'text-secondary hover:bg-surface-card hover:shadow-[var(--shadow-card)]'}`}
-        >
-            {children}
-        </button>
-    );
-}
-
-function Divider() {
-    return <div className="w-px h-5 bg-border-subtle mx-1 shrink-0" />;
-}
-
-// ─── Highlight color picker ───────────────────────────────────────
-const HIGHLIGHT_COLORS = [
-    { color: '#FEF08A', label: 'Amarelo' },
-    { color: '#BBF7D0', label: 'Verde' },
-    { color: '#BAE6FD', label: 'Azul' },
-    { color: '#FBCFE8', label: 'Rosa' },
-    { color: '#FED7AA', label: 'Laranja' },
-    { color: '#DDD6FE', label: 'Roxo' },
-    { color: '#FECACA', label: 'Vermelho' },
-    { color: '#E5E7EB', label: 'Cinza' },
-];
-
-// ─── Portal picker (evita ser cortado por overflow-x-auto da toolbar) ──
-function PickerPortal({ pos, children }: {
-    pos: { top: number; left: number };
-    children: React.ReactNode;
-}) {
+function PickerPortal({ pos, children }: { pos: { top: number; left: number }; children: React.ReactNode }) {
     return createPortal(
         <div data-picker style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}>
             {children}
         </div>,
         document.body
-    );
-}
-
-function HighlightSwatches({ editor, onClose }: { editor: import('@tiptap/react').Editor; onClose: () => void }) {
-    return (
-        <div className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float p-2 flex flex-col gap-1.5 min-w-[9rem]">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-muted px-1">Destaque</span>
-            <div className="grid grid-cols-4 gap-1">
-                {HIGHLIGHT_COLORS.map(({ color, label }) => (
-                    <button
-                        key={color}
-                        onMouseDown={e => {
-                            e.preventDefault();
-                            editor.chain().focus().setHighlight({ color }).run();
-                            onClose();
-                        }}
-                        title={label}
-                        className="w-7 h-7 rounded-[var(--radius-sm)] border-2 border-transparent hover:border-brand transition-all hover:scale-110"
-                        style={{ backgroundColor: color }}
-                    />
-                ))}
-            </div>
-            <button
-                onMouseDown={e => {
-                    e.preventDefault();
-                    editor.chain().focus().unsetHighlight().run();
-                    onClose();
-                }}
-                className="text-[10px] text-muted hover:text-primary transition-colors px-1 text-left mt-0.5"
-            >
-                Remover destaque
-            </button>
-        </div>
-    );
-}
-
-// ─── Blockquote color picker ─────────────────────────────────────
-function BlockquotePicker({ editor, onClose }: { editor: import('@tiptap/react').Editor; onClose: () => void }) {
-    return (
-        <div className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float p-2 flex flex-col gap-1.5 min-w-[9rem]">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-muted px-1">Citação</span>
-            <div className="grid grid-cols-3 gap-1">
-                {(Object.entries(BLOCKQUOTE_COLORS) as [BlockquoteColor, { border: string; bg: string; label: string }][]).map(([key, { border, bg, label }]) => (
-                    <button
-                        key={key}
-                        onMouseDown={e => {
-                            e.preventDefault();
-                            if (!editor.isActive('blockquote')) {
-                                editor.chain().focus().toggleBlockquote().run();
-                            }
-                            editor.chain().focus().setBlockquoteColor(key).run();
-                            onClose();
-                        }}
-                        title={label}
-                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-[var(--radius-sm)] hover:opacity-80 transition-opacity"
-                        style={{ borderLeft: `3px solid ${border}`, backgroundColor: bg }}
-                    >
-                        <span className="text-[10px] font-medium truncate" style={{ color: border }}>{label}</span>
-                    </button>
-                ))}
-            </div>
-        </div>
     );
 }
 
@@ -167,7 +39,7 @@ interface DocumentEditorProps {
 
 export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = false }: DocumentEditorProps) {
     const navigate = useNavigate();
-    const { documents, updateDocument, deleteDocument, uploadImage, saveVersion, restoreVersion } = useDocumentStore();
+    const { documents, updateDocument, deleteDocument, restoreDocument, uploadImage, uploadPdf, saveVersion, restoreVersion } = useDocumentStore();
     const { projects, fetchProjects } = useProjectStore();
     const { activeWorkspace } = useWorkspaceStore();
     const doc = documents.find(d => d.id === documentId);
@@ -179,8 +51,8 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
     const [showVersionPanel, setShowVersionPanel] = useState(false);
     const [pageViewMode, setPageViewMode] = useState(false);
     const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
-    const [highlightPickerOpen, setHighlightPickerOpen] = useState<'toolbar' | 'bubble' | null>(null);
-    const [blockquotePickerOpen, setBlockquotePickerOpen] = useState<'toolbar' | 'bubble' | null>(null);
+    const [highlightPickerOpen, setHighlightPickerOpen] = useState<'bubble' | null>(null);
+    const [blockquotePickerOpen, setBlockquotePickerOpen] = useState<'bubble' | null>(null);
     const [highlightPickerPos, setHighlightPickerPos] = useState({ top: 0, left: 0 });
     const [blockquotePickerPos, setBlockquotePickerPos] = useState({ top: 0, left: 0 });
     const projectDropdownRef = useRef<HTMLDivElement>(null);
@@ -202,95 +74,36 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
 
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const handleSaveRef = useRef<() => void>(() => {});
+    const handleFileUploadRef = useRef<(file: File) => void>(() => {});
+    const loadedDocIdRef = useRef<string | null>(null);
+    const savingRef = useRef(false);
     const documentsRef = useRef(documents);
     useEffect(() => { documentsRef.current = documents; }, [documents]);
 
-    // Carrega projetos se necessário
+    // Carrega projetos uma vez por workspace — ref evita refetch desnecessário
+    const fetchedProjectsForRef = useRef<string | null>(null);
     useEffect(() => {
-        if (activeWorkspace && projects.length === 0) {
+        if (activeWorkspace && fetchedProjectsForRef.current !== activeWorkspace.id) {
+            fetchedProjectsForRef.current = activeWorkspace.id;
             fetchProjects(activeWorkspace.id);
         }
-    }, [activeWorkspace, projects.length, fetchProjects]);
+    }, [activeWorkspace, fetchProjects]);
 
     // ─── Upload de imagem ─────────────────────────────────────────
+    // Ref garante que editorProps (handlePaste/handleDrop) sempre usem a versão
+    // mais recente sem precisar recriar o editor quando editor/uploadImage mudam.
     const handleFileUpload = useCallback(async (file: File) => {
-        if (!editor) return;
-        const url = await uploadImage(file);
-        if (url) editor.chain().focus().setImage({ src: url }).run();
-    }, [uploadImage]);
+        handleFileUploadRef.current(file);
+    }, []);
 
     // ─── Editor ───────────────────────────────────────────────────
     const editor = useEditor({
-        extensions: [
-            StarterKit.configure({ codeBlock: false, blockquote: false }),
-            ColoredBlockquote,
-            TextSubstitutions,
-            Placeholder.configure({
-                placeholder: 'Digite "/" para comandos ou comece a escrever...',
-            }),
-            ResizableImage,
-            Table.configure({ resizable: true }),
-            TableRow, TableHeader, TableCell,
-            TaskList,
-            TaskItem.configure({ nested: true }),
-            Link.configure({
-                openOnClick: false,
-                HTMLAttributes: { class: 'text-brand underline underline-offset-4 cursor-pointer' },
-            }),
-            TextStyle, Color,
-            Highlight.configure({ multicolor: true }),
-            TextAlign.configure({ types: ['heading', 'paragraph'] }),
-            CodeBlockLowlight.configure({ lowlight }),
-            Callout,
-            Details,
-            PageBreak,
-            DocMention.configure({
-                HTMLAttributes: {
-                    class: 'doc-mention-node',
-                },
-                suggestion: {
-                    char: '[[',
-                    items: ({ query }: { query: string }) => {
-                        const all = documentsRef.current;
-                        const q = query.toLowerCase().trim();
-                        return all
-                            .filter(d => d.id !== documentId && !d.deleted_at)
-                            .map(d => ({
-                                ...d,
-                                _parentTitle: d.parent_id
-                                    ? (all.find(p => p.id === d.parent_id)?.title ?? null)
-                                    : null,
-                            }))
-                            .filter(d =>
-                                q === '' ||
-                                (d.title || '').toLowerCase().includes(q) ||
-                                (d._parentTitle || '').toLowerCase().includes(q)
-                            )
-                            .sort((a, b) => {
-                                if (!q) return (a.title || '').localeCompare(b.title || '');
-                                const aExact = (a.title || '').toLowerCase().startsWith(q);
-                                const bExact = (b.title || '').toLowerCase().startsWith(q);
-                                if (aExact && !bExact) return -1;
-                                if (!aExact && bExact) return 1;
-                                return (a.title || '').localeCompare(b.title || '');
-                            });
-                    },
-                    render: createRenderDocItems(id => documentsRef.current.find(d => d.id === id)),
-                },
-            }),
-            SlashCommands.configure({
-                suggestion: {
-                    items: ({ query }: { query: string }) =>
-                        suggestionItems
-                            .filter(item =>
-                                item.title.toLowerCase().includes(query.toLowerCase()) ||
-                                item.searchTerms.some(term => term.includes(query.toLowerCase()))
-                            )
-                            .slice(0, 15),
-                    render: renderItems,
-                },
-            }),
-        ],
+        extensions: createEditorExtensions({
+            documentsRef,
+            placeholder: 'Digite "/" para comandos ou comece a escrever...',
+            currentDocId: documentId,
+            includePageBreak: true,
+        }),
         content: (doc?.content as any) || '',
         onUpdate: ({ editor: e }) => {
             // Word count
@@ -309,23 +122,44 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                 }
                 return false;
             },
-            handleDrop: (_, event, __, moved) => {
+            handleDrop: (view, event, __, moved) => {
                 if (!moved && event.dataTransfer?.files?.[0]) {
                     const file = event.dataTransfer.files[0];
                     if (file.type.startsWith('image')) { event.preventDefault(); handleFileUpload(file); return true; }
+                    if (file.type === 'application/pdf') {
+                        event.preventDefault();
+                        const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+                        if (coords) {
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const sel = (view.state.selection.constructor as any).near(view.state.doc.resolve(coords.pos));
+                            view.dispatch(view.state.tr.setSelection(sel));
+                        }
+                        window.dispatchEvent(new CustomEvent('editor-upload-pdf', { detail: { file } }));
+                        return true;
+                    }
                 }
                 return false;
             },
         },
     });
 
-    // Carrega conteúdo quando editor inicializa OU quando o doc chega do servidor
+    // Mantém o ref de upload de imagem sempre atualizado com o editor atual
     useEffect(() => {
-        if (doc && editor) {
-            setTitle(doc.title);
-            editor.commands.setContent((doc.content as any) || '');
-        }
-        // doc?.id: re-executa se o documento chegar após o editor inicializar (carregamento assíncrono)
+        handleFileUploadRef.current = async (file: File) => {
+            if (!editor) return;
+            const url = await uploadImage(file);
+            if (url) editor.chain().focus().setImage({ src: url }).run();
+        };
+    }, [editor, uploadImage]);
+
+    // Carrega conteúdo apenas quando editor inicializa ou o doc ID muda —
+    // evita sobrescrever edições do usuário se o store re-renderizar com o mesmo doc.
+    useEffect(() => {
+        if (!doc || !editor) return;
+        if (loadedDocIdRef.current === doc.id) return;
+        loadedDocIdRef.current = doc.id;
+        setTitle(doc.title);
+        editor.commands.setContent((doc.content as any) || '');
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editor, doc?.id]);
 
@@ -336,9 +170,30 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
         return () => window.removeEventListener('editor-upload-image', handler);
     }, [handleFileUpload]);
 
+    // Upload de PDF via evento do SlashCommands
+    useEffect(() => {
+        if (!editor) return;
+        const handler = async (e: Event) => {
+            const file = (e as CustomEvent<{ file: File }>).detail?.file;
+            if (!file) return;
+            const result = await uploadPdf(file);
+            if ('error' in result) {
+                import('sonner').then(({ toast }) => toast.error(result.error));
+                return;
+            }
+            editor.chain().focus().insertContent({
+                type: 'pdfAttachment',
+                attrs: { label: result.name, url: result.url },
+            }).run();
+        };
+        window.addEventListener('editor-upload-pdf', handler);
+        return () => window.removeEventListener('editor-upload-pdf', handler);
+    }, [editor, uploadPdf]);
+
     // ─── Salvar ───────────────────────────────────────────────────
     const handleSave = useCallback(async (isManual = false) => {
-        if (!editor || saving) return;
+        if (!editor || savingRef.current) return;
+        savingRef.current = true;
         setSaving(true);
         try {
             const content = editor.getJSON() as any;
@@ -347,9 +202,10 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                 await saveVersion(documentId, title, content);
             }
         } finally {
+            savingRef.current = false;
             setSaving(false);
         }
-    }, [editor, title, documentId, updateDocument, saving, saveVersion]);
+    }, [editor, title, documentId, updateDocument, saveVersion]);
 
     // Mantém ref atualizada para o autosave usar sem re-registrar listeners
     useEffect(() => { handleSaveRef.current = handleSave; }, [handleSave]);
@@ -364,7 +220,11 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
     }, [handleSave]);
 
     // ─── Estilos comuns de impressão ─────────────────────────────
+    const escapeHtml = (str: string) =>
+        str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
     const buildPrintHTML = useCallback((docTitle: string, html: string, autoprint = false) => {
+        const safeTitle = escapeHtml(docTitle);
         const contentStyles = `
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; box-sizing: border-box; }
             body { font-family: "Figtree", ui-sans-serif, system-ui, sans-serif;
@@ -394,7 +254,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
 
         const previewBar = autoprint ? '' : `
             <div id="preview-bar">
-                <span class="doc-title">${docTitle}</span>
+                <span class="doc-title">${safeTitle}</span>
                 <button onclick="window.print()">⬇ Baixar PDF / Imprimir</button>
                 <button class="close-btn" onclick="window.close()">Fechar</button>
             </div>`;
@@ -428,12 +288,12 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>${docTitle}</title>
+  <title>${safeTitle}</title>
   <style>${contentStyles}${previewStyles}</style>
 </head>
 <body>
   ${previewBar}
-  <h1 style="border-bottom:2px solid #e8e5e0;padding-bottom:0.5rem;margin-bottom:1.5rem;">${docTitle}</h1>
+  <h1 style="border-bottom:2px solid #e8e5e0;padding-bottom:0.5rem;margin-bottom:1.5rem;">${safeTitle}</h1>
   ${html}
   ${autoprint ? '<script>window.onload=()=>{window.print();window.close();}<\/script>' : ''}
 </body>
@@ -456,10 +316,13 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
 
     // ─── Delete ───────────────────────────────────────────────────
     const handleDelete = async () => {
-        if (window.confirm('Tem certeza que deseja excluir esta página?')) {
-            await deleteDocument(documentId);
-            onClose();
-        }
+        const docTitle = doc?.title || 'Documento';
+        await deleteDocument(documentId);
+        onClose();
+        toast.success(`"${docTitle}" movido para a lixeira`, {
+            duration: 6000,
+            action: { label: 'Desfazer', onClick: async () => { await restoreDocument(documentId); toast.success('Documento restaurado'); } },
+        });
     };
 
     if (!doc) return (
@@ -712,152 +575,15 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
             )}
 
             {/* ── Toolbar principal ── */}
-            <div className="border-b border-border-subtle bg-surface-0/60 px-4 py-1.5 flex items-center gap-0.5 shrink-0 overflow-x-auto custom-scrollbar">
-
-                {/* Undo / Redo */}
-                <TB onClick={() => editor?.chain().focus().undo().run()} title="Desfazer (Ctrl+Z)">
-                    <Undo size={16} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().redo().run()} title="Refazer (Ctrl+Y)">
-                    <Redo size={16} />
-                </TB>
-
-                <Divider />
-
-                {/* Headings */}
-                <TB onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} active={editor?.isActive('heading', { level: 1 })} title="Título 1">
-                    <Heading1 size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} active={editor?.isActive('heading', { level: 2 })} title="Título 2">
-                    <Heading2 size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} active={editor?.isActive('heading', { level: 3 })} title="Título 3">
-                    <Heading3 size={17} />
-                </TB>
-
-                <Divider />
-
-                {/* Formatação inline */}
-                <TB onClick={() => editor?.chain().focus().toggleBold().run()} active={editor?.isActive('bold')} title="Negrito (Ctrl+B)">
-                    <Bold size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().toggleItalic().run()} active={editor?.isActive('italic')} title="Itálico (Ctrl+I)">
-                    <Italic size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().toggleStrike().run()} active={editor?.isActive('strike')} title="Tachado">
-                    <Strikethrough size={17} />
-                </TB>
-                {/* Destacar texto — color picker */}
-                <button
-                    data-picker-btn
-                    onMouseDown={e => {
-                        e.preventDefault();
-                        const r = e.currentTarget.getBoundingClientRect();
-                        setHighlightPickerPos({ top: r.bottom + 6, left: r.left });
-                        setHighlightPickerOpen(v => v === 'toolbar' ? null : 'toolbar');
-                    }}
-                    title="Destacar texto"
-                    className={`p-1.5 rounded-[var(--radius-sm)] transition-all flex flex-col items-center gap-0.5 ${editor?.isActive('highlight') ? 'text-brand bg-surface-card shadow-[var(--shadow-card)]' : 'text-secondary hover:bg-surface-card hover:shadow-[var(--shadow-card)]'}`}
-                >
-                    <Highlighter size={17} />
-                    <span className="w-3.5 h-1 rounded-full" style={{ backgroundColor: editor?.getAttributes('highlight').color ?? '#FEF08A' }} />
-                </button>
-                {highlightPickerOpen === 'toolbar' && (
-                    <PickerPortal pos={highlightPickerPos}>
-                        <HighlightSwatches editor={editor!} onClose={() => setHighlightPickerOpen(null)} />
-                    </PickerPortal>
-                )}
-
-                {/* Cor do texto */}
-                <label
-                    className="p-1.5 rounded-[var(--radius-sm)] transition-all text-secondary hover:bg-surface-card hover:shadow-[var(--shadow-card)] cursor-pointer relative"
-                    title="Cor do texto"
-                >
-                    <Palette size={17} />
-                    <input
-                        type="color"
-                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                        defaultValue="#374151"
-                        onInput={e => editor?.chain().focus().setColor((e.target as HTMLInputElement).value).run()}
-                    />
-                </label>
-
-                {/* Remover formatação */}
-                <TB onClick={() => editor?.chain().focus().clearNodes().unsetAllMarks().run()} title="Remover formatação">
-                    <Eraser size={17} />
-                </TB>
-
-                <Divider />
-
-                {/* Listas */}
-                <TB onClick={() => editor?.chain().focus().toggleBulletList().run()} active={editor?.isActive('bulletList')} title="Lista">
-                    <List size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().toggleOrderedList().run()} active={editor?.isActive('orderedList')} title="Lista numerada">
-                    <ListOrdered size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().toggleTaskList().run()} active={editor?.isActive('taskList')} title="Lista de tarefas">
-                    <CheckSquare size={17} />
-                </TB>
-
-                <Divider />
-
-                {/* Bloco */}
-                <button
-                    data-picker-btn
-                    onMouseDown={e => {
-                        e.preventDefault();
-                        const r = e.currentTarget.getBoundingClientRect();
-                        setBlockquotePickerPos({ top: r.bottom + 6, left: r.left });
-                        setBlockquotePickerOpen(v => v === 'toolbar' ? null : 'toolbar');
-                    }}
-                    title="Citação"
-                    className={`p-1.5 rounded-[var(--radius-sm)] transition-all ${editor?.isActive('blockquote') ? 'text-brand bg-surface-card shadow-[var(--shadow-card)]' : 'text-secondary hover:bg-surface-card hover:shadow-[var(--shadow-card)]'}`}
-                >
-                    <Quote size={17} />
-                </button>
-                {blockquotePickerOpen === 'toolbar' && (
-                    <PickerPortal pos={blockquotePickerPos}>
-                        <BlockquotePicker editor={editor!} onClose={() => setBlockquotePickerOpen(null)} />
-                    </PickerPortal>
-                )}
-                <TB onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Tabela">
-                    <TableIcon size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().toggleCodeBlock().run()} active={editor?.isActive('codeBlock')} title="Bloco de código">
-                    <Code size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().setHorizontalRule().run()} title="Divisor">
-                    <Minus size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().setPageBreak().run()} title="Quebra de página">
-                    <SplitSquareHorizontal size={17} />
-                </TB>
-
-                {/* Imagem */}
-                <label className="p-1.5 rounded-[var(--radius-sm)] transition-all text-secondary hover:bg-surface-card hover:shadow-[var(--shadow-card)] cursor-pointer" title="Inserir imagem">
-                    <ImageIcon size={17} />
-                    <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }}
-                    />
-                </label>
-
-                <Divider />
-
-                {/* Alinhamento */}
-                <TB onClick={() => editor?.chain().focus().setTextAlign('left').run()} active={editor?.isActive({ textAlign: 'left' })} title="Alinhar à esquerda">
-                    <AlignLeft size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().setTextAlign('center').run()} active={editor?.isActive({ textAlign: 'center' })} title="Centralizar">
-                    <AlignCenter size={17} />
-                </TB>
-                <TB onClick={() => editor?.chain().focus().setTextAlign('right').run()} active={editor?.isActive({ textAlign: 'right' })} title="Alinhar à direita">
-                    <AlignRight size={17} />
-                </TB>
-            </div>
+            {editor && (
+                <EditorToolbar
+                    editor={editor}
+                    onImageUpload={handleFileUpload}
+                    size="md"
+                    includePageBreak
+                    className="border-b border-border-subtle bg-surface-0/60 px-4 py-1.5 shrink-0 custom-scrollbar"
+                />
+            )}
 
             {/* ── Área do editor + painel de versões ── */}
             <div className="flex-1 flex overflow-hidden">
@@ -944,35 +670,35 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
 
                 .tiptap-editor-container .ProseMirror p.is-editor-empty:first-child::before {
                     content: attr(data-placeholder);
-                    float: left; color: #a09d98; pointer-events: none; height: 0;
+                    float: left; color: var(--color-text-muted); pointer-events: none; height: 0;
                 }
 
-                /* Tipografia — tokens do design system */
-                .tiptap-editor-container .ProseMirror h1 { font-size: 2.25rem; font-weight: 800; margin: 1.5rem 0 0.5rem; color: #1c1a18; line-height: 1.2; }
-                .tiptap-editor-container .ProseMirror h2 { font-size: 1.6rem; font-weight: 700; margin: 1.25rem 0 0.4rem; color: #1c1a18; line-height: 1.3; }
-                .tiptap-editor-container .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.35rem; color: #1c1a18; line-height: 1.4; }
-                .tiptap-editor-container .ProseMirror p { margin-top: 0; margin-bottom: 0; line-height: 1.55; color: #1c1a18; font-size: 1rem; }
-                .tiptap-editor-container .ProseMirror s { text-decoration: line-through; color: #a09d98; }
+                /* Tipografia */
+                .tiptap-editor-container .ProseMirror h1 { font-size: 2.25rem; font-weight: 800; margin: 1.5rem 0 0.5rem; color: var(--color-text-primary); line-height: 1.2; }
+                .tiptap-editor-container .ProseMirror h2 { font-size: 1.6rem; font-weight: 700; margin: 1.25rem 0 0.4rem; color: var(--color-text-primary); line-height: 1.3; }
+                .tiptap-editor-container .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.35rem; color: var(--color-text-primary); line-height: 1.4; }
+                .tiptap-editor-container .ProseMirror p { margin-top: 0; margin-bottom: 0; line-height: 1.55; color: var(--color-text-primary); font-size: 1rem; }
+                .tiptap-editor-container .ProseMirror s { text-decoration: line-through; color: var(--color-text-muted); }
 
                 /* Inline code */
                 .tiptap-editor-container .ProseMirror code:not(pre code) {
-                    background: #ece9e4; color: #db4035; padding: 0.1em 0.35em;
+                    background: var(--color-surface-0); color: var(--color-brand); padding: 0.1em 0.35em;
                     border-radius: 4px; font-size: 0.875em; font-family: monospace;
-                    border: 1px solid #e8e5e0;
+                    border: 1px solid var(--color-border-subtle);
                 }
 
                 /* Tabelas */
                 .tiptap-editor-container table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 1.5rem 0; overflow: hidden; border-radius: 10px; }
                 .tiptap-editor-container table td,
-                .tiptap-editor-container table th { border: 1px solid #e8e5e0; padding: 8px 12px; position: relative; text-align: left; color: #1c1a18; }
-                .tiptap-editor-container table th { background: #f5f3ef; font-weight: 600; font-size: 0.875rem; color: #6b6860; }
+                .tiptap-editor-container table th { border: 1px solid var(--color-border-subtle); padding: 8px 12px; position: relative; text-align: left; color: var(--color-text-primary); }
+                .tiptap-editor-container table th { background: var(--color-surface-1); font-weight: 600; font-size: 0.875rem; color: var(--color-text-secondary); }
                 .tiptap-editor-container .selectedCell:after { background: rgba(219,64,53,0.06); content: ""; inset: 0; pointer-events: none; position: absolute; z-index: 2; }
 
                 /* Task List */
                 .tiptap-editor-container ul[data-type="taskList"] { list-style: none; padding: 0; }
                 .tiptap-editor-container ul[data-type="taskList"] li { display: flex; align-items: flex-start; margin-bottom: 0.4rem; gap: 0.6rem; }
-                .tiptap-editor-container ul[data-type="taskList"] input[type="checkbox"] { width: 1.1rem; height: 1.1rem; margin-top: 0.2rem; cursor: pointer; accent-color: #db4035; }
-                .tiptap-editor-container ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; color: #a09d98; }
+                .tiptap-editor-container ul[data-type="taskList"] input[type="checkbox"] { width: 1.1rem; height: 1.1rem; margin-top: 0.2rem; cursor: pointer; accent-color: var(--color-brand); }
+                .tiptap-editor-container ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; color: var(--color-text-muted); }
 
                 /* Code Block */
                 .tiptap-editor-container pre { background: #1c1a18; color: #f5f3ef; padding: 1.1rem 1.25rem; border-radius: 14px; margin: 1.25rem 0; font-family: 'JetBrains Mono', monospace; overflow-x: auto; font-size: 0.875rem; line-height: 1.6; border: 1px solid rgba(255,255,255,0.06); }
@@ -984,13 +710,13 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                 .hljs-variable, .hljs-tag, .hljs-link { color: #fbbf24; }
 
                 /* Lists */
-                .tiptap-editor-container hr { border: none; border-top: 1px solid #e8e5e0; margin: 1.5rem 0; }
-                .tiptap-editor-container ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.5rem; margin: 0.75rem 0; color: #1c1a18; }
-                .tiptap-editor-container ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.75rem 0; color: #1c1a18; }
+                .tiptap-editor-container hr { border: none; border-top: 1px solid var(--color-border-subtle); margin: 1.5rem 0; }
+                .tiptap-editor-container ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.5rem; margin: 0.75rem 0; color: var(--color-text-primary); }
+                .tiptap-editor-container ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.75rem 0; color: var(--color-text-primary); }
                 .tiptap-editor-container li { margin-bottom: 0.25rem; }
 
                 /* Blockquote */
-                .tiptap-editor-container blockquote { border-left: 3px solid #ef4444; padding: 0.75rem 1rem; background: #fef2f2; margin: 1.5rem 0; font-style: italic; color: #6b6860; border-radius: 0 6px 6px 0; }
+                .tiptap-editor-container blockquote { border-left: 3px solid #ef4444; padding: 0.75rem 1rem; background: color-mix(in srgb, #ef4444 8%, transparent); margin: 1.5rem 0; font-style: italic; color: var(--color-text-secondary); border-radius: 0 6px 6px 0; }
 
                 /* Highlight */
                 .tiptap-editor-container mark { border-radius: 3px; padding: 0.1em 0.15em; }
@@ -998,46 +724,53 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                 /* Doc Mention chip */
                 .doc-mention-chip {
                     display: inline-flex; align-items: center; gap: 0.25em;
-                    background: color-mix(in srgb, #db4035 8%, transparent);
-                    border: 1px solid color-mix(in srgb, #db4035 25%, transparent);
-                    color: #b83228; font-size: 0.82em; font-weight: 500;
+                    background: color-mix(in srgb, var(--color-brand) 8%, transparent);
+                    border: 1px solid color-mix(in srgb, var(--color-brand) 25%, transparent);
+                    color: var(--color-brand); font-size: 0.82em; font-weight: 500;
                     padding: 0.15em 0.5em 0.15em 0.35em; border-radius: 5px;
                     cursor: pointer; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
                     vertical-align: middle; white-space: nowrap; user-select: none;
                     line-height: 1.6;
                 }
                 .doc-mention-chip:hover {
-                    background: color-mix(in srgb, #db4035 15%, transparent);
-                    border-color: color-mix(in srgb, #db4035 40%, transparent);
-                    box-shadow: 0 1px 4px color-mix(in srgb, #db4035 15%, transparent);
+                    background: color-mix(in srgb, var(--color-brand) 15%, transparent);
+                    border-color: color-mix(in srgb, var(--color-brand) 40%, transparent);
                 }
                 .doc-mention-icon { display: inline; flex-shrink: 0; opacity: 0.75; }
                 .doc-mention-ext { display: inline; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; margin-left: 0.1em; }
                 .doc-mention-chip:hover .doc-mention-ext { opacity: 0.55; }
 
+                /* PDF chip */
+                .pdf-mention-chip {
+                    background: color-mix(in srgb, #2563eb 8%, transparent);
+                    border-color: color-mix(in srgb, #2563eb 25%, transparent);
+                    color: #60a5fa;
+                }
+                .pdf-mention-chip:hover {
+                    background: color-mix(in srgb, #2563eb 15%, transparent);
+                    border-color: color-mix(in srgb, #2563eb 40%, transparent);
+                }
+
                 /* Toggle / Details block */
                 .tiptap-details { margin: 0.75rem 0; }
-                .tiptap-details-header {
-                    display: flex; align-items: center; gap: 0.4rem;
-                    user-select: none;
-                }
+                .tiptap-details-header { display: flex; align-items: center; gap: 0.4rem; user-select: none; }
                 .tiptap-details-toggle {
                     display: flex; align-items: center; justify-content: center;
                     width: 1.25rem; height: 1.25rem; border-radius: 6px;
                     background: transparent; border: none; cursor: pointer;
-                    color: #a09d98; flex-shrink: 0;
+                    color: var(--color-text-muted); flex-shrink: 0;
                     transition: background 0.1s, color 0.1s;
                 }
-                .tiptap-details-toggle:hover { background: #ece9e4; color: #1c1a18; }
+                .tiptap-details-toggle:hover { background: var(--color-surface-0); color: var(--color-text-primary); }
                 .tiptap-details-title {
-                    font-size: 1rem; font-weight: 600; color: #1c1a18;
+                    font-size: 1rem; font-weight: 600; color: var(--color-text-primary);
                     border: none; outline: none; background: transparent;
                     flex: 1; cursor: text; font-family: "Figtree", ui-sans-serif, sans-serif;
                 }
-                .tiptap-details-title::placeholder { color: #a09d98; font-weight: 400; }
+                .tiptap-details-title::placeholder { color: var(--color-text-muted); font-weight: 400; }
                 .tiptap-details-content {
                     padding-left: 1.65rem;
-                    border-left: 2px solid #e8e5e0;
+                    border-left: 2px solid var(--color-border-subtle);
                     margin-top: 0.25rem;
                     margin-left: 0.6rem;
                 }
@@ -1059,41 +792,16 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                     padding: 0.1rem 0.5rem;
                     border-radius: 999px;
                 }
-                .tiptap-editor-container [data-callout][data-type="info"] {
-                    background: #eff6ff; border-left: 3px solid #3b82f6;
-                }
-                .tiptap-editor-container [data-callout][data-type="info"]::before {
-                    background: #dbeafe; color: #1d4ed8;
-                    content: "ℹ️  Info";
-                }
-                .tiptap-editor-container [data-callout][data-type="warning"] {
-                    background: #fffbeb; border-left: 3px solid #f59e0b;
-                }
-                .tiptap-editor-container [data-callout][data-type="warning"]::before {
-                    background: #fef3c7; color: #b45309;
-                    content: "⚠️  Atenção";
-                }
-                .tiptap-editor-container [data-callout][data-type="success"] {
-                    background: #f0fdf4; border-left: 3px solid #22c55e;
-                }
-                .tiptap-editor-container [data-callout][data-type="success"]::before {
-                    background: #dcfce7; color: #15803d;
-                    content: "✅  Sucesso";
-                }
-                .tiptap-editor-container [data-callout][data-type="error"] {
-                    background: #fef2f2; border-left: 3px solid #ef4444;
-                }
-                .tiptap-editor-container [data-callout][data-type="error"]::before {
-                    background: #fee2e2; color: #b91c1c;
-                    content: "🚫  Erro";
-                }
-                .tiptap-editor-container [data-callout][data-type="note"] {
-                    background: #f5f3ff; border-left: 3px solid #8b5cf6;
-                }
-                .tiptap-editor-container [data-callout][data-type="note"]::before {
-                    background: #ede9fe; color: #6d28d9;
-                    content: "📌  Nota";
-                }
+                .tiptap-editor-container [data-callout][data-type="info"] { background: color-mix(in srgb, #3b82f6 10%, transparent); border-left: 3px solid #3b82f6; }
+                .tiptap-editor-container [data-callout][data-type="info"]::before { background: color-mix(in srgb, #3b82f6 20%, transparent); color: #60a5fa; content: "ℹ️  Info"; }
+                .tiptap-editor-container [data-callout][data-type="warning"] { background: color-mix(in srgb, #f59e0b 10%, transparent); border-left: 3px solid #f59e0b; }
+                .tiptap-editor-container [data-callout][data-type="warning"]::before { background: color-mix(in srgb, #f59e0b 20%, transparent); color: #fbbf24; content: "⚠️  Atenção"; }
+                .tiptap-editor-container [data-callout][data-type="success"] { background: color-mix(in srgb, #22c55e 10%, transparent); border-left: 3px solid #22c55e; }
+                .tiptap-editor-container [data-callout][data-type="success"]::before { background: color-mix(in srgb, #22c55e 20%, transparent); color: #4ade80; content: "✅  Sucesso"; }
+                .tiptap-editor-container [data-callout][data-type="error"] { background: color-mix(in srgb, #ef4444 10%, transparent); border-left: 3px solid #ef4444; }
+                .tiptap-editor-container [data-callout][data-type="error"]::before { background: color-mix(in srgb, #ef4444 20%, transparent); color: #f87171; content: "🚫  Erro"; }
+                .tiptap-editor-container [data-callout][data-type="note"] { background: color-mix(in srgb, #8b5cf6 10%, transparent); border-left: 3px solid #8b5cf6; }
+                .tiptap-editor-container [data-callout][data-type="note"]::before { background: color-mix(in srgb, #8b5cf6 20%, transparent); color: #a78bfa; content: "📌  Nota"; }
             `}} />
         </div>
     );

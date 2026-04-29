@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
             settings: {
                 subject_line: subject,
                 reply_to: 'leofbarison@gmail.com', // Usando um genérico aqui, ideal vir do .env
-                from_name: 'Vflow Tarefas', // Ou do request
+                from_name: 'VTask', // Ou do request
             },
         };
 

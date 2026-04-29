@@ -17,7 +17,7 @@ export const useThemeStore = create<ThemeState>()(
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
     }),
     {
-      name: 'vflow-theme',
+      name: 'vtask-theme',
       // Only persist if the user made an explicit choice (i.e., key exists in storage)
       // On first visit the default comes from systemPrefersDark()
     }

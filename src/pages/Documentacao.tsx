@@ -382,7 +382,7 @@ export default function Documentacao() {
                 <div>
                     <h1 className="text-2xl font-bold text-primary">Documentação</h1>
                     <p className="text-sm text-muted mt-1">
-                        Guia completo de todas as funcionalidades do FlowDesk para o usuário final.
+                        Guia completo de todas as funcionalidades do VTask para o usuário final.
                     </p>
                 </div>
             </div>
@@ -390,7 +390,7 @@ export default function Documentacao() {
             {/* Intro card */}
             <div className="rounded-card bg-brand/5 border border-brand/20 p-5">
                 <p className="text-sm text-secondary leading-relaxed">
-                    O <strong className="text-primary">FlowDesk</strong> é uma plataforma de gestão de tarefas e comunicação para agências.
+                    O <strong className="text-primary">VTask</strong> é uma plataforma de gestão de tarefas e comunicação para agências.
                     Centralize projetos, tarefas, documentos e campanhas de e-mail em um único lugar,
                     com fluxos de trabalho personalizáveis e inteligência artificial integrada.
                 </p>
@@ -431,7 +431,7 @@ export default function Documentacao() {
 
             {/* Footer */}
             <div className="text-center py-4 text-xs text-muted border-t border-border-subtle">
-                FlowDesk · Desenvolvido por Antigravity · {new Date().getFullYear()}
+                VTask · Desenvolvido por Antigravity · {new Date().getFullYear()}
             </div>
         </div>
     );

@@ -25,7 +25,7 @@ interface TaskDetailModalProps {
 }
 
 export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps) {
-    const { statuses, taskCategories, updateTask, deleteTask, toggleTaskCompletion, tasks } = useTaskStore();
+    const { statuses, taskCategories, updateTask, deleteTask, restoreTask, toggleTaskCompletion, tasks } = useTaskStore();
     const { session } = useAuthStore();
     const { activeWorkspace } = useWorkspaceStore();
     const { documents, fetchDocuments } = useDocumentStore();
@@ -187,10 +187,20 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
             headerActions={
                 <button
                     onClick={async () => {
-                        if (confirm('Mover esta tarefa para a lixeira?')) {
-                            await deleteTask(currentTask.id);
-                            onClose();
-                        }
+                        const taskId = currentTask.id;
+                        const taskTitle = currentTask.title;
+                        await deleteTask(taskId);
+                        onClose();
+                        toast.success(`"${taskTitle}" movida para a lixeira`, {
+                            duration: 6000,
+                            action: {
+                                label: 'Desfazer',
+                                onClick: async () => {
+                                    await restoreTask(taskId);
+                                    toast.success('Tarefa restaurada');
+                                },
+                            },
+                        });
                     }}
                     className="p-1.5 rounded-[var(--radius-sm)] text-muted hover:text-brand hover:bg-brand-light transition-colors"
                     title="Mover para lixeira"

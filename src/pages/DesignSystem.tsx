@@ -120,7 +120,7 @@ export default function DesignSystem() {
                         <h1 className={typography.pageTitle}>Design System</h1>
                     </div>
                     <p className="text-sm text-secondary">
-                        Referência interativa dos tokens, componentes e padrões do FlowDesk.
+                        Referência interativa dos tokens, componentes e padrões do VTask.
                         Stack: <code className="bg-surface-0 px-1 rounded text-xs font-mono">Figtree</code> ·{' '}
                         <code className="bg-surface-0 px-1 rounded text-xs font-mono">Tailwind v4</code> ·{' '}
                         <code className="bg-surface-0 px-1 rounded text-xs font-mono">React 19</code> ·{' '}

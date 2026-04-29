@@ -82,7 +82,20 @@
       "Bash(node -e ' *)",
       "Bash(npm run *)",
       "Read(//c/c/Users/leofb/OneDrive/Documentos/Projetos Antigravity/vflow-tarefas/**)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(git commit *)",
+      "Bash(sed -n '378,400p' src/store/taskStore.ts)",
+      "Bash(sed -n '113,130p' src/store/documentStore.ts)",
+      "Bash(sed -n '90,130p' src/components/tasks/TaskDetailModal.tsx)",
+      "Bash(sed -n '185,200p' src/components/tasks/TaskDetailModal.tsx)",
+      "Bash(sed -n '205,215p' src/components/tasks/TaskDetailModal.tsx)",
+      "Bash(sed -n '140,155p' src/components/layout/DocumentsSidebarSection.tsx)",
+      "Bash(sed -n '315,325p' src/components/documents/DocumentEditor.tsx)",
+      "Bash(sed -n '45,60p' src/components/tasks/TaskDetailSidebar.tsx)",
+      "Bash(sed -n '200,220p' src/components/tasks/TaskRow.tsx)",
+      "Bash(sed -n '50,60p' src/components/tasks/TaskRow.tsx)",
+      "Bash(sed -n '440,450p' src/components/tasks/TaskRow.tsx)",
+      "Bash(grep -n \"toast.success.*concluída\\\\|toast.success.*Tarefa concluída\" src/components/tasks/TaskDetailSidebar.tsx)"
     ]
   }
 }

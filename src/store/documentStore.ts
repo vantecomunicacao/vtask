@@ -29,6 +29,7 @@ interface DocumentState {
     permanentDeleteDocument: (id: string) => Promise<void>;
     fetchTrashedDocuments: (workspaceId: string) => Promise<Document[]>;
     uploadImage: (file: File) => Promise<string | null>;
+    uploadPdf: (file: File, maxMb?: number) => Promise<{ url: string; name: string } | { error: string }>;
     moveDocument: (id: string, newParentId: string | null) => Promise<void>;
     fetchVersions: (documentId: string) => Promise<void>;
     saveVersion: (documentId: string, title: string, content: Record<string, unknown>) => Promise<void>;
@@ -219,6 +220,26 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
             title: version.title,
             content: version.content as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         });
+    },
+
+    uploadPdf: async (file: File, maxMb = 10) => {
+        if (file.type !== 'application/pdf') return { error: 'Apenas arquivos PDF são permitidos.' };
+        if (file.size > maxMb * 1024 * 1024) return { error: `O PDF deve ter no máximo ${maxMb} MB.` };
+
+        const fileName = `${Math.random().toString(36).substring(2)}_${file.name}`;
+        const filePath = `documents/pdf/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('document-images')
+            .upload(filePath, file, { contentType: 'application/pdf' });
+
+        if (uploadError) return { error: uploadError.message };
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('document-images')
+            .getPublicUrl(filePath);
+
+        return { url: publicUrl, name: file.name };
     },
 
     uploadImage: async (file: File) => {

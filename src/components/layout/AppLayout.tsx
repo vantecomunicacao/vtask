@@ -157,9 +157,9 @@ export default function AppLayout() {
                 <div className="h-16 flex items-center px-6 border-b border-border-subtle cursor-pointer hover:bg-surface-0 transition-colors">
                     <div className="flex items-center gap-2 flex-1">
                         <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white font-bold text-sm">
-                            {activeWorkspace?.name?.substring(0, 2)?.toUpperCase() || 'FD'}
+                            {activeWorkspace?.name?.substring(0, 2)?.toUpperCase() || 'VT'}
                         </div>
-                        <span className="font-bold text-primary truncate max-w-[140px]">{activeWorkspace?.name || 'FlowDesk'}</span>
+                        <span className="font-bold text-primary truncate max-w-[140px]">{activeWorkspace?.name || 'VTask'}</span>
                     </div>
                     <button
                         onClick={closeSidebar}
@@ -236,6 +236,9 @@ export default function AppLayout() {
                         <LogOut size={18} />
                         Sair
                     </button>
+                </div>
+                <div className="px-4 pb-4 pt-2">
+                    <span className="text-[10px] text-muted/50 select-none">v1.1</span>
                 </div>
             </aside>
 
