@@ -4,12 +4,12 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import {
     ChevronDown, ChevronRight, FolderPlus, Folder, FolderOpen,
-    MoreHorizontal, Pencil, Trash2, Archive, X, Check, FileText, Plus,
+    MoreHorizontal, Pencil, Trash2, Archive, X, Check, FileText, Plus, CornerDownRight,
 } from 'lucide-react';
 import { useProjectStore, type ProjectWithClient } from '../../store/projectStore';
 import { useProjectFolderStore } from '../../store/projectFolderStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { useDocumentStore } from '../../store/documentStore';
+import { useDocumentStore, type Document } from '../../store/documentStore';
 import { cn } from '../../lib/utils';
 
 interface Props {
@@ -32,10 +32,37 @@ interface ProjectItemProps {
     menuBtn: React.ReactNode;
 }
 
+function DocItem({ docId, documents, depth = 0 }: { docId: string; documents: Document[]; depth?: number }) {
+    const doc = documents.find(d => d.id === docId);
+    const children = documents.filter(d => d.parent_id === docId && !d.deleted_at);
+    if (!doc) return null;
+    return (
+        <>
+            <NavLink
+                to={`/documentos/${doc.id}`}
+                className={({ isActive }) => cn(
+                    'flex items-center gap-1.5 px-2 py-1 rounded-[var(--radius-md)] transition-colors',
+                    isActive ? 'text-brand bg-brand-light' : 'text-secondary hover:bg-surface-0'
+                )}
+                style={{ paddingLeft: depth > 0 ? `${8 + depth * 12}px` : undefined }}
+            >
+                {depth > 0
+                    ? <CornerDownRight size={12} className="shrink-0 text-muted" />
+                    : <FileText size={14} className="shrink-0" />}
+                <span className="truncate text-[13px]">{doc.title || 'Sem título'}</span>
+            </NavLink>
+            {children.map(child => (
+                <DocItem key={child.id} docId={child.id} documents={documents} depth={depth + 1} />
+            ))}
+        </>
+    );
+}
+
 function ProjectItem({ p, navClass, expandedProjects, toggleProject, onCreateDoc, menuBtn }: ProjectItemProps) {
     const { documents } = useDocumentStore();
     const isExpanded = expandedProjects.has(p.id);
-    const projectDocs = documents.filter(d => d.project_id === p.id && !d.deleted_at);
+    const allProjectDocs = documents.filter(d => d.project_id === p.id && !d.deleted_at);
+    const rootDocs = allProjectDocs.filter(d => !d.parent_id);
 
     return (
         <div>
@@ -55,27 +82,17 @@ function ProjectItem({ p, navClass, expandedProjects, toggleProject, onCreateDoc
             </div>
             {isExpanded && (
                 <div className="ml-7 pl-2 border-l border-border-subtle space-y-0.5 py-0.5">
-                    {projectDocs.length === 0 && (
-                        <p className="px-2 py-1 text-xs text-muted italic">Sem documentos</p>
+                    {allProjectDocs.length === 0 && (
+                        <p className="px-2 py-1 text-[13px] text-muted italic">Sem documentos</p>
                     )}
-                    {projectDocs.map(doc => (
-                        <NavLink
-                            key={doc.id}
-                            to={`/documentos/${doc.id}`}
-                            className={({ isActive }) => cn(
-                                'flex items-center gap-1.5 px-2 py-1 text-xs rounded-[var(--radius-md)] transition-colors truncate',
-                                isActive ? 'text-brand bg-brand-light' : 'text-secondary hover:bg-surface-0'
-                            )}
-                        >
-                            <FileText size={11} className="shrink-0" />
-                            <span className="truncate">{doc.title || 'Sem título'}</span>
-                        </NavLink>
+                    {rootDocs.map(doc => (
+                        <DocItem key={doc.id} docId={doc.id} documents={allProjectDocs} depth={0} />
                     ))}
                     <button
                         onClick={() => onCreateDoc(p.id)}
-                        className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted hover:text-brand w-full rounded-[var(--radius-md)] hover:bg-surface-0 transition-colors"
+                        className="flex items-center gap-1.5 px-2 py-1 text-[13px] text-muted hover:text-brand w-full rounded-[var(--radius-md)] hover:bg-surface-0 transition-colors"
                     >
-                        <Plus size={11} /> Novo documento
+                        <Plus size={13} /> Novo documento
                     </button>
                 </div>
             )}
