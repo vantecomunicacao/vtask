@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Draggable } from '@hello-pangea/dnd';
-import { MoreHorizontal, Calendar as CalendarIcon, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Calendar as CalendarIcon, CheckCircle2, ExternalLink, Trash2, RefreshCw } from 'lucide-react';
 import { isToday, isPast, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '../../lib/utils';
@@ -170,6 +170,11 @@ export const TaskRow = React.memo(function TaskRow({
                                         <CalendarIcon size={10} /> {due.label}
                                     </span>
                                 )}
+                                {task.recurrence && task.recurrence !== 'none' && (
+                                    <span className="text-xs flex items-center gap-1 text-brand" title={`Recorrência: ${{ daily: 'Diária', weekly: 'Semanal', monthly: 'Mensal' }[task.recurrence] ?? task.recurrence}`}>
+                                        <RefreshCw size={10} />
+                                    </span>
+                                )}
                                 {task.priority && (
                                     <span className={cn(
                                         "w-2 h-2 rounded-full shrink-0",
@@ -311,6 +316,11 @@ export const TaskRow = React.memo(function TaskRow({
                                 </span>
                             )}
                             <span className="truncate">{task.title}</span>
+                            {task.recurrence && task.recurrence !== 'none' && (
+                                <span title={`Recorrência: ${{ daily: 'Diária', weekly: 'Semanal', monthly: 'Mensal' }[task.recurrence] ?? task.recurrence}`} className="shrink-0">
+                                    <RefreshCw size={11} className="text-brand" />
+                                </span>
+                            )}
                         </span>
                     </div>
 

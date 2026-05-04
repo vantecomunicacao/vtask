@@ -87,7 +87,7 @@ const KanbanCard = React.memo(function KanbanCard({ task, index, onTaskClick }: 
                                         </div>
                                     )}
                                     {task.recurrence && task.recurrence !== 'none' && (
-                                        <div className="flex items-center gap-1 text-[11px] font-medium text-brand" title={`Recorrência: ${task.recurrence}`}>
+                                        <div className="flex items-center gap-1 text-[11px] font-medium text-brand" title={`Recorrência: ${{ daily: 'Diária', weekly: 'Semanal', monthly: 'Mensal' }[task.recurrence] ?? task.recurrence}`}>
                                             <RefreshCw size={12} />
                                         </div>
                                     )}

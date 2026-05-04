@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2, Eye, EyeOff, Paintbrush, Moon, Sun, Layers, ExternalLink } from 'lucide-react';
+import { Building2, Users2, Palette, Layout, Plus, Trash2, GripVertical, Settings2, Eye, EyeOff, Paintbrush, Moon, Sun, Layers, ExternalLink, Pencil, Check, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTaskStore, type CustomStatus } from '../store/taskStore';
 import { useThemeStore } from '../store/themeStore';
+import { useAuthStore } from '../store/authStore';
 import { toast } from 'sonner';
 import type { Database } from '../lib/database.types';
 type TaskCategory = Database['public']['Tables']['task_categories']['Row'];
@@ -23,7 +24,10 @@ interface WorkspaceMember {
 export default function Configuracoes() {
     const { activeWorkspace, fetchWorkspaces } = useWorkspaceStore();
     const { statuses, fetchStatuses, addStatus, updateStatus, deleteStatus, updateStatusPositions } = useTaskStore();
+    const { user } = useAuthStore();
     const [name, setName] = useState('');
+    const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+    const [editingProfileName, setEditingProfileName] = useState('');
     const [openaiKey, setOpenaiKey] = useState('');
     const [showOpenaiKey, setShowOpenaiKey] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -81,6 +85,19 @@ export default function Configuracoes() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSaveProfileName = async (profileId: string) => {
+        const trimmed = editingProfileName.trim();
+        if (!trimmed) return;
+        const { error } = await supabase.from('profiles').update({ full_name: trimmed }).eq('id', profileId);
+        if (error) { toast.error('Erro ao salvar nome'); return; }
+        toast.success('Nome atualizado!');
+        setEditingProfileId(null);
+        setMembers(prev => prev.map(m => {
+            const profiles = Array.isArray(m.profiles) ? m.profiles : m.profiles ? [m.profiles] : [];
+            return { ...m, profiles: profiles.map(p => p.id === profileId ? { ...p, full_name: trimmed } : p) };
+        }));
     };
 
     const handleInvite = async (e: React.FormEvent) => {
@@ -332,18 +349,45 @@ export default function Configuracoes() {
                                     {members.map((member, idx) => {
                                         const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
                                         if (!profile) return null;
+                                        const isMe = profile.id === user?.id;
+                                        const isEditing = editingProfileId === profile.id;
                                         return (
                                             <div key={idx} className="flex items-center justify-between p-3 border border-border-subtle rounded-lg">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center text-brand font-bold uppercase">
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <div className="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center text-brand font-bold uppercase shrink-0">
                                                         {profile.full_name?.substring(0, 2) || profile.email?.substring(0, 2)}
                                                     </div>
-                                                    <div>
-                                                        <p className="text-sm font-bold text-primary">{profile.full_name || 'Usuário Pendente'}</p>
+                                                    <div className="flex-1 min-w-0">
+                                                        {isEditing ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <Input
+                                                                    value={editingProfileName}
+                                                                    onChange={e => setEditingProfileName(e.target.value)}
+                                                                    onKeyDown={e => { if (e.key === 'Enter') handleSaveProfileName(profile.id); if (e.key === 'Escape') setEditingProfileId(null); }}
+                                                                    autoFocus
+                                                                    className="h-8 text-sm"
+                                                                />
+                                                                <button onClick={() => handleSaveProfileName(profile.id)} className="text-brand hover:text-brand/80"><Check size={16} /></button>
+                                                                <button onClick={() => setEditingProfileId(null)} className="text-muted hover:text-secondary"><X size={16} /></button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-sm font-bold text-primary truncate">{profile.full_name || 'Usuário Pendente'}</p>
+                                                                {isMe && (
+                                                                    <button
+                                                                        onClick={() => { setEditingProfileId(profile.id); setEditingProfileName(profile.full_name || ''); }}
+                                                                        className="text-muted hover:text-brand shrink-0"
+                                                                        title="Editar nome"
+                                                                    >
+                                                                        <Pencil size={13} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                         <p className="text-xs text-secondary">{profile.email}</p>
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-2 items-center">
+                                                <div className="flex gap-2 items-center shrink-0">
                                                     <Badge variant={member.role as any}>
                                                         {member.role}
                                                     </Badge>
