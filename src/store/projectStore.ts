@@ -20,7 +20,7 @@ interface ProjectState {
     moveToFolder: (projectId: string, folderId: string | null) => Promise<void>;
 }
 
-export const useProjectStore = create<ProjectState>((set) => ({
+export const useProjectStore = create<ProjectState>((set, get) => ({
     projects: [],
     loading: false,
     error: null,
@@ -67,23 +67,19 @@ export const useProjectStore = create<ProjectState>((set) => ({
     },
 
     archiveProject: async (id) => {
-        const store = useProjectStore.getState();
-        await store.updateProject(id, { status: 'archived' });
+        await get().updateProject(id, { status: 'archived' });
     },
 
     completeProject: async (id) => {
-        const store = useProjectStore.getState();
-        await store.updateProject(id, { status: 'completed' });
+        await get().updateProject(id, { status: 'completed' });
     },
 
     reactivateProject: async (id) => {
-        const store = useProjectStore.getState();
-        await store.updateProject(id, { status: 'active' });
+        await get().updateProject(id, { status: 'active' });
     },
 
     moveToFolder: async (projectId, folderId) => {
-        const store = useProjectStore.getState();
-        await store.updateProject(projectId, { folder_id: folderId });
+        await get().updateProject(projectId, { folder_id: folderId });
     },
 
     deleteProject: async (id) => {

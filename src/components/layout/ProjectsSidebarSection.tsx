@@ -32,14 +32,14 @@ interface ProjectItemProps {
     menuBtn: React.ReactNode;
 }
 
-function DocItem({ docId, documents, depth = 0 }: { docId: string; documents: Document[]; depth?: number }) {
+function DocItem({ docId, documents, depth = 0, projectId }: { docId: string; documents: Document[]; depth?: number; projectId: string }) {
     const doc = documents.find(d => d.id === docId);
     const children = documents.filter(d => d.parent_id === docId && !d.deleted_at);
     if (!doc) return null;
     return (
         <>
             <NavLink
-                to={`/documentos/${doc.id}`}
+                to={`/projetos/${projectId}?doc=${doc.id}`}
                 className={({ isActive }) => cn(
                     'flex items-center gap-1.5 px-2 py-1 rounded-[var(--radius-md)] transition-colors',
                     isActive ? 'text-brand bg-brand-light' : 'text-secondary hover:bg-surface-0'
@@ -52,7 +52,7 @@ function DocItem({ docId, documents, depth = 0 }: { docId: string; documents: Do
                 <span className="truncate text-[13px]">{doc.title || 'Sem título'}</span>
             </NavLink>
             {children.map(child => (
-                <DocItem key={child.id} docId={child.id} documents={documents} depth={depth + 1} />
+                <DocItem key={child.id} docId={child.id} documents={documents} depth={depth + 1} projectId={projectId} />
             ))}
         </>
     );
@@ -86,7 +86,7 @@ function ProjectItem({ p, navClass, expandedProjects, toggleProject, onCreateDoc
                         <p className="px-2 py-1 text-[13px] text-muted italic">Sem documentos</p>
                     )}
                     {rootDocs.map(doc => (
-                        <DocItem key={doc.id} docId={doc.id} documents={allProjectDocs} depth={0} />
+                        <DocItem key={doc.id} docId={doc.id} documents={allProjectDocs} depth={0} projectId={p.id} />
                     ))}
                     <button
                         onClick={() => onCreateDoc(p.id)}

@@ -6,7 +6,6 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ArrowUp, ArrowDown, ArrowUpDown, Calendar as CalendarIcon, Clock, Inbox, List, Keyboard } from 'lucide-react';
 import { EmptyState } from '../components/ui/EmptyState';
-import { supabase } from '../lib/supabase';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useTaskStore, type TaskWithAssignee } from '../store/taskStore';
 
@@ -21,6 +20,8 @@ import { TaskGroupSection } from '../components/tasks/TaskGroupSection';
 import { BulkActionsBar } from '../components/tasks/BulkActionsBar';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useTaskFilters, type GroupBy, type SortField, type SortConfig } from '../hooks/useTaskFilters';
+import { useColumnResize, RESIZABLE_COLS } from '../hooks/useColumnResize';
+import { useBulkActions } from '../hooks/useBulkActions';
 
 // ─── Column resize handle ──────────────────────
 function ColResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
@@ -33,13 +34,6 @@ function ColResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) =
         </div>
     );
 }
-
-// ─── Column resize config ──────────────────────
-const COL_IDS = ['title', 'project', 'due', 'created', 'priority', 'assignee', 'actions'] as const;
-type ColId = typeof COL_IDS[number];
-const DEFAULT_COL_W: Record<ColId, number> = { title: 280, project: 130, due: 110, created: 100, assignee: 48, priority: 90, actions: 44 };
-const MIN_COL_W: Record<ColId, number> = { title: 150, project: 80, due: 80, created: 80, assignee: 48, priority: 60, actions: 44 };
-const RESIZABLE_COLS = new Set<ColId>(['title', 'project', 'due', 'created', 'assignee', 'priority']);
 
 // ─── Skeleton Component ────────────────────────
 function TaskSkeleton({ gridTemplate, isMobile }: { gridTemplate: string; isMobile: boolean }) {
@@ -123,35 +117,7 @@ export default function Tarefas() {
     const toggleTaskCompletion = useTaskStore(s => s.toggleTaskCompletion);
     const updateTask = useTaskStore(s => s.updateTask);
 
-    // Column widths — resizable, persisted in localStorage
-    const [colWidths, setColWidths] = useState<Record<ColId, number>>(() => {
-        try {
-            const saved = localStorage.getItem('fd_task_col_widths');
-            return saved ? { ...DEFAULT_COL_W, ...JSON.parse(saved) } : { ...DEFAULT_COL_W };
-        } catch { return { ...DEFAULT_COL_W }; }
-    });
-    const gridTemplate = COL_IDS.map(id => `${colWidths[id]}px`).join(' ');
-
-    const onColResizeStart = useCallback((colId: ColId) => (e: React.MouseEvent) => {
-        e.preventDefault();
-        const startX = e.clientX;
-        const startWidth = colWidths[colId];
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-        const onMove = (ev: MouseEvent) => {
-            const next = Math.max(MIN_COL_W[colId], startWidth + (ev.clientX - startX));
-            setColWidths(prev => ({ ...prev, [colId]: next }));
-        };
-        const onUp = () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-            setColWidths(prev => { localStorage.setItem('fd_task_col_widths', JSON.stringify(prev)); return prev; });
-        };
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-    }, [colWidths]);
+    const { gridTemplate, onColResizeStart } = useColumnResize();
 
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
@@ -187,10 +153,13 @@ export default function Tarefas() {
     const hasExpandedStatuses = useRef(false);
     const [animatingGroups, setAnimatingGroups] = useState<Map<string, 'enter' | 'exit'>>(new Map());
     const animationTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-    const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
     const [statusPopover, setStatusPopover] = useState<{ taskId: string; position: { top: number; left: number } } | null>(null);
-    const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
     const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+    const onRefresh = useCallback(() => {
+        if (activeWorkspace) fetchWorkspaceTasks(activeWorkspace.id, true);
+    }, [activeWorkspace, fetchWorkspaceTasks]);
+
     const [focusedTaskIndex, setFocusedTaskIndex] = useState<number>(-1);
 
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -203,6 +172,12 @@ export default function Tarefas() {
     const { filteredTasks, groupedTasks, counters, uniqueProjects, uniqueAssignees, hasFilters, activeFilterCount } = useTaskFilters({
         tasks, statuses, search, selectedProject, selectedAssignee, selectedCategory, showCompleted, groupBy, sortConfig
     });
+
+    const {
+        selectedTaskIds, confirmDeleteOpen, setConfirmDeleteOpen,
+        toggleSelectTask, toggleSelectAll, clearSelection,
+        handleBulkComplete, handleBulkDelete, executeBulkDelete,
+    } = useBulkActions({ statuses, filteredTasks, workspaceId: activeWorkspace?.id, onRefresh });
 
     const doneStatusId = statuses.length > 0 ? statuses[statuses.length - 1].id : undefined;
 
@@ -327,50 +302,6 @@ export default function Tarefas() {
         return sortConfig.direction === 'asc'
             ? <ArrowUp size={10} className="text-brand" />
             : <ArrowDown size={10} className="text-brand" />;
-    };
-
-    const toggleSelectTask = useCallback((taskId: string) => {
-        setSelectedTaskIds(prev => {
-            const next = new Set(prev);
-            next.has(taskId) ? next.delete(taskId) : next.add(taskId);
-            return next;
-        });
-    }, []);
-
-    const toggleSelectAll = () => {
-        if (selectedTaskIds.size === filteredTasks.length && filteredTasks.length > 0) {
-            setSelectedTaskIds(new Set());
-        } else {
-            setSelectedTaskIds(new Set(filteredTasks.map(t => t.id)));
-        }
-    };
-
-    const handleBulkComplete = async () => {
-        if (!statuses.length) return;
-        const { error } = await supabase.from('tasks').update({ status_id: statuses[statuses.length - 1].id }).in('id', Array.from(selectedTaskIds));
-        if (!error) { setSelectedTaskIds(new Set()); if (activeWorkspace) fetchWorkspaceTasks(activeWorkspace.id, true); }
-    };
-
-    const handleBulkDelete = () => {
-        if (!activeWorkspace || selectedTaskIds.size === 0) return;
-        setConfirmDeleteOpen(true);
-    };
-
-    const executeBulkDelete = async () => {
-        if (!activeWorkspace || selectedTaskIds.size === 0) return;
-        try {
-            const { error } = await supabase
-                .from('tasks')
-                .update({ deleted_at: new Date().toISOString() })
-                .in('id', Array.from(selectedTaskIds));
-            if (error) throw error;
-            toast.success(`${selectedTaskIds.size} tarefas movidas para a lixeira`);
-            setSelectedTaskIds(new Set());
-            fetchWorkspaceTasks(activeWorkspace.id, true);
-        } catch (error) {
-            console.error('Error bulk deleting tasks:', error);
-            toast.error('Erro ao mover tarefas para a lixeira');
-        }
     };
 
     const toggleSection = useCallback((sectionId: string) => {
@@ -606,7 +537,7 @@ export default function Tarefas() {
                     selectedCount={selectedTaskIds.size}
                     onCompleteAll={handleBulkComplete}
                     onDeleteAll={handleBulkDelete}
-                    onCancel={() => setSelectedTaskIds(new Set())}
+                    onCancel={clearSelection}
                 />
             </Card>
 

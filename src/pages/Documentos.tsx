@@ -5,12 +5,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useDocumentStore, type Document } from '../store/documentStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { useProjectStore } from '../store/projectStore';
+import { useProjectStore, type ProjectWithClient } from '../store/projectStore';
 import { Button } from '../components/ui/Button';
 import { DocumentEditor } from '../components/documents/DocumentEditor';
 import {
     FileText, Plus, ChevronRight, ChevronDown,
     Trash2, Inbox, Search, FilePlus, GripVertical, FolderOpen, X,
+    Layers, AlignJustify,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -153,6 +154,103 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
     );
 }
 
+// ─── Seção de projeto na sidebar agrupada ────────────────────────
+function ProjectGroup({
+    project,
+    docs,
+    allDocs,
+    activeId,
+    collapsed,
+    onToggle,
+    onSelect,
+    onAddChild,
+    onDelete,
+    dragging,
+    dropTarget,
+    onDragStart,
+    onDragEnd,
+    onDragOver,
+    onDragLeave,
+    onDrop,
+    isMobile,
+}: {
+    project: ProjectWithClient | null;
+    docs: Document[];
+    allDocs: Document[];
+    activeId: string | undefined;
+    collapsed: boolean;
+    onToggle: () => void;
+    onSelect: (id: string) => void;
+    onAddChild: (parentId: string) => void;
+    onDelete: (doc: Document) => void;
+    dragging: string | null;
+    dropTarget: string | null;
+    onDragStart: (id: string) => void;
+    onDragEnd: () => void;
+    onDragOver: (id: string) => void;
+    onDragLeave: () => void;
+    onDrop: (targetId: string) => void;
+    isMobile: boolean;
+}) {
+    const open = !collapsed;
+    const rootDocs = docs.filter(d => !d.parent_id);
+
+    return (
+        <div className="mb-1">
+            {/* Section header */}
+            <button
+                onClick={onToggle}
+                className="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-surface-0 transition-colors group/section"
+            >
+                <span className="text-muted group-hover/section:text-secondary transition-colors">
+                    {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                </span>
+                {project ? (
+                    <>
+                        <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: (project as { color?: string }).color || '#888' }}
+                        />
+                        <span className="flex-1 text-left text-[10px] font-bold uppercase tracking-widest text-muted group-hover/section:text-secondary truncate transition-colors">
+                            {project.name}
+                        </span>
+                    </>
+                ) : (
+                    <span className="flex-1 text-left text-[10px] font-bold uppercase tracking-widest text-muted group-hover/section:text-secondary transition-colors">
+                        Sem projeto
+                    </span>
+                )}
+                <span className="text-[9px] text-muted/60 shrink-0">{rootDocs.length}</span>
+            </button>
+
+            {open && (
+                <div className="pl-1">
+                    {rootDocs.map(doc => (
+                        <DocTreeItem
+                            key={doc.id}
+                            doc={doc}
+                            allDocs={allDocs}
+                            depth={0}
+                            activeId={activeId}
+                            onSelect={onSelect}
+                            onAddChild={onAddChild}
+                            onDelete={onDelete}
+                            dragging={dragging}
+                            dropTarget={dropTarget}
+                            onDragStart={onDragStart}
+                            onDragEnd={onDragEnd}
+                            onDragOver={onDragOver}
+                            onDragLeave={onDragLeave}
+                            onDrop={onDrop}
+                            isMobile={isMobile}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────
 export default function Documentos() {
     const navigate = useNavigate();
@@ -164,6 +262,8 @@ export default function Documentos() {
     const isMobile = useIsMobile();
     const [search, setSearch] = useState('');
     const [projectFilter, setProjectFilter] = useState<string | null>(null);
+    const [grouped, setGrouped] = useState(true);
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
     const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
     const [projectDropdownPos, setProjectDropdownPos] = useState({ top: 0, left: 0 });
     const projectFilterBtnRef = useRef<HTMLButtonElement>(null);
@@ -302,6 +402,23 @@ export default function Documentos() {
         ? projects.find(p => p.id === projectFilter)?.name
         : null;
 
+    // Agrupamento por projeto
+    const projectGroups = (() => {
+        const withProject: { project: ProjectWithClient; docs: Document[] }[] = [];
+        const withoutProject: Document[] = [];
+
+        for (const doc of documents) {
+            if (!doc.project_id) { withoutProject.push(doc); continue; }
+            const existing = withProject.find(g => g.project.id === doc.project_id);
+            if (existing) { existing.docs.push(doc); continue; }
+            const proj = projects.find(p => p.id === doc.project_id);
+            if (proj) withProject.push({ project: proj, docs: [doc] });
+            else withoutProject.push(doc);
+        }
+
+        return { withProject, withoutProject };
+    })();
+
     return (
         <div className="h-full flex fade-in rounded-card overflow-hidden border border-border-subtle shadow-card bg-surface-card">
             {/* ── Sidebar de Páginas — oculta no mobile quando editor está aberto ── */}
@@ -318,6 +435,50 @@ export default function Documentos() {
                         {rootDropHover ? "↓ Soltar para tornar raiz" : "Páginas"}
                     </span>
                     <div className="flex items-center gap-1">
+                        {/* Agrupar/desagrupar toggle — só mostra quando não há filtro ou busca ativa */}
+                        {!projectFilter && !search && projects.length > 0 && (
+                            <>
+                                {grouped && (() => {
+                                    const groupIds = [
+                                        ...projectGroups.withProject.map(g => g.project.id),
+                                        ...(projectGroups.withoutProject.length > 0 ? ['__none__'] : []),
+                                    ];
+                                    const allAreCollapsed = groupIds.length > 0 && groupIds.every(id => collapsedGroups.has(id));
+                                    return (
+                                        <button
+                                            title={allAreCollapsed ? 'Expandir tudo' : 'Recolher tudo'}
+                                            onClick={() => {
+                                                if (allAreCollapsed) {
+                                                    setCollapsedGroups(new Set());
+                                                } else {
+                                                    setCollapsedGroups(new Set(groupIds));
+                                                }
+                                            }}
+                                            className={cn(
+                                                'rounded-lg hover:bg-surface-0 transition-colors text-muted hover:text-primary',
+                                                isMobile ? 'p-3' : 'p-1'
+                                            )}
+                                        >
+                                            {allAreCollapsed
+                                                ? <ChevronDown size={isMobile ? 18 : 14} />
+                                                : <ChevronRight size={isMobile ? 18 : 14} />}
+                                        </button>
+                                    );
+                                })()}
+                                <button
+                                    title={grouped ? 'Desagrupar por projeto' : 'Agrupar por projeto'}
+                                    onClick={() => setGrouped(v => !v)}
+                                    className={cn(
+                                        'rounded-lg hover:bg-surface-0 transition-colors',
+                                        isMobile ? 'p-3' : 'p-1',
+                                        grouped ? 'text-brand bg-brand/10' : 'text-muted hover:text-primary'
+                                    )}
+                                >
+                                    {grouped ? <Layers size={isMobile ? 18 : 14} /> : <AlignJustify size={isMobile ? 18 : 14} />}
+                                </button>
+                            </>
+                        )}
+
                         {/* Project filter button */}
                         {projects.length > 0 && (
                             <div className="relative group/filter">
@@ -512,7 +673,63 @@ export default function Documentos() {
                         >
                             <Plus size={13} /> Criar primeira página
                         </button>
+                    ) : grouped && projects.length > 0 ? (
+                        /* ── Vista agrupada por projeto ── */
+                        <>
+                            {projectGroups.withProject.map(({ project, docs }) => (
+                                <ProjectGroup
+                                    key={project.id}
+                                    project={project}
+                                    docs={docs}
+                                    allDocs={documents}
+                                    activeId={id}
+                                    collapsed={collapsedGroups.has(project.id)}
+                                    onToggle={() => setCollapsedGroups(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(project.id)) next.delete(project.id); else next.add(project.id);
+                                        return next;
+                                    })}
+                                    onSelect={docId => navigate(`/documentos/${docId}`)}
+                                    onAddChild={handleAddChild}
+                                    onDelete={handleDelete}
+                                    dragging={dragging}
+                                    dropTarget={dropTarget}
+                                    onDragStart={handleDragStart}
+                                    onDragEnd={handleDragEnd}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                    isMobile={isMobile}
+                                />
+                            ))}
+                            {projectGroups.withoutProject.length > 0 && (
+                                <ProjectGroup
+                                    project={null}
+                                    docs={projectGroups.withoutProject}
+                                    allDocs={documents}
+                                    activeId={id}
+                                    collapsed={collapsedGroups.has('__none__')}
+                                    onToggle={() => setCollapsedGroups(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has('__none__')) next.delete('__none__'); else next.add('__none__');
+                                        return next;
+                                    })}
+                                    onSelect={docId => navigate(`/documentos/${docId}`)}
+                                    onAddChild={handleAddChild}
+                                    onDelete={handleDelete}
+                                    dragging={dragging}
+                                    dropTarget={dropTarget}
+                                    onDragStart={handleDragStart}
+                                    onDragEnd={handleDragEnd}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                    isMobile={isMobile}
+                                />
+                            )}
+                        </>
                     ) : (
+                        /* ── Vista flat (desagrupada) ── */
                         <>
                             {rootDocs.map(doc => (
                                 <DocTreeItem

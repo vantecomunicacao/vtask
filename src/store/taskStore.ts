@@ -23,22 +23,60 @@ const CACHE_TTL_MS = 30_000;
 // Module-level channel ref — kept outside Zustand so it doesn't trigger re-renders
 let _realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 
+// Debounced batch fetcher for realtime events — prevents N+1 queries on burst updates
+const _pendingUpserts = new Set<string>();
+const _pendingDeletes = new Set<string>();
+let _batchTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleRealtimeBatch(store: () => { tasks: TaskWithAssignee[]; set: (s: Partial<{ tasks: TaskWithAssignee[] }>) => void }) {
+    if (_batchTimer) clearTimeout(_batchTimer);
+    _batchTimer = setTimeout(async () => {
+        _batchTimer = null;
+        const upsertIds = Array.from(_pendingUpserts);
+        const deleteIds = Array.from(_pendingDeletes);
+        _pendingUpserts.clear();
+        _pendingDeletes.clear();
+
+        const { tasks, set } = store();
+
+        // Handle deletes first
+        if (deleteIds.length > 0) {
+            set({ tasks: tasks.filter(t => !deleteIds.includes(t.id)) });
+        }
+
+        // Batch fetch all upserts in a single query
+        if (upsertIds.length > 0) {
+            const { data } = await supabase
+                .from('tasks')
+                .select(TASK_JOIN)
+                .in('id', upsertIds)
+                .is('deleted_at', null);
+            if (data) {
+                const fetched = data as TaskWithAssignee[];
+                const fetchedIds = new Set(fetched.map(t => t.id));
+                const { tasks: currentTasks } = store();
+                set({
+                    tasks: [
+                        ...currentTasks.filter(t => !fetchedIds.has(t.id)),
+                        ...fetched,
+                    ],
+                });
+            }
+        }
+    }, 300);
+}
+
 const TASK_JOIN = '*, project:projects(id, name, color), assignee:profiles(*), category:task_categories(id, name, color)';
 
-async function fetchFullTask(taskId: string): Promise<TaskWithAssignee | null> {
-    const { data } = await supabase
-        .from('tasks')
-        .select(TASK_JOIN)
-        .eq('id', taskId)
-        .single();
-    return (data as TaskWithAssignee | null);
-}
+const PAGE_SIZE = 150;
 
 interface TaskState {
     tasks: TaskWithAssignee[];
     statuses: CustomStatus[];
     taskCategories: TaskCategory[];
     loading: boolean;
+    loadingMore: boolean;
+    hasMore: boolean;
     error: string | null;
     tasksCache: { workspaceId: string; at: number } | null;
     autoMovedCount: number;
@@ -46,6 +84,7 @@ interface TaskState {
     fetchStatuses: (workspaceId: string) => Promise<void>;
     fetchCategories: (workspaceId: string) => Promise<void>;
     fetchWorkspaceTasks: (workspaceId: string, force?: boolean) => Promise<void>;
+    fetchMoreTasks: (workspaceId: string) => Promise<void>;
     autoMovePastDueTasks: () => Promise<void>;
     invalidateTasksCache: () => void;
     addStatus: (workspaceId: string, name: string, color: string) => Promise<void>;
@@ -70,6 +109,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     statuses: [],
     taskCategories: [],
     loading: false,
+    loadingMore: false,
+    hasMore: false,
     error: null,
     tasksCache: null,
     autoMovedCount: 0,
@@ -261,7 +302,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             `)
             .in('project_id', projectIds)
             .is('deleted_at', null)
-            .order('due_date', { ascending: true, nullsFirst: false });
+            .order('due_date', { ascending: true, nullsFirst: false })
+            .range(0, PAGE_SIZE - 1);
 
         let { data, error } = await run();
         if (error) {
@@ -275,7 +317,50 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         }
 
         const loadedTasks = (data as TaskWithAssignee[]) || [];
-        set({ tasks: loadedTasks, loading: false, tasksCache: { workspaceId, at: Date.now() } });
+        set({
+            tasks: loadedTasks,
+            loading: false,
+            hasMore: loadedTasks.length === PAGE_SIZE,
+            tasksCache: { workspaceId, at: Date.now() },
+        });
+    },
+
+    fetchMoreTasks: async (workspaceId: string) => {
+        const { tasks, hasMore, loadingMore } = get();
+        if (!hasMore || loadingMore) return;
+
+        set({ loadingMore: true });
+
+        const { data: projects } = await supabase
+            .from('projects')
+            .select('id')
+            .eq('workspace_id', workspaceId);
+
+        const projectIds = projects?.map(p => p.id) ?? [];
+        if (projectIds.length === 0) { set({ loadingMore: false }); return; }
+
+        const offset = tasks.length;
+        const { data, error } = await supabase
+            .from('tasks')
+            .select(`
+                *,
+                project:projects(id, name, color),
+                assignee:profiles(*),
+                category:task_categories(id, name, color)
+            `)
+            .in('project_id', projectIds)
+            .is('deleted_at', null)
+            .order('due_date', { ascending: true, nullsFirst: false })
+            .range(offset, offset + PAGE_SIZE - 1);
+
+        if (error) { set({ loadingMore: false, error: error.message }); return; }
+
+        const newTasks = (data as TaskWithAssignee[]) || [];
+        set({
+            tasks: [...tasks, ...newTasks],
+            loadingMore: false,
+            hasMore: newTasks.length === PAGE_SIZE,
+        });
     },
 
     autoMovePastDueTasks: async () => {
@@ -436,32 +521,31 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             _realtimeChannel = null;
         }
 
+        const storeRef = () => ({ tasks: get().tasks, set });
+
         const channel = supabase
             .channel(`tasks:ws:${workspaceId}`)
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'tasks' },
-                async (payload) => {
+                (payload) => {
                     const raw = payload.new as Task;
                     if (raw.deleted_at) return;
-                    const task = await fetchFullTask(raw.id);
-                    if (!task) return;
-                    set(s => ({ tasks: [...s.tasks.filter(t => t.id !== task.id), task] }));
+                    _pendingUpserts.add(raw.id);
+                    scheduleRealtimeBatch(storeRef);
                 }
             )
             .on(
                 'postgres_changes',
                 { event: 'UPDATE', schema: 'public', table: 'tasks' },
-                async (payload) => {
+                (payload) => {
                     const raw = payload.new as Task;
-                    // Soft-deleted → remove from list
                     if (raw.deleted_at) {
-                        set(s => ({ tasks: s.tasks.filter(t => t.id !== raw.id) }));
-                        return;
+                        _pendingDeletes.add(raw.id);
+                    } else {
+                        _pendingUpserts.add(raw.id);
                     }
-                    const task = await fetchFullTask(raw.id);
-                    if (!task) return;
-                    set(s => ({ tasks: s.tasks.map(t => t.id === task.id ? task : t) }));
+                    scheduleRealtimeBatch(storeRef);
                 }
             )
             .on(
@@ -469,7 +553,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
                 { event: 'DELETE', schema: 'public', table: 'tasks' },
                 (payload) => {
                     const raw = payload.old as Task;
-                    set(s => ({ tasks: s.tasks.filter(t => t.id !== raw.id) }));
+                    _pendingDeletes.add(raw.id);
+                    scheduleRealtimeBatch(storeRef);
                 }
             )
             .subscribe();

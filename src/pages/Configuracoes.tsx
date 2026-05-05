@@ -388,7 +388,7 @@ export default function Configuracoes() {
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-2 items-center shrink-0">
-                                                    <Badge variant={member.role as any}>
+                                                    <Badge variant={member.role as 'admin' | 'editor' | 'viewer'}>
                                                         {member.role}
                                                     </Badge>
                                                 </div>

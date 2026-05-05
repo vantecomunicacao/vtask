@@ -40,8 +40,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
             .limit(30);
 
         if (data) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const notifications: AppNotification[] = data.map((n: any) => ({
+            type NotificationRow = typeof data[number] & { actor: { full_name: string | null } | null };
+            const notifications: AppNotification[] = (data as NotificationRow[]).map(n => ({
                 ...n,
                 actor_name: n.actor?.full_name ?? null,
             }));
@@ -91,8 +91,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
                     .single();
 
                 if (data) {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const notification: AppNotification = { ...(data as any), actor_name: (data as any).actor?.full_name ?? null };
+                    type NotificationWithActor = typeof data & { actor: { full_name: string | null } | null };
+                    const row = data as NotificationWithActor;
+                    const notification: AppNotification = { ...row, actor_name: row.actor?.full_name ?? null };
                     set(state => ({
                         notifications: [notification, ...state.notifications],
                         unreadCount: state.unreadCount + 1,

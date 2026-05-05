@@ -58,15 +58,15 @@ export function TaskDetailSidebar({
         }
     };
 
-useState(() => {
+    useState(() => {
+        type TaskDocumentRow = { id: string; document_id: string; documents: { title: string | null } | { title: string | null }[] | null };
         (async () => {
             const { data } = await supabase
                 .from('task_documents')
                 .select('id, document_id, documents(title)')
                 .eq('task_id', currentTask.id);
             if (data) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                setLinkedDocuments((data as any[]).map((d: any) => ({
+                setLinkedDocuments((data as unknown as TaskDocumentRow[]).map(d => ({
                     id: d.id,
                     document_id: d.document_id,
                     title: (Array.isArray(d.documents) ? d.documents[0]?.title : d.documents?.title) || 'Documento sem título',

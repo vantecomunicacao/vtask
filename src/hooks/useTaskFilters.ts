@@ -111,15 +111,21 @@ export function useTaskFilters({
         };
     }, [tasks, lastStatusId]);
 
-    const uniqueProjects = useMemo(() =>
-        Array.from(new Set(tasks.map(t => t.project).filter(Boolean).map(p => JSON.stringify(p)))).map(s => JSON.parse(s)),
-        [tasks]
-    );
+    const uniqueProjects = useMemo(() => {
+        const map = new Map<string, NonNullable<TaskWithAssignee['project']>>();
+        for (const t of tasks) {
+            if (t.project && !map.has(t.project.id)) map.set(t.project.id, t.project);
+        }
+        return Array.from(map.values());
+    }, [tasks]);
 
-    const uniqueAssignees = useMemo(() =>
-        Array.from(new Set(tasks.map(t => t.assignee).filter(Boolean).map(a => JSON.stringify(a)))).map(s => JSON.parse(s)),
-        [tasks]
-    );
+    const uniqueAssignees = useMemo(() => {
+        const map = new Map<string, NonNullable<TaskWithAssignee['assignee']>>();
+        for (const t of tasks) {
+            if (t.assignee && !map.has(t.assignee.id)) map.set(t.assignee.id, t.assignee);
+        }
+        return Array.from(map.values());
+    }, [tasks]);
 
     const hasFilters = debouncedSearch !== '' || selectedProject !== 'all' || selectedAssignee !== 'all' || selectedCategory !== 'all';
     const activeFilterCount = (selectedProject !== 'all' ? 1 : 0) + (selectedAssignee !== 'all' ? 1 : 0) + (selectedCategory !== 'all' ? 1 : 0);

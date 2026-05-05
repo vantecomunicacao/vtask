@@ -12,7 +12,7 @@ import { EditorToolbar, HighlightSwatches, BlockquotePicker } from '../ui/Editor
 import { createEditorExtensions } from '../../lib/editorExtensions';
 import {
     Save, Trash2, FileText, Plus, FolderOpen,
-    History, Download, ChevronDown, Check, ChevronLeft,
+    History, Download, ChevronDown, ChevronRight, Check, ChevronLeft,
     BookOpen, Bold, Italic, Strikethrough, Link as LinkIcon,
     Highlighter, Palette, Quote, Eraser,
 } from 'lucide-react';
@@ -589,6 +589,22 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
             <div className="flex-1 flex overflow-hidden">
             <div className="flex-1 overflow-y-auto bg-surface-card custom-scrollbar">
                 <div className="max-w-3xl mx-auto py-10 px-8">
+                    {/* Breadcrumb de projeto */}
+                    {doc.project_id && (() => {
+                        const proj = projects.find(p => p.id === doc.project_id);
+                        if (!proj) return null;
+                        return (
+                            <div className="flex items-center gap-1.5 mb-4 text-xs text-muted">
+                                <span
+                                    className="w-2 h-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: (proj as { color?: string }).color || '#888' }}
+                                />
+                                <span className="font-medium text-secondary">{proj.name}</span>
+                                <ChevronRight size={11} className="text-muted/60" />
+                                <span className="truncate">{doc.title || 'Sem título'}</span>
+                            </div>
+                        );
+                    })()}
                     <EditorContent editor={editor} className={cn("tiptap-editor-container", pageViewMode && "page-view-mode")} />
 
                     {/* Sub-páginas */}

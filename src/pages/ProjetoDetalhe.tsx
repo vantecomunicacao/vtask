@@ -3,76 +3,22 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useProjectStore } from '../store/projectStore';
 import { useTaskStore } from '../store/taskStore';
 import { useDocumentStore } from '../store/documentStore';
-import { Button } from '../components/ui/Button';
 import {
-    LayoutList, Trello, Flag, MoreHorizontal, Edit2, Trash2, RefreshCw,
-    FileText, Plus, Calendar as CalendarIcon, ChevronRight, ExternalLink,
-    ArrowLeft, PanelLeftClose, PanelLeftOpen, Search, X,
+    LayoutList, Flag, MoreHorizontal, RefreshCw,
+    Calendar as CalendarIcon,
 } from 'lucide-react';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { TaskFormModal } from '../components/tasks/TaskFormModal';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal';
 import { ProjectFormModal } from '../components/projects/ProjectFormModal';
+import { ProjectDocSidebar } from '../components/projects/ProjectDocSidebar';
+import { ProjectHeader } from '../components/projects/ProjectHeader';
 import { DocumentEditor } from '../components/documents/DocumentEditor';
 import { toast } from 'sonner';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { type TaskWithAssignee } from '../store/taskStore';
-import { type Document } from '../store/documentStore';
-import { cn } from '../lib/utils';
-
-// ─── Doc tree ────────────────────────────────────────────────────────
-function DocTreeNode({ doc, allDocs, depth, onSelect, onOpenFull, activeDocId }: {
-    doc: Document; allDocs: Document[]; depth: number;
-    onSelect: (id: string) => void;
-    onOpenFull: (id: string) => void;
-    activeDocId: string | null;
-}) {
-    const [expanded, setExpanded] = useState(true);
-    const children = allDocs.filter(d => d.parent_id === doc.id);
-    const hasChildren = children.length > 0;
-    const isActive = doc.id === activeDocId;
-
-    return (
-        <div>
-            <div
-                className={cn(
-                    "flex items-center gap-1 pr-2 py-1 cursor-pointer group transition-colors rounded-lg text-sm",
-                    isActive ? "bg-brand-light text-brand" : "hover:bg-surface-0"
-                )}
-                style={{ paddingLeft: `${6 + depth * 14}px` }}
-            >
-                <button
-                    className="p-0.5 shrink-0 text-muted hover:text-secondary rounded"
-                    onClick={e => { e.stopPropagation(); if (hasChildren) setExpanded(v => !v); }}
-                >
-                    {hasChildren
-                        ? <ChevronRight size={12} className={`transition-transform ${expanded ? 'rotate-90' : ''}`} />
-                        : <span className="w-3 inline-block" />
-                    }
-                </button>
-                <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => onSelect(doc.id)}>
-                    <FileText size={13} className={cn("shrink-0 transition-colors", isActive ? "text-brand" : "text-muted group-hover:text-brand")} />
-                    <span className={cn("flex-1 truncate leading-none py-0.5 transition-colors", isActive ? "text-brand font-medium" : "text-secondary group-hover:text-brand")}>
-                        {doc.title || 'Sem título'}
-                    </span>
-                </div>
-                <button
-                    onClick={e => { e.stopPropagation(); onOpenFull(doc.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted hover:text-secondary transition-all shrink-0"
-                    title="Abrir em tela cheia"
-                >
-                    <ExternalLink size={11} />
-                </button>
-            </div>
-            {hasChildren && expanded && children.map(child => (
-                <DocTreeNode key={child.id} doc={child} allDocs={allDocs} depth={depth + 1}
-                    onSelect={onSelect} onOpenFull={onOpenFull} activeDocId={activeDocId} />
-            ))}
-        </div>
-    );
-}
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 const PRIORITY_LABELS: Record<string, { label: string; className: string }> = {
@@ -102,8 +48,6 @@ export default function ProjetoDetalhe() {
     const [view, setView] = useState<'kanban' | 'list'>('kanban');
     const [rightPanel, setRightPanel] = useState<'tasks' | 'document'>('tasks');
     const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-    const [docTreeCollapsed, setDocTreeCollapsed] = useState(false);
-    const [docSearch, setDocSearch] = useState('');
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
@@ -111,10 +55,11 @@ export default function ProjetoDetalhe() {
 
     const project = projects.find(p => p.id === id);
     const projectDocs = documents.filter(d => d.project_id === id);
-    const filteredDocs = docSearch.trim()
-        ? projectDocs.filter(d => (d.title || '').toLowerCase().includes(docSearch.toLowerCase()))
-        : null;
-    const rootDocs = projectDocs.filter(d => !d.parent_id || !projectDocs.find(p => p.id === d.parent_id));
+
+    const openDoc = useCallback((docId: string) => {
+        setSelectedDocId(docId);
+        setRightPanel('document');
+    }, []);
 
     const openTask = useCallback((task: TaskWithAssignee) => {
         setSelectedTask(task);
@@ -129,13 +74,20 @@ export default function ProjetoDetalhe() {
     useEffect(() => { if (error) toast.error(error); }, [error]);
 
     useEffect(() => {
-        (async () => {
-            const taskId = searchParams.get('task');
-            if (!taskId || tasks.length === 0) return;
-            const found = tasks.find(t => t.id === taskId);
-            if (found) setSelectedTask(found);
-        })();
+        const taskId = searchParams.get('task');
+        if (!taskId || tasks.length === 0) return;
+        const found = tasks.find(t => t.id === taskId);
+        if (found) setSelectedTask(found);
     }, [searchParams, tasks]);
+
+    // Abre documento inline quando vindo da sidebar via ?doc=:id
+    // Remove o param logo após — no segundo disparo 'doc' já é null e o efeito para
+    useEffect(() => {
+        const docId = searchParams.get('doc');
+        if (!docId) return;
+        openDoc(docId);
+        setSearchParams(prev => { prev.delete('doc'); return prev; }, { replace: true });
+    }, [searchParams, openDoc, setSearchParams]);
 
     useEffect(() => { if (id) fetchTasks(id); }, [id, fetchTasks]);
     useEffect(() => { if (activeWorkspace) fetchStatuses(activeWorkspace.id); }, [activeWorkspace, fetchStatuses]);
@@ -154,11 +106,6 @@ export default function ProjetoDetalhe() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
-    const openDoc = useCallback((docId: string) => {
-        setSelectedDocId(docId);
-        setRightPanel('document');
     }, []);
 
     const handleCreateDoc = async () => {
@@ -194,171 +141,28 @@ export default function ProjetoDetalhe() {
     return (
         <div className="flex flex-col h-full fade-in">
 
-            {/* ── Header ── */}
-            <div className="flex items-center justify-between mb-4 shrink-0">
-                <div>
-                    <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-bold" style={project.color ? { color: project.color } : { color: '#9ca3af' }}>#</span>
-                        <h1 className="text-2xl font-bold text-primary">{project.name}</h1>
-                        <div className="flex items-center gap-1 ml-1">
-                            <button onClick={() => setIsProjectModalOpen(true)} className="p-1 text-muted hover:text-brand hover:bg-brand-light rounded transition-colors" title="Editar">
-                                <Edit2 size={15} />
-                            </button>
-                            <button onClick={handleDeleteProject} className="p-1 text-muted hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Excluir">
-                                <Trash2 size={15} />
-                            </button>
-                        </div>
-                    </div>
-                    <p className="text-sm text-muted">{project.client?.name || 'Projeto Interno'}</p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    {rightPanel === 'tasks' && (
-                        <div className="flex bg-surface-0 p-1 rounded-lg border border-border-subtle">
-                            <button
-                                onClick={() => setView('kanban')}
-                                className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'kanban' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
-                            >
-                                <Trello size={15} /> Kanban
-                            </button>
-                            <button
-                                onClick={() => setView('list')}
-                                className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'list' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
-                            >
-                                <LayoutList size={15} /> Lista
-                            </button>
-                        </div>
-                    )}
-
-                    {rightPanel === 'document' && (
-                        <button
-                            onClick={() => { setRightPanel('tasks'); setDocTreeCollapsed(false); }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-secondary hover:text-primary bg-surface-0 border border-border-subtle rounded-lg transition-colors"
-                        >
-                            <ArrowLeft size={15} /> Voltar às Tarefas
-                        </button>
-                    )}
-
-                    <Button size="sm" className="gap-2" onClick={() => setIsTaskModalOpen(true)}>
-                        <span className="text-lg leading-none">+</span> Nova Tarefa
-                    </Button>
-                </div>
-            </div>
+            <ProjectHeader
+                project={project}
+                view={view}
+                rightPanel={rightPanel}
+                onViewChange={setView}
+                onEdit={() => setIsProjectModalOpen(true)}
+                onDelete={handleDeleteProject}
+                onBackToTasks={() => setRightPanel('tasks')}
+                onNewTask={() => setIsTaskModalOpen(true)}
+            />
 
             {/* ── Body: tasks + docs side by side ── */}
             <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
 
-                {/* ── Documents panel ── */}
-                <div className={cn(
-                    "shrink-0 flex flex-col bg-surface-card border border-border-subtle rounded-card overflow-hidden transition-all duration-200",
-                    docTreeCollapsed ? "w-10" : "w-64"
-                )}>
-                    {docTreeCollapsed ? (
-                        /* Collapsed: just a vertical icon strip */
-                        <div className="flex flex-col items-center gap-2 py-2.5">
-                            <button
-                                onClick={() => setDocTreeCollapsed(false)}
-                                title="Expandir painel de documentos"
-                                className="p-1.5 rounded text-muted hover:text-brand hover:bg-brand-light transition-colors"
-                            >
-                                <PanelLeftOpen size={15} />
-                            </button>
-                            <FileText size={13} className="text-muted" />
-                        </div>
-                    ) : (
-                        <>
-                            {/* Panel header */}
-                            <div className="flex items-center justify-between px-3 py-2.5 border-b border-border-subtle shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <FileText size={14} className="text-muted" />
-                                    <span className="text-xs font-black uppercase tracking-widest text-muted">Documentos</span>
-                                    {projectDocs.length > 0 && (
-                                        <span className="text-[10px] font-bold bg-surface-0 border border-border-subtle text-muted px-1.5 py-0.5 rounded-full">
-                                            {projectDocs.length}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-0.5">
-                                    {rightPanel === 'document' && (
-                                        <button
-                                            onClick={() => setDocTreeCollapsed(true)}
-                                            title="Recolher painel"
-                                            className="p-1 rounded text-muted hover:text-brand hover:bg-brand-light transition-colors"
-                                        >
-                                            <PanelLeftClose size={14} />
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={handleCreateDoc}
-                                        title="Novo documento"
-                                        aria-label="Novo documento"
-                                        className="p-1 rounded text-muted hover:text-brand hover:bg-brand-light transition-colors"
-                                    >
-                                        <Plus size={14} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Search */}
-                            <div className="px-2 pt-2 pb-1 shrink-0">
-                                <div className="relative">
-                                    <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-                                    <input
-                                        value={docSearch}
-                                        onChange={e => setDocSearch(e.target.value)}
-                                        onKeyDown={e => { if (e.key === 'Escape') setDocSearch(''); }}
-                                        placeholder="Buscar documento..."
-                                        className="w-full pl-6 pr-6 py-1 text-xs bg-surface-0 border border-border-subtle rounded-lg outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/30"
-                                    />
-                                    {docSearch && (
-                                        <button onClick={() => setDocSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-secondary">
-                                            <X size={10} />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Doc list */}
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
-                                {projectDocs.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-                                        <FileText size={24} className="text-muted" />
-                                        <p className="text-xs text-muted">Nenhum documento ainda</p>
-                                        <button onClick={handleCreateDoc} className="text-xs text-brand hover:underline">
-                                            Criar primeiro
-                                        </button>
-                                    </div>
-                                ) : filteredDocs ? (
-                                    filteredDocs.length === 0 ? (
-                                        <p className="text-xs text-muted text-center py-4">Nenhum resultado</p>
-                                    ) : filteredDocs.map(doc => (
-                                        <div
-                                            key={doc.id}
-                                            onClick={() => { openDoc(doc.id); setDocSearch(''); }}
-                                            className={cn(
-                                                'flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors',
-                                                selectedDocId === doc.id ? 'bg-brand-light text-brand' : 'text-secondary hover:bg-surface-0 hover:text-brand'
-                                            )}
-                                        >
-                                            <FileText size={12} className="shrink-0 text-muted" />
-                                            <span className="truncate text-xs">{doc.title || 'Sem título'}</span>
-                                        </div>
-                                    ))
-                                ) : rootDocs.map(doc => (
-                                    <DocTreeNode
-                                        key={doc.id}
-                                        doc={doc}
-                                        allDocs={projectDocs}
-                                        depth={0}
-                                        onSelect={openDoc}
-                                        onOpenFull={docId => navigate(`/documentos/${docId}`)}
-                                        activeDocId={selectedDocId}
-                                    />
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
+                <ProjectDocSidebar
+                    projectDocs={projectDocs}
+                    selectedDocId={selectedDocId}
+                    showCollapseButton={rightPanel === 'document'}
+                    onSelectDoc={openDoc}
+                    onCreateDoc={handleCreateDoc}
+                    onCollapse={() => setRightPanel('tasks')}
+                />
 
                 {/* Right panel: document editor or tasks */}
                 <div className="flex-1 overflow-hidden relative">

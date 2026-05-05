@@ -95,7 +95,9 @@
       "Bash(sed -n '200,220p' src/components/tasks/TaskRow.tsx)",
       "Bash(sed -n '50,60p' src/components/tasks/TaskRow.tsx)",
       "Bash(sed -n '440,450p' src/components/tasks/TaskRow.tsx)",
-      "Bash(grep -n \"toast.success.*concluída\\\\|toast.success.*Tarefa concluída\" src/components/tasks/TaskDetailSidebar.tsx)"
+      "Bash(grep -n \"toast.success.*concluída\\\\|toast.success.*Tarefa concluída\" src/components/tasks/TaskDetailSidebar.tsx)",
+      "Bash(xargs wc *)",
+      "Bash(awk '{print $5, $9}')"
     ]
   }
 }

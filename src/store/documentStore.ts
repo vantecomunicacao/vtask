@@ -178,15 +178,14 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
     fetchVersions: async (documentId) => {
         set({ versionsLoading: true });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any)
-            .from('document_versions')
+        const { data, error } = await supabase
+            .from('document_versions' as 'documents') // tabela não está no tipo gerado — cast temporário
             .select('*')
             .eq('document_id', documentId)
             .order('created_at', { ascending: false })
             .limit(50);
-        if (error) console.error('[document_versions] fetchVersions error:', error.message);
-        set({ versions: data || [], versionsLoading: false });
+        if (error) set({ versionsLoading: false });
+        else set({ versions: (data as unknown as DocumentVersion[]) || [], versionsLoading: false });
     },
 
     saveVersion: async (documentId, title, content) => {
@@ -197,11 +196,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         const latest = get().versions[0];
         if (latest && JSON.stringify(latest.content) === JSON.stringify(content) && latest.title === title) return;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any)
-            .from('document_versions')
-            .insert({ document_id: documentId, title, content, created_by: user.id });
-        if (error) { console.error('[document_versions] saveVersion error:', error.message); return; }
+        const { error } = await supabase
+            .from('document_versions' as 'documents') // tabela não está no tipo gerado — cast temporário
+            .insert({ document_id: documentId, title, content, created_by: user.id } as never);
+        if (error) return;
 
         const newVersion: DocumentVersion = {
             id: crypto.randomUUID(),
@@ -218,7 +216,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     restoreVersion: async (documentId, version) => {
         await get().updateDocument(documentId, {
             title: version.title,
-            content: version.content as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+            content: version.content as unknown as Document['content'],
         });
     },
 

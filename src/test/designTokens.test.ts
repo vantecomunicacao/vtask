@@ -37,7 +37,7 @@ describe('modalSizes', () => {
     });
 
     it('sizes are ordered smallest to largest (by class name string)', () => {
-        const order = ['max-w-md', 'max-w-lg', 'max-w-2xl', 'max-w-4xl', 'max-w-5xl'];
+        const order = ['max-w-md', 'max-w-lg', 'max-w-2xl', 'max-w-4xl', 'max-w-5xl', 'max-w-[680px]'];
         expect(Object.values(modalSizes)).toEqual(order);
     });
 });
