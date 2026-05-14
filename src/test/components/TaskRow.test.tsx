@@ -17,6 +17,11 @@ vi.mock('../../store/taskStore', () => ({
     useTaskStore: () => ({ updateTask: mockUpdateTask }),
 }));
 
+const mockOpenTask = vi.fn();
+vi.mock('../../contexts/TaskDetailContext', () => ({
+    useTaskDetail: () => ({ openTask: mockOpenTask, closeTask: vi.fn(), selectedTask: null }),
+}));
+
 vi.mock('../../components/ui/DatePicker', () => ({
     DatePickerPopover: ({ open }: { open: boolean }) =>
         open ? <div data-testid="date-picker" /> : null,
@@ -66,7 +71,6 @@ function renderTaskRow(overrides: Record<string, unknown> = {}) {
         statuses: [STATUS_TODO, STATUS_DONE],
         onToggleSelect: vi.fn(),
         onToggleStatusPopover: vi.fn(),
-        onOpenDetail: vi.fn(),
     };
     return { ...render(<TaskRow {...props} />), props };
 }
@@ -155,10 +159,10 @@ describe('TaskRow', () => {
 
     // ── Callbacks ─────────────────────────────────────────────────
     describe('callbacks', () => {
-        it('chama onOpenDetail ao clicar no título', async () => {
-            const { props } = renderTaskRow();
+        it('chama openTask ao clicar no título', async () => {
+            renderTaskRow();
             await userEvent.click(screen.getByText('Minha Tarefa'));
-            expect(props.onOpenDetail).toHaveBeenCalledWith(expect.objectContaining({ id: 't1' }));
+            expect(mockOpenTask).toHaveBeenCalledWith(expect.objectContaining({ id: 't1' }));
         });
 
         it('chama onToggleSelect ao clicar no checkbox', async () => {
@@ -184,7 +188,6 @@ describe('TaskRow', () => {
                 statuses: [STATUS_TODO, STATUS_DONE],
                 onToggleSelect: vi.fn(),
                 onToggleStatusPopover: vi.fn(),
-                onOpenDetail: vi.fn(),
             };
             render(<TaskRow {...props} />);
 

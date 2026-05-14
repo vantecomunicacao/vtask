@@ -1,7 +1,9 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import { createPortal } from 'react-dom';
 import { BubbleMenu } from '@tiptap/react/menus';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { useDocumentEditorState } from '../../hooks/useDocumentEditorState';
+import './tiptap-editor.css';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentStore } from '../../store/documentStore';
 import { useProjectStore } from '../../store/projectStore';
@@ -17,7 +19,7 @@ import {
     Highlighter, Palette, Quote, Eraser,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { VersionHistoryPanel } from './VersionHistoryPanel';
+const VersionHistoryPanel = lazy(() => import('./VersionHistoryPanel').then(m => ({ default: m.VersionHistoryPanel })));
 import type { DocumentVersion } from '../../store/documentStore';
 
 function PickerPortal({ pos, children }: { pos: { top: number; left: number }; children: React.ReactNode }) {
@@ -45,18 +47,31 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
     const doc = documents.find(d => d.id === documentId);
     const subPages = documents.filter(d => d.parent_id === documentId);
 
-    const [title, setTitle] = useState(doc?.title || '');
-    const [saving, setSaving] = useState(false);
-    const [wordCount, setWordCount] = useState(0);
-    const [showVersionPanel, setShowVersionPanel] = useState(false);
-    const [pageViewMode, setPageViewMode] = useState(false);
-    const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
-    const [highlightPickerOpen, setHighlightPickerOpen] = useState<'bubble' | null>(null);
-    const [blockquotePickerOpen, setBlockquotePickerOpen] = useState<'bubble' | null>(null);
-    const [highlightPickerPos, setHighlightPickerPos] = useState({ top: 0, left: 0 });
-    const [blockquotePickerPos, setBlockquotePickerPos] = useState({ top: 0, left: 0 });
-    const projectDropdownRef = useRef<HTMLDivElement>(null);
+    // ─── UI state ─────────────────────────────────────────────────
+    const {
+        title, setTitle,
+        saving, setSaving,
+        wordCount, setWordCount,
+        showVersionPanel, setShowVersionPanel,
+        pageViewMode, setPageViewMode,
+        projectDropdownOpen, setProjectDropdownOpen,
+        highlightPickerOpen, setHighlightPickerOpen,
+        blockquotePickerOpen, setBlockquotePickerOpen,
+        highlightPickerPos, setHighlightPickerPos,
+        blockquotePickerPos, setBlockquotePickerPos,
+    } = useDocumentEditorState(doc?.title ?? '');
 
+    // ─── Refs (evitam stale closures sem recriar o editor) ────────
+    const projectDropdownRef = useRef<HTMLDivElement>(null);
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const handleSaveRef = useRef<() => void>(() => {});
+    const handleFileUploadRef = useRef<(file: File) => void>(() => {});
+    const loadedDocIdRef = useRef<string | null>(null);
+    const savingRef = useRef(false);
+    const documentsRef = useRef(documents);
+    useEffect(() => { documentsRef.current = documents; }, [documents]);
+
+    // Fecha dropdowns ao clicar fora
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node)) {
@@ -72,15 +87,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-    const handleSaveRef = useRef<() => void>(() => {});
-    const handleFileUploadRef = useRef<(file: File) => void>(() => {});
-    const loadedDocIdRef = useRef<string | null>(null);
-    const savingRef = useRef(false);
-    const documentsRef = useRef(documents);
-    useEffect(() => { documentsRef.current = documents; }, [documents]);
-
-    // Carrega projetos uma vez por workspace — ref evita refetch desnecessário
+    // Carrega projetos uma vez por workspace
     const fetchedProjectsForRef = useRef<string | null>(null);
     useEffect(() => {
         if (activeWorkspace && fetchedProjectsForRef.current !== activeWorkspace.id) {
@@ -89,9 +96,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
         }
     }, [activeWorkspace, fetchProjects]);
 
-    // ─── Upload de imagem ─────────────────────────────────────────
-    // Ref garante que editorProps (handlePaste/handleDrop) sempre usem a versão
-    // mais recente sem precisar recriar o editor quando editor/uploadImage mudam.
+    // Ref de upload estável para editorProps (paste/drop) sem recriar o editor
     const handleFileUpload = useCallback(async (file: File) => {
         handleFileUploadRef.current(file);
     }, []);
@@ -106,10 +111,8 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
         }),
         content: (doc?.content as any) || '',
         onUpdate: ({ editor: e }) => {
-            // Word count
             const text = e.getText();
             setWordCount(text.trim() ? text.trim().split(/\s+/).length : 0);
-            // Autosave debounce
             clearTimeout(saveTimerRef.current);
             saveTimerRef.current = setTimeout(() => handleSaveRef.current(), 1500);
         },
@@ -143,7 +146,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
         },
     });
 
-    // Mantém o ref de upload de imagem sempre atualizado com o editor atual
+    // Mantém ref de upload sempre atualizada com editor atual
     useEffect(() => {
         handleFileUploadRef.current = async (file: File) => {
             if (!editor) return;
@@ -152,8 +155,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
         };
     }, [editor, uploadImage]);
 
-    // Carrega conteúdo apenas quando editor inicializa ou o doc ID muda —
-    // evita sobrescrever edições do usuário se o store re-renderizar com o mesmo doc.
+    // Carrega conteúdo só quando o doc ID muda — evita sobrescrever edições do usuário
     useEffect(() => {
         if (!doc || !editor) return;
         if (loadedDocIdRef.current === doc.id) return;
@@ -198,19 +200,16 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
         try {
             const content = editor.getJSON() as any;
             await updateDocument(documentId, { title, content });
-            if (isManual) {
-                await saveVersion(documentId, title, content);
-            }
+            if (isManual) await saveVersion(documentId, title, content);
         } finally {
             savingRef.current = false;
             setSaving(false);
         }
     }, [editor, title, documentId, updateDocument, saveVersion]);
 
-    // Mantém ref atualizada para o autosave usar sem re-registrar listeners
     useEffect(() => { handleSaveRef.current = handleSave; }, [handleSave]);
 
-    // Ctrl+S → save manual (cria versão)
+    // Ctrl+S → salva manualmente (cria versão)
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSave(true); }
@@ -657,6 +656,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
 
             {/* ── Painel de versões ── */}
             {showVersionPanel && (
+                <Suspense fallback={null}>
                 <VersionHistoryPanel
                     documentId={documentId}
                     currentTitle={title}
@@ -668,6 +668,7 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                     }}
                     onClose={() => setShowVersionPanel(false)}
                 />
+                </Suspense>
             )}
             </div>
 
@@ -680,145 +681,6 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
                 <span className="text-[10px] text-muted">Ctrl+S para salvar</span>
             </div>
 
-            <style dangerouslySetInnerHTML={{ __html: `
-                .tiptap-editor-container .ProseMirror:focus { outline: none; }
-                .tiptap-editor-container .ProseMirror { min-height: 500px; font-family: "Figtree", ui-sans-serif, system-ui, sans-serif; line-height: 1.55; }
-
-                .tiptap-editor-container .ProseMirror p.is-editor-empty:first-child::before {
-                    content: attr(data-placeholder);
-                    float: left; color: var(--color-text-muted); pointer-events: none; height: 0;
-                }
-
-                /* Tipografia */
-                .tiptap-editor-container .ProseMirror h1 { font-size: 2.25rem; font-weight: 800; margin: 1.5rem 0 0.5rem; color: var(--color-text-primary); line-height: 1.2; }
-                .tiptap-editor-container .ProseMirror h2 { font-size: 1.6rem; font-weight: 700; margin: 1.25rem 0 0.4rem; color: var(--color-text-primary); line-height: 1.3; }
-                .tiptap-editor-container .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.35rem; color: var(--color-text-primary); line-height: 1.4; }
-                .tiptap-editor-container .ProseMirror p { margin-top: 0; margin-bottom: 0; line-height: 1.55; color: var(--color-text-primary); font-size: 1rem; }
-                .tiptap-editor-container .ProseMirror s { text-decoration: line-through; color: var(--color-text-muted); }
-
-                /* Inline code */
-                .tiptap-editor-container .ProseMirror code:not(pre code) {
-                    background: var(--color-surface-0); color: var(--color-brand); padding: 0.1em 0.35em;
-                    border-radius: 4px; font-size: 0.875em; font-family: monospace;
-                    border: 1px solid var(--color-border-subtle);
-                }
-
-                /* Tabelas */
-                .tiptap-editor-container table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 1.5rem 0; overflow: hidden; border-radius: 10px; }
-                .tiptap-editor-container table td,
-                .tiptap-editor-container table th { border: 1px solid var(--color-border-subtle); padding: 8px 12px; position: relative; text-align: left; color: var(--color-text-primary); }
-                .tiptap-editor-container table th { background: var(--color-surface-1); font-weight: 600; font-size: 0.875rem; color: var(--color-text-secondary); }
-                .tiptap-editor-container .selectedCell:after { background: rgba(219,64,53,0.06); content: ""; inset: 0; pointer-events: none; position: absolute; z-index: 2; }
-
-                /* Task List */
-                .tiptap-editor-container ul[data-type="taskList"] { list-style: none; padding: 0; }
-                .tiptap-editor-container ul[data-type="taskList"] li { display: flex; align-items: flex-start; margin-bottom: 0.4rem; gap: 0.6rem; }
-                .tiptap-editor-container ul[data-type="taskList"] input[type="checkbox"] { width: 1.1rem; height: 1.1rem; margin-top: 0.2rem; cursor: pointer; accent-color: var(--color-brand); }
-                .tiptap-editor-container ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; color: var(--color-text-muted); }
-
-                /* Code Block */
-                .tiptap-editor-container pre { background: #1c1a18; color: #f5f3ef; padding: 1.1rem 1.25rem; border-radius: 14px; margin: 1.25rem 0; font-family: 'JetBrains Mono', monospace; overflow-x: auto; font-size: 0.875rem; line-height: 1.6; border: 1px solid rgba(255,255,255,0.06); }
-                .tiptap-editor-container pre code { background: none; color: inherit; padding: 0; }
-                .hljs-comment, .hljs-quote { color: #6b6860; }
-                .hljs-keyword, .hljs-selector-tag { color: #f472b6; }
-                .hljs-string, .hljs-doctag, .hljs-addition { color: #34d399; }
-                .hljs-title, .hljs-section, .hljs-type, .hljs-name { color: #60a5fa; }
-                .hljs-variable, .hljs-tag, .hljs-link { color: #fbbf24; }
-
-                /* Lists */
-                .tiptap-editor-container hr { border: none; border-top: 1px solid var(--color-border-subtle); margin: 1.5rem 0; }
-                .tiptap-editor-container ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.5rem; margin: 0.75rem 0; color: var(--color-text-primary); }
-                .tiptap-editor-container ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.75rem 0; color: var(--color-text-primary); }
-                .tiptap-editor-container li { margin-bottom: 0.25rem; }
-
-                /* Blockquote */
-                .tiptap-editor-container blockquote { border-left: 3px solid #ef4444; padding: 0.75rem 1rem; background: color-mix(in srgb, #ef4444 8%, transparent); margin: 1.5rem 0; font-style: italic; color: var(--color-text-secondary); border-radius: 0 6px 6px 0; }
-
-                /* Highlight */
-                .tiptap-editor-container mark { border-radius: 3px; padding: 0.1em 0.15em; }
-
-                /* Doc Mention chip */
-                .doc-mention-chip {
-                    display: inline-flex; align-items: center; gap: 0.25em;
-                    background: color-mix(in srgb, var(--color-brand) 8%, transparent);
-                    border: 1px solid color-mix(in srgb, var(--color-brand) 25%, transparent);
-                    color: var(--color-brand); font-size: 0.82em; font-weight: 500;
-                    padding: 0.15em 0.5em 0.15em 0.35em; border-radius: 5px;
-                    cursor: pointer; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
-                    vertical-align: middle; white-space: nowrap; user-select: none;
-                    line-height: 1.6;
-                }
-                .doc-mention-chip:hover {
-                    background: color-mix(in srgb, var(--color-brand) 15%, transparent);
-                    border-color: color-mix(in srgb, var(--color-brand) 40%, transparent);
-                }
-                .doc-mention-icon { display: inline; flex-shrink: 0; opacity: 0.75; }
-                .doc-mention-ext { display: inline; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; margin-left: 0.1em; }
-                .doc-mention-chip:hover .doc-mention-ext { opacity: 0.55; }
-
-                /* PDF chip */
-                .pdf-mention-chip {
-                    background: color-mix(in srgb, #2563eb 8%, transparent);
-                    border-color: color-mix(in srgb, #2563eb 25%, transparent);
-                    color: #60a5fa;
-                }
-                .pdf-mention-chip:hover {
-                    background: color-mix(in srgb, #2563eb 15%, transparent);
-                    border-color: color-mix(in srgb, #2563eb 40%, transparent);
-                }
-
-                /* Toggle / Details block */
-                .tiptap-details { margin: 0.75rem 0; }
-                .tiptap-details-header { display: flex; align-items: center; gap: 0.4rem; user-select: none; }
-                .tiptap-details-toggle {
-                    display: flex; align-items: center; justify-content: center;
-                    width: 1.25rem; height: 1.25rem; border-radius: 6px;
-                    background: transparent; border: none; cursor: pointer;
-                    color: var(--color-text-muted); flex-shrink: 0;
-                    transition: background 0.1s, color 0.1s;
-                }
-                .tiptap-details-toggle:hover { background: var(--color-surface-0); color: var(--color-text-primary); }
-                .tiptap-details-title {
-                    font-size: 1rem; font-weight: 600; color: var(--color-text-primary);
-                    border: none; outline: none; background: transparent;
-                    flex: 1; cursor: text; font-family: "Figtree", ui-sans-serif, sans-serif;
-                }
-                .tiptap-details-title::placeholder { color: var(--color-text-muted); font-weight: 400; }
-                .tiptap-details-content {
-                    padding-left: 1.65rem;
-                    border-left: 2px solid var(--color-border-subtle);
-                    margin-top: 0.25rem;
-                    margin-left: 0.6rem;
-                }
-
-                /* Callout blocks */
-                .tiptap-editor-container [data-callout] {
-                    padding: 0.85rem 1rem 0.85rem 1.25rem;
-                    border-radius: 0.5rem;
-                    margin: 1rem 0;
-                    position: relative;
-                }
-                .tiptap-editor-container [data-callout] > p:last-child { margin-bottom: 0; }
-                .tiptap-editor-container [data-callout]::before {
-                    content: attr(data-type);
-                    position: absolute;
-                    top: -0.65rem; left: 1rem;
-                    font-size: 0.65rem; font-weight: 700;
-                    text-transform: uppercase; letter-spacing: 0.08em;
-                    padding: 0.1rem 0.5rem;
-                    border-radius: 999px;
-                }
-                .tiptap-editor-container [data-callout][data-type="info"] { background: color-mix(in srgb, #3b82f6 10%, transparent); border-left: 3px solid #3b82f6; }
-                .tiptap-editor-container [data-callout][data-type="info"]::before { background: color-mix(in srgb, #3b82f6 20%, transparent); color: #60a5fa; content: "ℹ️  Info"; }
-                .tiptap-editor-container [data-callout][data-type="warning"] { background: color-mix(in srgb, #f59e0b 10%, transparent); border-left: 3px solid #f59e0b; }
-                .tiptap-editor-container [data-callout][data-type="warning"]::before { background: color-mix(in srgb, #f59e0b 20%, transparent); color: #fbbf24; content: "⚠️  Atenção"; }
-                .tiptap-editor-container [data-callout][data-type="success"] { background: color-mix(in srgb, #22c55e 10%, transparent); border-left: 3px solid #22c55e; }
-                .tiptap-editor-container [data-callout][data-type="success"]::before { background: color-mix(in srgb, #22c55e 20%, transparent); color: #4ade80; content: "✅  Sucesso"; }
-                .tiptap-editor-container [data-callout][data-type="error"] { background: color-mix(in srgb, #ef4444 10%, transparent); border-left: 3px solid #ef4444; }
-                .tiptap-editor-container [data-callout][data-type="error"]::before { background: color-mix(in srgb, #ef4444 20%, transparent); color: #f87171; content: "🚫  Erro"; }
-                .tiptap-editor-container [data-callout][data-type="note"] { background: color-mix(in srgb, #8b5cf6 10%, transparent); border-left: 3px solid #8b5cf6; }
-                .tiptap-editor-container [data-callout][data-type="note"]::before { background: color-mix(in srgb, #8b5cf6 20%, transparent); color: #a78bfa; content: "📌  Nota"; }
-            `}} />
         </div>
     );
 }

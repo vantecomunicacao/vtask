@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { UpdateDocumentSchema } from '../lib/validation';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 
@@ -100,6 +101,9 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     },
 
     updateDocument: async (id, updates) => {
+        // Validate only user-editable string fields; content (Tiptap JSON) is trusted internally
+        const { content, ...userFields } = updates;
+        UpdateDocumentSchema.parse(userFields);
         const { error } = await supabase
             .from('documents')
             .update(updates)
@@ -178,14 +182,15 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
     fetchVersions: async (documentId) => {
         set({ versionsLoading: true });
-        const { data, error } = await supabase
-            .from('document_versions' as 'documents') // tabela não está no tipo gerado — cast temporário
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any)
+            .from('document_versions')
             .select('*')
             .eq('document_id', documentId)
             .order('created_at', { ascending: false })
             .limit(50);
         if (error) set({ versionsLoading: false });
-        else set({ versions: (data as unknown as DocumentVersion[]) || [], versionsLoading: false });
+        else set({ versions: (data as DocumentVersion[]) || [], versionsLoading: false });
     },
 
     saveVersion: async (documentId, title, content) => {
@@ -196,9 +201,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         const latest = get().versions[0];
         if (latest && JSON.stringify(latest.content) === JSON.stringify(content) && latest.title === title) return;
 
-        const { error } = await supabase
-            .from('document_versions' as 'documents') // tabela não está no tipo gerado — cast temporário
-            .insert({ document_id: documentId, title, content, created_by: user.id } as never);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any)
+            .from('document_versions')
+            .insert({ document_id: documentId, title, content, created_by: user.id });
         if (error) return;
 
         const newVersion: DocumentVersion = {

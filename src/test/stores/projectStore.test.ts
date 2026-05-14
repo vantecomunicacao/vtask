@@ -153,17 +153,19 @@ describe('projectStore', () => {
 
     // ── moveToFolder ──────────────────────────────────────────────
     describe('moveToFolder', () => {
+        const FOLDER_UUID = 'f1000000-0000-4000-8000-000000000099';
+
         it('atualiza folder_id do projeto', async () => {
             useProjectStore.setState({ projects: [makeProject({ folder_id: null })] });
             mockSuccessfulUpdate();
 
-            await useProjectStore.getState().moveToFolder('p1', 'folder-99');
+            await useProjectStore.getState().moveToFolder('p1', FOLDER_UUID);
 
-            expect(useProjectStore.getState().projects[0].folder_id).toBe('folder-99');
+            expect(useProjectStore.getState().projects[0].folder_id).toBe(FOLDER_UUID);
         });
 
         it('remove projeto da pasta quando folderId é null', async () => {
-            useProjectStore.setState({ projects: [makeProject({ folder_id: 'folder-99' })] });
+            useProjectStore.setState({ projects: [makeProject({ folder_id: FOLDER_UUID })] });
             mockSuccessfulUpdate();
 
             await useProjectStore.getState().moveToFolder('p1', null);

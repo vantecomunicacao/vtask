@@ -1,4 +1,5 @@
 import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import { supabase } from '../../../lib/supabase';
 import type { Database } from '../../../lib/database.types';
 import { format } from 'date-fns';
@@ -252,9 +253,10 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
                                             <div
                                                 className="text-sm px-2.5 py-2 rounded-lg border inline-block max-w-full break-words bg-surface-2/50 border-border-subtle text-secondary comment-body"
                                                 dangerouslySetInnerHTML={{
-                                                    __html: c.content.startsWith('<')
-                                                        ? c.content
-                                                        : `<p>${c.content}</p>`
+                                                    __html: DOMPurify.sanitize(
+                                                        c.content.startsWith('<') ? c.content : `<p>${c.content}</p>`,
+                                                        { ALLOWED_TAGS: ['p','br','strong','em','s','u','a','ul','ol','li','code','pre','blockquote','mark','h1','h2','h3'], ALLOWED_ATTR: ['href','target','class'] }
+                                                    )
                                                 }}
                                             />
                                         )}

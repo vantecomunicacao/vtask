@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { storage } from '../lib/storage';
 
 export const COL_IDS = ['title', 'project', 'due', 'created', 'priority', 'assignee', 'actions'] as const;
 export type ColId = typeof COL_IDS[number];
@@ -10,12 +11,9 @@ export const RESIZABLE_COLS = new Set<ColId>(['title', 'project', 'due', 'create
 const STORAGE_KEY = 'fd_task_col_widths';
 
 export function useColumnResize() {
-    const [colWidths, setColWidths] = useState<Record<ColId, number>>(() => {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            return saved ? { ...DEFAULT_COL_W, ...JSON.parse(saved) } : { ...DEFAULT_COL_W };
-        } catch { return { ...DEFAULT_COL_W }; }
-    });
+    const [colWidths, setColWidths] = useState<Record<ColId, number>>(() =>
+        ({ ...DEFAULT_COL_W, ...storage.getJSON<Partial<Record<ColId, number>>>(STORAGE_KEY, {}) })
+    );
 
     const gridTemplate = COL_IDS.map(id => `${colWidths[id]}px`).join(' ');
 
@@ -36,7 +34,7 @@ export function useColumnResize() {
             document.removeEventListener('mouseup', onUp);
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
-            setColWidths(prev => { localStorage.setItem(STORAGE_KEY, JSON.stringify(prev)); return prev; });
+            setColWidths(prev => { storage.setJSON(STORAGE_KEY, prev); return prev; });
         };
 
         document.addEventListener('mousemove', onMove);

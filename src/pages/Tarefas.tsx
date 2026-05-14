@@ -1,5 +1,7 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, memo } from 'react';
+import { storage } from '../lib/storage';
 import { useSearchParams } from 'react-router-dom';
+import { TaskDetailProvider, useTaskDetail } from '../contexts/TaskDetailContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { Button } from '../components/ui/Button';
@@ -24,7 +26,7 @@ import { useColumnResize, RESIZABLE_COLS } from '../hooks/useColumnResize';
 import { useBulkActions } from '../hooks/useBulkActions';
 
 // ─── Column resize handle ──────────────────────
-function ColResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
+const ColResizeHandle = memo(function ColResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
     return (
         <div
             onMouseDown={onMouseDown}
@@ -33,10 +35,10 @@ function ColResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) =
             <div className="h-3/4 w-px bg-border-subtle group-hover/rh:w-0.5 group-hover/rh:bg-brand/50 transition-all duration-150" />
         </div>
     );
-}
+});
 
 // ─── Skeleton Component ────────────────────────
-function TaskSkeleton({ gridTemplate, isMobile }: { gridTemplate: string; isMobile: boolean }) {
+const TaskSkeleton = memo(function TaskSkeleton({ gridTemplate, isMobile }: { gridTemplate: string; isMobile: boolean }) {
     if (isMobile) {
         return (
             <div className="px-3 flex flex-col divide-y divide-border-subtle">
@@ -75,9 +77,9 @@ function TaskSkeleton({ gridTemplate, isMobile }: { gridTemplate: string; isMobi
             ))}
         </div>
     );
-}
+});
 
-function TaskEmptyState({ groupName, hasFilters }: { groupName?: string; hasFilters: boolean }) {
+const TaskEmptyState = memo(function TaskEmptyState({ groupName, hasFilters }: { groupName?: string; hasFilters: boolean }) {
     if (hasFilters) return (
         <EmptyState
             icon={Inbox}
@@ -99,10 +101,30 @@ function TaskEmptyState({ groupName, hasFilters }: { groupName?: string; hasFilt
             description='Clique em "Novo" para criar sua primeira tarefa!'
         />
     );
+});
+
+// Wrapper fino que fornece o contexto. O conteúdo usa useTaskDetail() internamente.
+export default function Tarefas() {
+    const [, setSearchParams] = useSearchParams();
+
+    const handleOpen = useCallback((task: { id: string }) => {
+        setSearchParams(prev => { prev.set('task', task.id); return prev; }, { replace: true });
+    }, [setSearchParams]);
+
+    const handleClose = useCallback(() => {
+        setSearchParams(prev => { prev.delete('task'); return prev; }, { replace: true });
+    }, [setSearchParams]);
+
+    return (
+        <TaskDetailProvider onOpen={handleOpen} onClose={handleClose}>
+            <TarefasContent />
+        </TaskDetailProvider>
+    );
 }
 
-export default function Tarefas() {
+function TarefasContent() {
     const isMobile = useIsMobile();
+    const { selectedTask, openTask, closeTask } = useTaskDetail();
     const { activeWorkspace } = useWorkspaceStore();
     const tasks = useTaskStore(s => s.tasks);
     const loading = useTaskStore(s => s.loading);
@@ -118,20 +140,8 @@ export default function Tarefas() {
     const updateTask = useTaskStore(s => s.updateTask);
 
     const { gridTemplate, onColResizeStart } = useColumnResize();
-
-    const [searchParams, setSearchParams] = useSearchParams();
-    const [selectedTask, setSelectedTask] = useState<TaskWithAssignee | null>(null);
+    const [searchParams] = useSearchParams();
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-
-    const openTask = useCallback((task: TaskWithAssignee) => {
-        setSelectedTask(task);
-        setSearchParams(prev => { prev.set('task', task.id); return prev; }, { replace: true });
-    }, [setSearchParams]);
-
-    const closeTask = useCallback(() => {
-        setSelectedTask(null);
-        setSearchParams(prev => { prev.delete('task'); return prev; }, { replace: true });
-    }, [setSearchParams]);
 
     // Filter states
     const [search, setSearch] = useState('');
@@ -144,7 +154,7 @@ export default function Tarefas() {
 
     // UI states
     const [defaultExpanded, setDefaultExpanded] = useState<boolean>(() => {
-        const saved = localStorage.getItem('tasks-default-expanded');
+        const saved = storage.get('tasks-default-expanded');
         return saved !== null ? saved === 'true' : true;
     });
     const [expandedSections, setExpandedSections] = useState<Set<string>>(
@@ -187,8 +197,8 @@ export default function Tarefas() {
         const taskId = searchParams.get('task');
         if (!taskId || tasks.length === 0) return;
         const found = tasks.find(t => t.id === taskId);
-        if (found) setSelectedTask(found);
-    }, [searchParams, tasks]);
+        if (found) openTask(found);
+    }, [searchParams, tasks, openTask]);
 
     useEffect(() => {
         return () => { animationTimersRef.current.forEach(clearTimeout); animationTimersRef.current = []; };
@@ -334,7 +344,7 @@ export default function Tarefas() {
 
     const handleDefaultExpandedChange = useCallback((value: boolean) => {
         setDefaultExpanded(value);
-        localStorage.setItem('tasks-default-expanded', String(value));
+        storage.set('tasks-default-expanded', String(value));
         // Only saves preference for next load — use expandAll/collapseAll for immediate action
     }, []);
 
@@ -525,7 +535,6 @@ export default function Tarefas() {
                                         onToggleSection={toggleSection}
                                         onToggleSelect={toggleSelectTask}
                                         onToggleStatusPopover={toggleStatusPopover}
-                                        onOpenDetail={openTask}
                                     />
                                 ))}
                             </DragDropContext>

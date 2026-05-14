@@ -5,6 +5,19 @@ import { addDays, addWeeks, addMonths, format } from 'date-fns';
 import { parseDueDate, todayLocalISO } from '../lib/dateUtils';
 import { createNotification } from './notificationStore';
 import { useWorkspaceStore } from './workspaceStore';
+import { UpdateTaskSchema } from '../lib/validation';
+
+async function withRetry<T>(fn: () => Promise<{ data: T | null; error: unknown }>, maxAttempts = 3): Promise<{ data: T | null; error: unknown }> {
+    let attempt = 0;
+    let last: { data: T | null; error: unknown } = { data: null, error: null };
+    while (attempt < maxAttempts) {
+        last = await fn();
+        if (!last.error) return last;
+        attempt++;
+        if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 500 * 2 ** (attempt - 1)));
+    }
+    return last;
+}
 
 type Task = Database['public']['Tables']['tasks']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -118,17 +131,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     invalidateTasksCache: () => set({ tasksCache: null }),
 
     fetchStatuses: async (workspaceId: string) => {
-        const run = () => supabase
+        const { data, error } = await withRetry(async () => supabase
             .from('custom_statuses')
             .select('*')
             .eq('workspace_id', workspaceId)
-            .order('position', { ascending: true });
-
-        let { data, error } = await run();
-        if (error) {
-            await new Promise(r => setTimeout(r, 1000));
-            ({ data, error } = await run());
-        }
+            .order('position', { ascending: true })
+        );
         if (!error && data) set({ statuses: data });
     },
 
@@ -374,7 +382,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         const idsToMove = tasks
             .filter(t =>
                 t.due_date != null &&
-                t.due_date.substring(0, 10) <= today &&
+                t.due_date.substring(0, 10) < today &&
                 t.status_id !== firstStatus.id &&
                 t.status_id !== doneStatus.id
             )
@@ -423,17 +431,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     },
 
     updateTask: async (taskId: string, updates: Partial<Task>) => {
+        const validated = UpdateTaskSchema.parse(updates);
         const previousTasks = [...get().tasks];
         const previousTask = get().tasks.find(t => t.id === taskId);
 
         // Optimistic update
         set({
-            tasks: get().tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
+            tasks: get().tasks.map(t => t.id === taskId ? { ...t, ...validated } : t)
         });
 
         const { error } = await supabase
             .from('tasks')
-            .update(updates)
+            .update(validated)
             .eq('id', taskId);
 
         if (error) {
@@ -515,11 +524,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     },
 
     subscribeToWorkspace: (workspaceId: string) => {
-        // Tear down any existing channel before creating a new one
+        // Tear down any existing channel and discard pending events from previous workspace
         if (_realtimeChannel) {
             supabase.removeChannel(_realtimeChannel);
             _realtimeChannel = null;
         }
+        if (_batchTimer) { clearTimeout(_batchTimer); _batchTimer = null; }
+        _pendingUpserts.clear();
+        _pendingDeletes.clear();
 
         const storeRef = () => ({ tasks: get().tasks, set });
 

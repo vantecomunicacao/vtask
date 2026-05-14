@@ -136,7 +136,6 @@ interface TaskGroupSectionProps {
     onToggleSection: (id: string) => void;
     onToggleSelect: (id: string) => void;
     onToggleStatusPopover: (e: React.MouseEvent, id: string) => void;
-    onOpenDetail: (task: TaskWithAssignee) => void;
 }
 
 export function TaskGroupSection({
@@ -154,7 +153,6 @@ export function TaskGroupSection({
     onToggleSection,
     onToggleSelect,
     onToggleStatusPopover,
-    onOpenDetail,
 }: TaskGroupSectionProps) {
     const completedInGroup = group.tasks.filter(t => t.status_id === doneStatusId).length;
     const anySelected = selectedTaskIds.size > 0;
@@ -241,7 +239,6 @@ export function TaskGroupSection({
                                             isMobile={isMobile}
                                             onToggleSelect={onToggleSelect}
                                             onToggleStatusPopover={onToggleStatusPopover}
-                                            onOpenDetail={onOpenDetail}
                                         />
                                     );
                                 })}

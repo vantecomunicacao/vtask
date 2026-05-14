@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { storage } from '../../lib/storage';
 import { createPortal } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
@@ -107,19 +108,12 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
     const { createDocument } = useDocumentStore();
     const navigate = useNavigate();
 
-    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
-        try {
-            const saved = localStorage.getItem('fd_expanded_project_folders');
-            return saved ? new Set(JSON.parse(saved)) : new Set<string>();
-        } catch { return new Set<string>(); }
-    });
-
-    const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => {
-        try {
-            const saved = localStorage.getItem('fd_expanded_projects');
-            return saved ? new Set(JSON.parse(saved)) : new Set<string>();
-        } catch { return new Set<string>(); }
-    });
+    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+        () => new Set(storage.getJSON<string[]>('fd_expanded_project_folders', []))
+    );
+    const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
+        () => new Set(storage.getJSON<string[]>('fd_expanded_projects', []))
+    );
 
     const [creatingFolder, setCreatingFolder] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
@@ -135,11 +129,11 @@ export function ProjectsSidebarSection({ projectsExpanded, setProjectsExpanded }
     }, [activeWorkspace, fetchFolders]);
 
     useEffect(() => {
-        localStorage.setItem('fd_expanded_project_folders', JSON.stringify([...expandedFolders]));
+        storage.setJSON('fd_expanded_project_folders', [...expandedFolders]);
     }, [expandedFolders]);
 
     useEffect(() => {
-        localStorage.setItem('fd_expanded_projects', JSON.stringify([...expandedProjects]));
+        storage.setJSON('fd_expanded_projects', [...expandedProjects]);
     }, [expandedProjects]);
 
     useEffect(() => {

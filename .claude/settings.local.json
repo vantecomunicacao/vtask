@@ -97,7 +97,9 @@
       "Bash(sed -n '440,450p' src/components/tasks/TaskRow.tsx)",
       "Bash(grep -n \"toast.success.*concluída\\\\|toast.success.*Tarefa concluída\" src/components/tasks/TaskDetailSidebar.tsx)",
       "Bash(xargs wc *)",
-      "Bash(awk '{print $5, $9}')"
+      "Bash(awk '{print $5, $9}')",
+      "Bash(gh repo *)",
+      "Bash(git fetch *)"
     ]
   }
 }

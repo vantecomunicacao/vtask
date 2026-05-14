@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -16,7 +16,7 @@ import {
 import { cn } from '../lib/utils';
 
 // ─── Nó da árvore de documentos ──────────────────────────────────
-function DocTreeItem({
+const DocTreeItem = memo(function DocTreeItem({
     doc,
     allDocs,
     depth,
@@ -137,10 +137,10 @@ function DocTreeItem({
             ))}
         </div>
     );
-}
+});
 
 // ─── Empty state ──────────────────────────────────────────────────
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+const EmptyState = memo(function EmptyState({ onCreate }: { onCreate: () => void }) {
     return (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 fade-in py-20">
             <div className="w-16 h-16 rounded-card bg-surface-0 flex items-center justify-center">
@@ -152,10 +152,10 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
             </Button>
         </div>
     );
-}
+});
 
 // ─── Seção de projeto na sidebar agrupada ────────────────────────
-function ProjectGroup({
+const ProjectGroup = memo(function ProjectGroup({
     project,
     docs,
     allDocs,
@@ -249,7 +249,7 @@ function ProjectGroup({
             )}
         </div>
     );
-}
+});
 
 // ─── Page ─────────────────────────────────────────────────────────
 export default function Documentos() {

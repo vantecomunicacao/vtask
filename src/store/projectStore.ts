@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { UpdateProjectSchema } from '../lib/validation';
 
 type Project = Database['public']['Tables']['projects']['Row'];
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -46,10 +47,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
 
     updateProject: async (id, updates) => {
+        const validated = UpdateProjectSchema.parse(updates);
         set({ loading: true, error: null });
         const { error } = await supabase
             .from('projects')
-            .update(updates)
+            .update(validated)
             .eq('id', id);
 
         if (error) {

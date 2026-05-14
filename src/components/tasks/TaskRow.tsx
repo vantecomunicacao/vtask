@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import type { TaskWithAssignee, CustomStatus } from '../../store/taskStore';
 import { useTaskStore } from '../../store/taskStore';
 import type { GroupBy } from '../../hooks/useTaskFilters';
+import { useTaskDetail } from '../../contexts/TaskDetailContext';
 import { DatePickerPopover } from '../ui/DatePicker';
 import { formatDueDate, parseDueDate as parseLocalDate } from '../../lib/dateUtils';
 
@@ -33,7 +34,6 @@ interface TaskRowProps {
     isMobile?: boolean;
     onToggleSelect: (id: string) => void;
     onToggleStatusPopover: (e: React.MouseEvent, id: string) => void;
-    onOpenDetail: (task: TaskWithAssignee) => void;
 }
 
 export const TaskRow = React.memo(function TaskRow({
@@ -49,8 +49,8 @@ export const TaskRow = React.memo(function TaskRow({
     isMobile = false,
     onToggleSelect,
     onToggleStatusPopover,
-    onOpenDetail,
 }: TaskRowProps) {
+    const { openTask } = useTaskDetail();
     const updateTask = useTaskStore(s => s.updateTask);
     const deleteTask = useTaskStore(s => s.deleteTask);
     const restoreTask = useTaskStore(s => s.restoreTask);
@@ -120,7 +120,7 @@ export const TaskRow = React.memo(function TaskRow({
                             ...provided.draggableProps.style,
                             borderLeft: !snapshot.isDragging ? `3px solid ${statusBorderColor}` : undefined
                         }}
-                        onClick={() => onOpenDetail(task)}
+                        onClick={() => openTask(task)}
                     >
                         {(anySelected || isSelected) && (
                             <input
@@ -201,7 +201,7 @@ export const TaskRow = React.memo(function TaskRow({
                                 className="fixed w-44 bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float z-[9999] py-1 popup-spring"
                             >
                                 <button
-                                    onClick={e => { e.stopPropagation(); setIsMenuOpen(false); onOpenDetail(task); }}
+                                    onClick={e => { e.stopPropagation(); setIsMenuOpen(false); openTask(task); }}
                                     className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
                                 >
                                     <ExternalLink size={13} className="text-muted" />
@@ -299,7 +299,7 @@ export const TaskRow = React.memo(function TaskRow({
                         </div>
 
                         <span
-                            onClick={() => onOpenDetail(task)}
+                            onClick={() => openTask(task)}
                             className={cn(
                                 "text-sm font-medium transition-colors duration-150 cursor-pointer truncate flex items-center gap-2 min-w-0",
                                 isCompleted && 'line-through text-muted',
@@ -326,7 +326,7 @@ export const TaskRow = React.memo(function TaskRow({
 
                     {/* Projeto */}
                     <div
-                        onClick={() => onOpenDetail(task)}
+                        onClick={() => openTask(task)}
                         className="flex items-center cursor-pointer overflow-hidden"
                     >
                         {task.project ? (
@@ -447,7 +447,7 @@ export const TaskRow = React.memo(function TaskRow({
                                 className="fixed w-44 bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float z-[9999] py-1 popup-spring"
                             >
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onOpenDetail(task); }}
+                                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); openTask(task); }}
                                     className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-secondary hover:bg-surface-2 hover:text-primary transition-colors"
                                 >
                                     <ExternalLink size={13} className="text-muted" />

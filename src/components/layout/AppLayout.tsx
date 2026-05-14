@@ -4,7 +4,9 @@ import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOu
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useThemeStore } from '../../store/themeStore';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { useSidebarState } from '../../hooks/useSidebarState';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useProjectStore } from '../../store/projectStore';
 import { useTaskStore } from '../../store/taskStore';
 import { ProjectsSidebarSection } from './ProjectsSidebarSection';
@@ -34,59 +36,19 @@ export default function AppLayout() {
     const MOBILE_ALLOWED = ['/dashboard', '/tarefas', '/documentos'];
     const isMobileAllowed = MOBILE_ALLOWED.some(p => pathname === p || pathname.startsWith(p + '/'));
     const [projectsExpanded, setProjectsExpanded] = useState(true);
-
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('fd_sidebar_collapsed') === 'true');
     const [bottomExpanded, setBottomExpanded] = useState(false);
 
-    const toggleCollapsed = useCallback(() => {
-        setSidebarCollapsed(v => {
-            localStorage.setItem('fd_sidebar_collapsed', String(!v));
-            return !v;
-        });
-    }, []);
+    const {
+        sidebarOpen, setSidebarOpen,
+        isMobile,
+        sidebarCollapsed,
+        toggleCollapsed,
+        closeSidebar,
+        sidebarWidth,
+        onResizeStart,
+    } = useSidebarState();
 
-    useEffect(() => {
-        const handler = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handler);
-        return () => window.removeEventListener('resize', handler);
-    }, []);
-
-    const closeSidebar = useCallback(() => setSidebarOpen(false), []);
-
-    const MIN_WIDTH = 180;
-    const MAX_WIDTH = 400;
-    const [sidebarWidth, setSidebarWidth] = useState(() => {
-        const saved = localStorage.getItem('fd_sidebar_width');
-        return saved ? parseInt(saved, 10) : 256;
-    });
-    const isDragging = useRef(false);
-
-    const onResizeStart = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        isDragging.current = true;
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-
-        const onMove = (ev: MouseEvent) => {
-            if (!isDragging.current) return;
-            const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, ev.clientX));
-            setSidebarWidth(next);
-        };
-
-        const onUp = () => {
-            isDragging.current = false;
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            setSidebarWidth(w => { localStorage.setItem('fd_sidebar_width', String(w)); return w; });
-        };
-
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-    }, []);
+    useOnlineStatus();
 
     useEffect(() => {
         if (!user) return;
