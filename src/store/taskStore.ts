@@ -382,7 +382,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         const idsToMove = tasks
             .filter(t =>
                 t.due_date != null &&
-                t.due_date.substring(0, 10) < today &&
+                t.due_date.substring(0, 10) <= today &&
                 t.status_id !== firstStatus.id &&
                 t.status_id !== doneStatus.id
             )

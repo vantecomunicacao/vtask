@@ -26,7 +26,7 @@ export default function AppLayout() {
     const { user, signOut } = useAuthStore();
     const { activeWorkspace, fetchWorkspaces, showOnboarding } = useWorkspaceStore();
     const { fetchProjects } = useProjectStore();
-    const { fetchCategories, subscribeToWorkspace } = useTaskStore();
+    const { fetchCategories, fetchStatuses, fetchWorkspaceTasks, autoMovePastDueTasks, subscribeToWorkspace } = useTaskStore();
     const { subscribeToNotifications, unsubscribe } = useNotificationStore();
     const { darkMode, toggleDarkMode } = useThemeStore();
     const navigate = useNavigate();
@@ -76,11 +76,15 @@ export default function AppLayout() {
     }, [fetchWorkspaces]);
 
     useEffect(() => {
-        if (activeWorkspace) {
-            fetchProjects(activeWorkspace.id);
-            fetchCategories(activeWorkspace.id);
-        }
-    }, [activeWorkspace, fetchProjects, fetchCategories]);
+        if (!activeWorkspace) return;
+        fetchProjects(activeWorkspace.id);
+        fetchCategories(activeWorkspace.id);
+        (async () => {
+            await fetchStatuses(activeWorkspace.id);
+            await fetchWorkspaceTasks(activeWorkspace.id);
+            await autoMovePastDueTasks();
+        })();
+    }, [activeWorkspace, fetchProjects, fetchCategories, fetchStatuses, fetchWorkspaceTasks, autoMovePastDueTasks]);
 
     useEffect(() => {
         if (!activeWorkspace) return;
