@@ -67,8 +67,8 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
         const [editingId, setEditingId] = useState<string | null>(null);
         const [editContent, setEditContent] = useState('');
 
-        const reload = useCallback(async () => {
-            setLoadingComments(true);
+        const reload = useCallback(async (silent = false) => {
+            if (!silent) setLoadingComments(true);
             const { data, error } = await supabase
                 .from('comments')
                 .select('*, user:profiles(*)')
@@ -76,10 +76,10 @@ export const TaskComments = forwardRef<TaskCommentsRef, TaskCommentsProps>(
                 .order('created_at', { ascending: true });
             if (error) toast.error('Erro ao carregar atividades');
             else if (data) setComments(data as Comment[]);
-            setLoadingComments(false);
+            if (!silent) setLoadingComments(false);
         }, [taskId]);
 
-        useImperativeHandle(ref, () => ({ reload }));
+        useImperativeHandle(ref, () => ({ reload: () => reload(true) }));
 
         useEffect(() => {
             reload();

@@ -92,7 +92,8 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
             changeLogs.push(`Alterou o prazo para ${label}`);
         }
 
-        setSaving(true);
+        const isDescriptionSave = 'description' in updates;
+        if (isDescriptionSave) setSaving(true);
         try {
             const previousStatusId = currentTask.status_id;
             const doneStatusId = statuses.length > 0 ? statuses[statuses.length - 1].id : null;
@@ -143,7 +144,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
             if (import.meta.env.DEV) console.error('Error updating task:', error);
             toast.error('Erro ao atualizar tarefa');
         } finally {
-            setSaving(false);
+            if (isDescriptionSave) setSaving(false);
         }
     };
 
