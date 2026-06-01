@@ -11,6 +11,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Button } from '../ui/Button';
 import { toast } from 'sonner';
 import { EditorToolbar, HighlightSwatches, BlockquotePicker } from '../ui/EditorToolbar';
+import { TableBubbleMenu } from './TableBubbleMenu';
 import { createEditorExtensions } from '../../lib/editorExtensions';
 import {
     Save, Trash2, FileText, Plus, FolderOpen,
@@ -458,9 +459,14 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
             </div>
 
             {/* ── Bubble Menu ── */}
+            {editor && <TableBubbleMenu editor={editor} />}
+
+            {/* ── Bubble Menu (texto — oculto dentro de tabelas) ── */}
             {editor && (
                 <BubbleMenu
                     editor={editor}
+                    pluginKey="textBubbleMenu"
+                    shouldShow={({ editor: e, from, to }) => !e.isActive('table') && from !== to}
                     className="flex items-center gap-0.5 bg-surface-card text-primary p-1.5 rounded-[var(--radius-sm)] shadow-float border border-border-subtle"
                 >
                     {/* Heading selector */}

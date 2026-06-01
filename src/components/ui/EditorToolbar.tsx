@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@tiptap/react';
 import { BLOCKQUOTE_COLORS, type BlockquoteColor } from '../documents/extensions/ColoredBlockquote';
@@ -111,6 +111,54 @@ export function BlockquotePicker({ editor, onClose }: { editor: Editor; onClose:
     );
 }
 
+// ─── Table grid picker ────────────────────────────────────────────
+
+const GRID_ROWS = 8;
+const GRID_COLS = 8;
+
+function TableGridPicker({ editor, onClose }: { editor: Editor; onClose: () => void }) {
+    const [hoverRow, setHoverRow] = useState(0);
+    const [hoverCol, setHoverCol] = useState(0);
+
+    const handleInsert = useCallback((rows: number, cols: number) => {
+        editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+        onClose();
+    }, [editor, onClose]);
+
+    return (
+        <div className="bg-surface-card border border-border-subtle rounded-[var(--radius-card)] shadow-float p-3 flex flex-col gap-2.5 min-w-[fit-content]">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-muted">Inserir tabela</span>
+            <div
+                className="flex flex-col gap-0.5"
+                onMouseLeave={() => { setHoverRow(0); setHoverCol(0); }}
+            >
+                {Array.from({ length: GRID_ROWS }, (_, r) => (
+                    <div key={r} className="flex gap-0.5">
+                        {Array.from({ length: GRID_COLS }, (_, c) => (
+                            <div
+                                key={c}
+                                className={cn(
+                                    'w-5 h-5 rounded-[3px] border transition-colors cursor-pointer',
+                                    r < hoverRow && c < hoverCol
+                                        ? 'bg-brand/25 border-brand/60'
+                                        : 'bg-surface-0 border-border-subtle hover:bg-brand/10 hover:border-brand/30'
+                                )}
+                                onMouseEnter={() => { setHoverRow(r + 1); setHoverCol(c + 1); }}
+                                onMouseDown={e => { e.preventDefault(); handleInsert(r + 1, c + 1); }}
+                            />
+                        ))}
+                    </div>
+                ))}
+            </div>
+            <div className="text-[10px] text-center text-muted h-3.5">
+                {hoverRow > 0 && hoverCol > 0
+                    ? <span className="text-primary font-medium">{hoverRow} × {hoverCol}</span>
+                    : 'Passe o mouse para selecionar'}
+            </div>
+        </div>
+    );
+}
+
 // ─── Main component ───────────────────────────────────────────────
 
 export interface EditorToolbarProps {
@@ -137,9 +185,11 @@ export function EditorToolbar({
     const [highlightOpen, setHighlightOpen] = useState(false);
     const [textColorOpen, setTextColorOpen] = useState(false);
     const [blockquoteOpen, setBlockquoteOpen] = useState(false);
+    const [tablePickerOpen, setTablePickerOpen] = useState(false);
     const [highlightPos, setHighlightPos] = useState({ top: 0, left: 0 });
     const [textColorPos, setTextColorPos] = useState({ top: 0, left: 0 });
     const [blockquotePos, setBlockquotePos] = useState({ top: 0, left: 0 });
+    const [tablePickerPos, setTablePickerPos] = useState({ top: 0, left: 0 });
 
     useEffect(() => {
         const handler = (e: MouseEvent) => {
@@ -148,6 +198,7 @@ export function EditorToolbar({
                 setHighlightOpen(false);
                 setTextColorOpen(false);
                 setBlockquoteOpen(false);
+                setTablePickerOpen(false);
             }
         };
         document.addEventListener('mousedown', handler);
@@ -276,8 +327,11 @@ export function EditorToolbar({
             {divider}
 
             {/* Insert */}
-            <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); }}
-                className={btn()} title="Tabela">
+            <button type="button" data-picker-btn onMouseDown={e => {
+                e.preventDefault();
+                openPicker(tablePickerOpen, setTablePickerOpen, setTablePickerPos, e.currentTarget as HTMLElement,
+                    () => { setHighlightOpen(false); setTextColorOpen(false); setBlockquoteOpen(false); });
+            }} className={btn(editor.isActive('table'))} title="Inserir tabela">
                 <TableIcon size={iconSize} />
             </button>
 
@@ -353,6 +407,11 @@ export function EditorToolbar({
             {blockquoteOpen && (
                 <PickerPortal pos={blockquotePos}>
                     <BlockquotePicker editor={editor} onClose={() => setBlockquoteOpen(false)} />
+                </PickerPortal>
+            )}
+            {tablePickerOpen && (
+                <PickerPortal pos={tablePickerPos}>
+                    <TableGridPicker editor={editor} onClose={() => setTablePickerOpen(false)} />
                 </PickerPortal>
             )}
         </div>
