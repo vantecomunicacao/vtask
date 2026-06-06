@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PageHeader } from '../components/ui/PageHeader';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useDocumentStore, type Document } from '../store/documentStore';
 import { useTaskStore, type TaskWithAssignee } from '../store/taskStore';
@@ -84,21 +85,11 @@ export default function Lixeira() {
     const totalCount = tasks.length + documents.length;
 
     return (
-        <div className="max-w-3xl mx-auto fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-                        <Trash2 size={22} className="text-muted" />
-                        Lixeira
-                    </h1>
-                    <p className="text-sm text-muted mt-0.5">
-                        {totalCount > 0
-                            ? `${totalCount} ${totalCount === 1 ? 'item' : 'itens'} na lixeira`
-                            : 'Lixeira vazia'}
-                    </p>
-                </div>
-                {totalCount > 0 && (
+        <div className="max-w-3xl mx-auto fade-in space-y-6">
+            <PageHeader
+                title="Lixeira"
+                description={totalCount > 0 ? `${totalCount} ${totalCount === 1 ? 'item' : 'itens'} na lixeira` : 'Lixeira vazia'}
+                actions={totalCount > 0 ? (
                     <button
                         onClick={handleEmptyTrash}
                         className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand-light rounded-[var(--radius-md)] transition-colors border border-brand/20"
@@ -106,8 +97,8 @@ export default function Lixeira() {
                         <Trash2 size={14} />
                         Esvaziar lixeira
                     </button>
-                )}
-            </div>
+                ) : undefined}
+            />
 
             {/* Aviso */}
             <div className="flex items-start gap-2.5 p-3 bg-surface-0 border border-border-subtle rounded-[var(--radius-card)] mb-5 text-sm text-secondary">

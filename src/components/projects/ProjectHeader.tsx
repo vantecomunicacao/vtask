@@ -18,6 +18,29 @@ export function ProjectHeader({
     project, view, rightPanel,
     onViewChange, onEdit, onDelete, onBackToTasks, onNewTask,
 }: ProjectHeaderProps) {
+    // Modo documento: barra compacta de uma linha para maximizar área do editor
+    if (rightPanel === 'document') {
+        return (
+            <div className="flex items-center justify-between mb-2 shrink-0 py-1">
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={onBackToTasks}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-secondary hover:text-primary bg-surface-0 border border-border-subtle rounded-lg transition-colors"
+                    >
+                        <ArrowLeft size={14} /> Tarefas
+                    </button>
+                    <span className="text-muted text-sm">/</span>
+                    <span className="text-sm font-bold" style={project.color ? { color: project.color } : { color: '#9ca3af' }}>#</span>
+                    <span className="text-sm font-semibold text-primary">{project.name}</span>
+                </div>
+
+                <Button size="sm" className="gap-2" onClick={onNewTask}>
+                    <span className="text-lg leading-none">+</span> Nova Tarefa
+                </Button>
+            </div>
+        );
+    }
+
     return (
         <div className="flex items-center justify-between mb-4 shrink-0">
             <div>
@@ -37,31 +60,20 @@ export function ProjectHeader({
             </div>
 
             <div className="flex items-center gap-3">
-                {rightPanel === 'tasks' && (
-                    <div className="flex bg-surface-0 p-1 rounded-lg border border-border-subtle">
-                        <button
-                            onClick={() => onViewChange('kanban')}
-                            className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'kanban' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
-                        >
-                            <Trello size={15} /> Kanban
-                        </button>
-                        <button
-                            onClick={() => onViewChange('list')}
-                            className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'list' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
-                        >
-                            <LayoutList size={15} /> Lista
-                        </button>
-                    </div>
-                )}
-
-                {rightPanel === 'document' && (
+                <div className="flex bg-surface-0 p-1 rounded-lg border border-border-subtle">
                     <button
-                        onClick={onBackToTasks}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-secondary hover:text-primary bg-surface-0 border border-border-subtle rounded-lg transition-colors"
+                        onClick={() => onViewChange('kanban')}
+                        className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'kanban' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
                     >
-                        <ArrowLeft size={15} /> Voltar às Tarefas
+                        <Trello size={15} /> Kanban
                     </button>
-                )}
+                    <button
+                        onClick={() => onViewChange('list')}
+                        className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors', view === 'list' ? 'bg-surface-card border border-border-subtle text-brand' : 'text-secondary hover:text-primary')}
+                    >
+                        <LayoutList size={15} /> Lista
+                    </button>
+                </div>
 
                 <Button size="sm" className="gap-2" onClick={onNewTask}>
                     <span className="text-lg leading-none">+</span> Nova Tarefa

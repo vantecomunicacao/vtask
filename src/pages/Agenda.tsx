@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { PageHeader } from '../components/ui/PageHeader';
 import { createPortal } from 'react-dom';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { Button } from '../components/ui/Button';
@@ -134,10 +135,9 @@ export default function Agenda() {
 
     return (
         <div className="space-y-6 fade-in h-full flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-primary">Agenda</h1>
-                <div className="flex items-center gap-2">
+            <PageHeader
+                title="Agenda"
+                actions={<div className="flex items-center gap-2">
                     {/* Project filter */}
                     <button
                         ref={filterBtnRef}
@@ -192,8 +192,8 @@ export default function Agenda() {
                     <Button size="sm" className="gap-1.5" onClick={() => openNewTask()}>
                         <Plus size={14} /> Nova Tarefa
                     </Button>
-                </div>
-            </div>
+                </div>}
+            />
 
             {/* Calendar card */}
             <Card className="flex-1 flex flex-col overflow-hidden bg-surface-card min-h-0">

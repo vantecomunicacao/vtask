@@ -38,9 +38,11 @@ interface DocumentEditorProps {
     onClose: () => void;
     onAddSubPage?: (parentId: string) => void;
     isMobile?: boolean;
+    /** Quando definido, exibe um botão de voltar no início da barra do editor */
+    backLabel?: string;
 }
 
-export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = false }: DocumentEditorProps) {
+export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = false, backLabel }: DocumentEditorProps) {
     const navigate = useNavigate();
     const { documents, updateDocument, deleteDocument, restoreDocument, uploadImage, uploadPdf, saveVersion, restoreVersion } = useDocumentStore();
     const { projects, fetchProjects } = useProjectStore();
@@ -339,15 +341,16 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
 
             {/* ── Top bar: título + ações ── */}
             <div className="h-14 border-b border-border-subtle flex items-center justify-between px-4 md:px-6 bg-surface-card shrink-0">
-                {isMobile && (
+                {(isMobile || backLabel) && (
                     <button
                         onClick={onClose}
-                        className="flex items-center gap-1 min-h-[44px] px-1 text-sm font-medium text-brand mr-2 shrink-0"
+                        className="flex items-center gap-1 min-h-[44px] px-1 text-sm font-medium text-secondary hover:text-primary mr-2 shrink-0 transition-colors"
                     >
-                        <ChevronLeft size={20} />
-                        Docs
+                        <ChevronLeft size={isMobile ? 20 : 16} />
+                        {backLabel ?? 'Docs'}
                     </button>
                 )}
+                {backLabel && <span className="text-border-strong mr-2 shrink-0 text-sm">/</span>}
                 <input
                     type="text"
                     value={title}

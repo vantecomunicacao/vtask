@@ -463,14 +463,14 @@
 }
 
 /* Listas sem margem extra entre itens */
-.tiptap-editor-container .ProseMirror ul,
+.tiptap-editor-container .ProseMirror ul:not([data-type="taskList"]),
 .tiptap-editor-container .ProseMirror ol {
   margin-top: 0.2em;
   margin-bottom: 0.2em;
   padding-left: 1.4em;
 }
 
-.tiptap-editor-container .ProseMirror li {
+.tiptap-editor-container .ProseMirror li:not([data-type="taskItem"]) {
   margin-top: 0.1em;
   margin-bottom: 0.1em;
 }
@@ -485,11 +485,26 @@
   height: 0;
   font-style: normal;
 }
+/* Nunca mostrar placeholder dentro de itens de checklist (sobreporia o checkbox) */
+.tiptap-editor-container .ProseMirror [data-type="taskItem"] .is-empty::before,
+.tiptap-editor-container .ProseMirror [data-type="taskItem"] p.is-empty::before {
+  content: none !important;
+}
 
 /* Task list (checklist) — aplica a todos os editores */
-.ProseMirror ul[data-type="taskList"] {
+.ProseMirror ul[data-type="taskList"],
+.tiptap-editor-container .ProseMirror ul[data-type="taskList"] {
   list-style: none;
-  padding-left: 0.25em;
+  padding-left: 0;
+  margin-top: 0.2em;
+  margin-bottom: 0.2em;
+}
+/* Cada nível aninhado recua 1.5rem */
+.ProseMirror ul[data-type="taskList"] ul[data-type="taskList"],
+.tiptap-editor-container .ProseMirror ul[data-type="taskList"] ul[data-type="taskList"] {
+  padding-left: 1.5rem;
+  margin-top: 0.1em;
+  margin-bottom: 0;
 }
 .ProseMirror ul[data-type="taskList"] li {
   display: flex;

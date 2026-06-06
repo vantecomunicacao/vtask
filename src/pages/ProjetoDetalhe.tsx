@@ -40,7 +40,8 @@ function formatDueDate(due: string) {
 export default function ProjetoDetalhe() {
     const { id } = useParams<{ id: string }>();
     const { projects, deleteProject } = useProjectStore();
-    const { fetchTasks, fetchStatuses, loading, error, tasks, statuses } = useTaskStore();
+    const { fetchStatuses, loading, error, tasks: allTasks, statuses } = useTaskStore();
+    const tasks = allTasks.filter(t => t.project_id === id);
     const { activeWorkspace } = useWorkspaceStore();
     const { documents, fetchDocuments, createDocument } = useDocumentStore();
     const navigate = useNavigate();
@@ -89,7 +90,7 @@ export default function ProjetoDetalhe() {
         setSearchParams(prev => { prev.delete('doc'); return prev; }, { replace: true });
     }, [searchParams, openDoc, setSearchParams]);
 
-    useEffect(() => { if (id) fetchTasks(id); }, [id, fetchTasks]);
+    // Tasks são buscadas globalmente pelo AppLayout via fetchWorkspaceTasks
     useEffect(() => { if (activeWorkspace) fetchStatuses(activeWorkspace.id); }, [activeWorkspace, fetchStatuses]);
     useEffect(() => { if (activeWorkspace) fetchDocuments(activeWorkspace.id); }, [activeWorkspace, fetchDocuments]);
 
@@ -141,16 +142,18 @@ export default function ProjetoDetalhe() {
     return (
         <div className="flex flex-col h-full fade-in">
 
-            <ProjectHeader
-                project={project}
-                view={view}
-                rightPanel={rightPanel}
-                onViewChange={setView}
-                onEdit={() => setIsProjectModalOpen(true)}
-                onDelete={handleDeleteProject}
-                onBackToTasks={() => setRightPanel('tasks')}
-                onNewTask={() => setIsTaskModalOpen(true)}
-            />
+            {rightPanel !== 'document' && (
+                <ProjectHeader
+                    project={project}
+                    view={view}
+                    rightPanel={rightPanel}
+                    onViewChange={setView}
+                    onEdit={() => setIsProjectModalOpen(true)}
+                    onDelete={handleDeleteProject}
+                    onBackToTasks={() => setRightPanel('tasks')}
+                    onNewTask={() => setIsTaskModalOpen(true)}
+                />
+            )}
 
             {/* ── Body: tasks + docs side by side ── */}
             <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
@@ -171,6 +174,7 @@ export default function ProjetoDetalhe() {
                             <DocumentEditor
                                 documentId={selectedDocId}
                                 onClose={() => setRightPanel('tasks')}
+                                backLabel="Tarefas"
                                 onAddSubPage={parentId => {
                                     createDocument({
                                         workspace_id: activeWorkspace!.id,

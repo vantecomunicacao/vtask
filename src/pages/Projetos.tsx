@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
+import { PageHeader } from '../components/ui/PageHeader';
 import { useProjectStore } from '../store/projectStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useNavigate } from 'react-router-dom';
@@ -70,12 +71,14 @@ export default function Projetos() {
 
     return (
         <div className="space-y-6 fade-in h-full flex flex-col">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-primary">Projetos</h1>
-                <Button size="sm" className="gap-2" onClick={handleOpenCreate}>
-                    <span className="text-lg leading-none">+</span> Novo Projeto
-                </Button>
-            </div>
+            <PageHeader
+                title="Projetos"
+                actions={
+                    <Button size="sm" className="gap-2" onClick={handleOpenCreate}>
+                        <span className="text-lg leading-none">+</span> Novo Projeto
+                    </Button>
+                }
+            />
 
             {loading ? (
                 <div className="flex-1 flex items-center justify-center">

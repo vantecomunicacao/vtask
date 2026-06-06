@@ -21,7 +21,7 @@ import { DocMention } from '../components/documents/extensions/DocMention';
 import { createRenderDocItems } from '../components/documents/DocMentionSuggestion';
 import { SlashCommands, suggestionItems, renderItems } from '../components/documents/SlashCommands';
 import { PageBreak } from '../components/documents/extensions/PageBreak';
-import { TextSubstitutions } from './tiptapExtensions';
+import { TextSubstitutions, ListKeyboardFixes } from './tiptapExtensions';
 import type { MutableRefObject } from 'react';
 import type { Document } from '../store/documentStore';
 
@@ -43,11 +43,17 @@ export function createEditorExtensions(options: EditorExtensionsOptions) {
         StarterKit.configure({ codeBlock: false, blockquote: false }),
         ColoredBlockquote,
         TextSubstitutions,
+        ListKeyboardFixes,
         TextStyle,
         Color,
         Highlight.configure({ multicolor: true }),
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
-        Placeholder.configure({ placeholder: placeholder ?? 'Digite "/" para comandos ou comece a escrever...' }),
+        Placeholder.configure({
+            placeholder: ({ node }) =>
+                node.type.name === 'paragraph' && node.textContent === ''
+                    ? (placeholder ?? 'Digite "/" para comandos ou comece a escrever...')
+                    : '',
+        }),
         Link.configure({
             openOnClick: false,
             HTMLAttributes: { class: 'text-brand underline underline-offset-4 cursor-pointer' },

@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
+import { PageHeader } from '../components/ui/PageHeader';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -231,10 +232,10 @@ export default function Configuracoes() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 fade-in h-full pb-10">
-            <div>
-                <h1 className="text-2xl font-bold text-primary mb-2">Configurações do Workspace</h1>
-                <p className="text-sm text-secondary">Gerencie detalhes da sua agência e os membros da sua equipe.</p>
-            </div>
+            <PageHeader
+                title="Configurações"
+                description="Gerencie detalhes da sua agência e os membros da sua equipe."
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 

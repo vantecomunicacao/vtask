@@ -1,6 +1,7 @@
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Monitor } from 'lucide-react';
-import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Trash2, BookOpen, Shield, Search, Archive, Menu, X, Sun, Moon, PanelLeftClose, ChevronDown } from 'lucide-react';
+import { CheckCircle, LayoutDashboard, Calendar as CalendarIcon, Settings, LogOut, Folder, FileText, Mail, Trash2, BookOpen, Shield, Search, Archive, Menu, X, Sun, Moon, PanelLeftClose, ChevronDown, ChevronRight } from 'lucide-react';
+import { useDocumentStore } from '../../store/documentStore';
 import { useAuthStore } from '../../store/authStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -15,6 +16,70 @@ import { supabase } from '../../lib/supabase';
 import { useNotificationStore } from '../../store/notificationStore';
 import { NotificationPanel } from '../ui/NotificationPanel';
 import { OnboardingModal } from '../onboarding/OnboardingModal';
+
+const PAGE_LABELS: Record<string, string> = {
+    '/dashboard': 'Dashboard',
+    '/tarefas': 'Tarefas',
+    '/documentos': 'Documentos',
+    '/projetos': 'Todos os Projetos',
+    '/agenda': 'Agenda',
+    '/configuracoes': 'Configurações',
+    '/gerador-email': 'Gerador de E-mails',
+    '/arquivados': 'Arquivados',
+    '/lixeira': 'Lixeira',
+    '/documentacao': 'Documentação',
+    '/admin': 'Admin',
+    '/design-system': 'Design System',
+};
+
+type BreadcrumbItem = { label: string; to?: string; color?: string };
+
+function TopbarBreadcrumb({ pathname }: { pathname: string }) {
+    const { projects } = useProjectStore();
+    const { documents } = useDocumentStore();
+    const crumbs: BreadcrumbItem[] = [];
+
+    const projectMatch = pathname.match(/^\/projetos\/([^/]+)/);
+    const docMatch = pathname.match(/^\/documentos\/([^/]+)/);
+
+    if (projectMatch) {
+        const project = projects.find(p => p.id === projectMatch[1]);
+        crumbs.push({ label: 'Projetos', to: '/projetos' });
+        if (project) crumbs.push({ label: project.name, color: project.color ?? undefined });
+    } else if (docMatch) {
+        const doc = documents.find(d => d.id === docMatch[1]);
+        crumbs.push({ label: 'Documentos', to: '/documentos' });
+        if (doc) crumbs.push({ label: doc.title || 'Sem título' });
+    } else {
+        const label = PAGE_LABELS[pathname] ?? PAGE_LABELS[Object.keys(PAGE_LABELS).find(k => pathname.startsWith(k)) ?? ''];
+        if (label) crumbs.push({ label });
+    }
+
+    if (crumbs.length === 0) return <div className="flex-1" />;
+
+    return (
+        <div className="flex-1 flex items-center gap-1.5 min-w-0 px-4">
+            {crumbs.map((crumb, i) => (
+                <span key={i} className="flex items-center gap-1.5 min-w-0">
+                    {i > 0 && <ChevronRight size={13} className="text-muted shrink-0" />}
+                    {crumb.to ? (
+                        <Link to={crumb.to} className="text-sm text-muted hover:text-primary transition-colors truncate">
+                            {crumb.label}
+                        </Link>
+                    ) : (
+                        <span
+                            className="text-sm font-semibold truncate"
+                            style={crumb.color ? { color: crumb.color } : undefined}
+                        >
+                            {crumb.color && <span className="mr-1 font-bold" style={{ color: crumb.color }}>#</span>}
+                            {crumb.label}
+                        </span>
+                    )}
+                </span>
+            ))}
+        </div>
+    );
+}
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-[var(--radius-md)] transition-colors ${isActive
@@ -323,7 +388,7 @@ export default function AppLayout() {
                     >
                         <Menu size={20} />
                     </button>
-                    <div className="flex-1" />
+                    <TopbarBreadcrumb pathname={pathname} />
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}

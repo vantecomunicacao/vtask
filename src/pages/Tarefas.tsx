@@ -405,11 +405,11 @@ function TarefasContent() {
     };
 
     return (
-        <div className="space-y-3 fade-in h-full flex flex-col">
+        <div className="space-y-6 fade-in h-full flex flex-col">
             {/* Page Header */}
             <div className="flex items-center justify-between gap-4 shrink-0">
                 <div className="flex items-center gap-4 min-w-0">
-                    <h1 className="text-2xl font-bold text-primary shrink-0">Minhas Tarefas</h1>
+                    <h1 className="text-2xl font-bold text-primary leading-tight shrink-0">Minhas Tarefas</h1>
                     <div className="hidden sm:flex items-center gap-2">
                         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-card border border-border-subtle text-xs font-semibold text-secondary">
                             <List size={13} className="text-brand" />

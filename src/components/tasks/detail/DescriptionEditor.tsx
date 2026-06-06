@@ -217,7 +217,8 @@ export function DescriptionEditor({
                     content: attr(data-placeholder); float: left; color: #adb5bd; pointer-events: none; height: 0;
                 }
                 .tiptap-editor-mini .ProseMirror p { margin-top: 0; margin-bottom: 0; }
-                .tiptap-editor-mini ul[data-type="taskList"] { list-style: none; padding: 0; }
+                .tiptap-editor-mini ul[data-type="taskList"] { list-style: none; padding: 0; margin: 0.2em 0; }
+                .tiptap-editor-mini ul[data-type="taskList"] ul[data-type="taskList"] { padding-left: 1.5rem; margin: 0; }
                 .tiptap-editor-mini ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.25rem; }
                 .tiptap-editor-mini ul[data-type="taskList"] input[type="checkbox"] { width: 1rem; height: 1rem; margin-top: 0.2rem; cursor: pointer; accent-color: #db4035; }
                 .tiptap-editor-mini ul:not([data-type="taskList"]) { list-style-type: disc; padding-left: 1.25rem; }
@@ -230,7 +231,7 @@ export function DescriptionEditor({
                 .tiptap-editor-mini table td, .tiptap-editor-mini table th { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
                 .tiptap-editor-mini pre { background: #1f2937; color: #e5e7eb; padding: 1rem; border-radius: 0.5rem; margin: 1rem 0; overflow-x: auto; }
                 .tiptap-editor-mini code:not(pre code) { background: #f3f4f6; color: #db4035; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.875em; }
-                .tiptap-editor-mini mark { background: #fef08a; color: inherit; border-radius: 2px; padding: 0 2px; }
+                .tiptap-editor-mini mark { color: #111 !important; border-radius: 2px; padding: 0 2px; }
                 .tiptap-editor-mini s { text-decoration: line-through; }
                 .tiptap-editor-mini [data-callout] { padding: 0.75rem 1rem; border-radius: 6px; margin: 0.75rem 0; border-left: 3px solid; }
                 .tiptap-editor-mini [data-callout][data-type="info"] { background: #eff6ff; border-color: #3b82f6; }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
+import { PageHeader } from '../components/ui/PageHeader';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useAuthStore } from '../store/authStore';
 import {
@@ -399,11 +400,7 @@ export default function Dashboard() {
 
     return (
         <div className="space-y-6 fade-in pb-10">
-            {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-primary mb-0.5">Olá, {firstName}</h1>
-                <p className="text-sm text-secondary capitalize">{dateLabel}</p>
-            </div>
+            <PageHeader title={`Olá, ${firstName}`} description={dateLabel} />
 
             {/* Stat cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

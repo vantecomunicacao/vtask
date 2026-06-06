@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PageHeader } from '../components/ui/PageHeader';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { useProjectStore } from '../store/projectStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -58,12 +59,10 @@ export default function Arquivados() {
 
     return (
         <div className="space-y-6 fade-in h-full flex flex-col">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-primary">Arquivados</h1>
-                    <p className="text-sm text-secondary mt-1">Projetos concluídos ou fora de uso temporariamente.</p>
-                </div>
-            </div>
+            <PageHeader
+                title="Arquivados"
+                description="Projetos concluídos ou fora de uso temporariamente."
+            />
 
             {/* Filtro */}
             <div className="flex items-center gap-2">
