@@ -205,14 +205,20 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         const label = isAutosave ? 'autosave' : null;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: inserted, error } = await (supabase as any)
+        const { error } = await (supabase as any)
             .from('document_versions')
-            .insert({ document_id: documentId, title, content, created_by: user.id, label })
-            .select()
-            .single();
-        if (error || !inserted) return;
+            .insert({ document_id: documentId, title, content, created_by: user.id, label });
+        if (error) return;
 
-        const newVersion: DocumentVersion = inserted as DocumentVersion;
+        const newVersion: DocumentVersion = {
+            id: crypto.randomUUID(),
+            document_id: documentId,
+            title,
+            content,
+            created_by: user.id,
+            created_at: new Date().toISOString(),
+            label,
+        };
         set({ versions: [newVersion, ...get().versions].slice(0, 50) });
 
         if (isAutosave) await get().pruneAutosaves(documentId);
