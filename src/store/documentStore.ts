@@ -33,7 +33,8 @@ interface DocumentState {
     uploadPdf: (file: File, maxMb?: number) => Promise<{ url: string; name: string } | { error: string }>;
     moveDocument: (id: string, newParentId: string | null) => Promise<void>;
     fetchVersions: (documentId: string) => Promise<void>;
-    saveVersion: (documentId: string, title: string, content: Record<string, unknown>) => Promise<void>;
+    saveVersion: (documentId: string, title: string, content: Record<string, unknown>, isAutosave?: boolean) => Promise<void>;
+    pruneAutosaves: (documentId: string) => Promise<void>;
     restoreVersion: (documentId: string, version: DocumentVersion) => Promise<void>;
 }
 
@@ -193,7 +194,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         else set({ versions: (data as DocumentVersion[]) || [], versionsLoading: false });
     },
 
-    saveVersion: async (documentId, title, content) => {
+    saveVersion: async (documentId, title, content, isAutosave = false) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
@@ -201,22 +202,62 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         const latest = get().versions[0];
         if (latest && JSON.stringify(latest.content) === JSON.stringify(content) && latest.title === title) return;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any)
-            .from('document_versions')
-            .insert({ document_id: documentId, title, content, created_by: user.id });
-        if (error) return;
+        const label = isAutosave ? 'autosave' : null;
 
-        const newVersion: DocumentVersion = {
-            id: crypto.randomUUID(),
-            document_id: documentId,
-            title,
-            content,
-            created_by: user.id,
-            created_at: new Date().toISOString(),
-            label: null,
-        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: inserted, error } = await (supabase as any)
+            .from('document_versions')
+            .insert({ document_id: documentId, title, content, created_by: user.id, label })
+            .select()
+            .single();
+        if (error || !inserted) return;
+
+        const newVersion: DocumentVersion = inserted as DocumentVersion;
         set({ versions: [newVersion, ...get().versions].slice(0, 50) });
+
+        if (isAutosave) await get().pruneAutosaves(documentId);
+    },
+
+    pruneAutosaves: async (documentId) => {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+        // TTL: apaga autosaves com mais de 7 dias direto no banco
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+            .from('document_versions')
+            .delete()
+            .eq('document_id', documentId)
+            .eq('label', 'autosave')
+            .lt('created_at', sevenDaysAgo);
+
+        // Limite de 10: busca os autosaves mais antigos além do 10º
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: overflow } = await (supabase as any)
+            .from('document_versions')
+            .select('id')
+            .eq('document_id', documentId)
+            .eq('label', 'autosave')
+            .order('created_at', { ascending: false })
+            .range(10, 999);
+
+        if (overflow?.length > 0) {
+            const ids = overflow.map((r: { id: string }) => r.id);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase as any)
+                .from('document_versions')
+                .delete()
+                .in('id', ids);
+
+            // Remove do estado local usando updater funcional para evitar snapshot stale
+            set(state => ({ versions: state.versions.filter(v => !ids.includes(v.id)) }));
+        }
+
+        // Sincroniza TTL no estado local também
+        set(state => ({
+            versions: state.versions.filter(
+                v => !(v.document_id === documentId && v.label === 'autosave' && v.created_at < sevenDaysAgo)
+            ),
+        }));
     },
 
     restoreVersion: async (documentId, version) => {

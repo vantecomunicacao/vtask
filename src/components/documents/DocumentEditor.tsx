@@ -44,7 +44,7 @@ interface DocumentEditorProps {
 
 export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = false, backLabel }: DocumentEditorProps) {
     const navigate = useNavigate();
-    const { documents, updateDocument, deleteDocument, restoreDocument, uploadImage, uploadPdf, saveVersion, restoreVersion } = useDocumentStore();
+    const { documents, updateDocument, deleteDocument, restoreDocument, uploadImage, uploadPdf, saveVersion, restoreVersion, pruneAutosaves } = useDocumentStore();
     const { projects, fetchProjects } = useProjectStore();
     const { activeWorkspace } = useWorkspaceStore();
     const doc = documents.find(d => d.id === documentId);
@@ -67,10 +67,13 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
     // ─── Refs (evitam stale closures sem recriar o editor) ────────
     const projectDropdownRef = useRef<HTMLDivElement>(null);
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const autosaveTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
     const handleSaveRef = useRef<() => void>(() => {});
     const handleFileUploadRef = useRef<(file: File) => void>(() => {});
     const loadedDocIdRef = useRef<string | null>(null);
     const savingRef = useRef(false);
+    const titleRef = useRef(title);
+    useEffect(() => { titleRef.current = title; }, [title]);
     const documentsRef = useRef(documents);
     useEffect(() => { documentsRef.current = documents; }, [documents]);
 
@@ -165,6 +168,9 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
         loadedDocIdRef.current = doc.id;
         setTitle(doc.title);
         editor.commands.setContent((doc.content as any) || '');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (editor.commands as any).clearHistory?.();
+        pruneAutosaves(doc.id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editor, doc?.id]);
 
@@ -312,6 +318,17 @@ export function DocumentEditor({ documentId, onClose, onAddSubPage, isMobile = f
         w.document.close();
         w.focus();
     }, [editor, title, buildPrintHTML]);
+
+    // Autosave no histórico a cada 5 minutos
+    useEffect(() => {
+        if (!editor) return;
+        autosaveTimerRef.current = setInterval(() => {
+            const content = editor.getJSON() as Record<string, unknown>;
+            saveVersion(documentId, titleRef.current, content, true);
+        }, 5 * 60 * 1000);
+        return () => clearInterval(autosaveTimerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editor, documentId]);
 
     // Limpa timer ao desmontar
     useEffect(() => () => clearTimeout(saveTimerRef.current), []);

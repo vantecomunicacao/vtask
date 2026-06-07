@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { X, History, RotateCcw, Clock } from 'lucide-react';
+import { X, History, RotateCcw, Clock, Zap } from 'lucide-react';
 import { useDocumentStore } from '../../store/documentStore';
 import type { DocumentVersion } from '../../store/documentStore';
 
@@ -58,7 +58,7 @@ export function VersionHistoryPanel({ documentId, currentTitle, onRestore, onClo
                         <p className="text-xs text-muted leading-relaxed">
                             Nenhuma versão salva ainda.
                             <br />
-                            Use <kbd className="px-1 py-0.5 rounded bg-surface-card border border-border-subtle font-mono text-[10px]">Ctrl+S</kbd> para criar checkpoints.
+                            Use <kbd className="px-1 py-0.5 rounded bg-surface-card border border-border-subtle font-mono text-[10px]">Ctrl+S</kbd> para criar checkpoints ou aguarde o autosave.
                         </p>
                     </div>
                 ) : (
@@ -86,13 +86,23 @@ export function VersionHistoryPanel({ documentId, currentTitle, onRestore, onClo
             </div>
 
             {/* Footer */}
-            {versions.length > 0 && (
-                <div className="px-4 py-2 border-t border-border-subtle shrink-0">
-                    <p className="text-[10px] text-muted text-center">
-                        {versions.length} versão{versions.length !== 1 ? 'ões' : ''} salva{versions.length !== 1 ? 's' : ''}
-                    </p>
-                </div>
-            )}
+            {versions.length > 0 && (() => {
+                const manualCount = versions.filter(v => v.label !== 'autosave').length;
+                const autoCount = versions.filter(v => v.label === 'autosave').length;
+                return (
+                    <div className="px-4 py-2 border-t border-border-subtle shrink-0 flex items-center justify-center gap-3">
+                        {manualCount > 0 && (
+                            <span className="text-[10px] text-muted">{manualCount} manual{manualCount !== 1 ? 'is' : ''}</span>
+                        )}
+                        {manualCount > 0 && autoCount > 0 && <span className="text-muted/30 text-[10px]">·</span>}
+                        {autoCount > 0 && (
+                            <span className="flex items-center gap-0.5 text-[10px] text-amber-500/70">
+                                <Zap size={9} />{autoCount} autosave{autoCount !== 1 ? 's' : ''}
+                            </span>
+                        )}
+                    </div>
+                );
+            })()}
         </div>
     );
 }
@@ -102,6 +112,7 @@ function VersionItem({ version, index, onRestore }: {
     index: number;
     onRestore: (v: DocumentVersion) => void;
 }) {
+    const isAutosave = version.label === 'autosave';
     return (
         <div className="group px-3 py-2.5 rounded-[var(--radius-card)] hover:bg-surface-card border border-transparent hover:border-border-subtle transition-all">
             <div className="flex items-start justify-between gap-2">
@@ -109,7 +120,16 @@ function VersionItem({ version, index, onRestore }: {
                     <p className="text-xs font-medium text-primary truncate">{version.title || 'Sem título'}</p>
                     <p className="text-[10px] text-muted mt-0.5">{formatDate(version.created_at)}</p>
                 </div>
-                <span className="text-[9px] font-bold text-muted/60 shrink-0 pt-0.5">v{index}</span>
+                <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                    {isAutosave ? (
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-amber-500/80 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
+                            <Zap size={8} />
+                            auto
+                        </span>
+                    ) : (
+                        <span className="text-[9px] font-bold text-muted/60">v{index}</span>
+                    )}
+                </div>
             </div>
             <button
                 onClick={() => onRestore(version)}
